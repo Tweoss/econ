@@ -6,14 +6,7 @@ use actix_web_actors::ws;
 
 /// Define HTTP actor
 struct MyWs;
-enum Msg {
-	Connect,                         // connect to websocket server
-	Disconnected,                    // disconnected from server
-	Ignore,                          // ignore this message
-	TextInput(String),               // text was input in the input box
-	SendText,                        // send our text to server
-	Received(Result<String, Error>), // data received from server
-}
+
 impl Actor for MyWs {
 	type Context = ws::WebsocketContext<Self>;
 }

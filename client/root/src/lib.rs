@@ -64,7 +64,7 @@ impl Component for Model {
 					}
 				});
 				if self.ws.is_none() {
-					let task = match WebSocketService::connect("http://127.0.0.1:8080/ws/", cbout, cbnot) {
+					let task = match WebSocketService::connect("ws://127.0.0.1:8080/ws", cbout, cbnot) {
 						Err(e) => {ConsoleService::info("NÔ"); ConsoleService::error(e);None},
 						Ok(f) => Some(f),
 					};
