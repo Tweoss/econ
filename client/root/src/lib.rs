@@ -11,7 +11,7 @@ extern crate failure;
 use anyhow::Error;
 
 use yew::prelude::*;
-use yew::format::{Binary,Text,Json};
+use yew::format::{Json};
 use yew::services::ConsoleService;
 use yew::services::websocket::{WebSocketService, WebSocketStatus, WebSocketTask};
 use yew::html::ComponentLink;
