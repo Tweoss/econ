@@ -21,7 +21,8 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for MyWs {
 		match msg {
 			// Ok(ws::Message::Text) => (),
 			Ok(ws::Message::Text(text)) => {
-				ctx.text(text)
+				//* let textt = "\"hehehehehehe\"".to_owned();
+				ctx.text(text);
 			},
 			Ok(ws::Message::Binary(bin)) => ctx.binary(bin),
 			_ => (),
@@ -31,16 +32,13 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for MyWs {
 
 
 async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, Error> {
-	println!("HIIII");
 	let resp = ws::start(MyWs {}, &req, stream);
 	println!("{:?}", resp);
-	println!("{:?}", req);
 	resp
 }
 
 
 async fn manual_hello() -> impl Responder {
-	println!("HIIIIa");
 	HttpResponse::Ok().body("Hey there!")
 }
 

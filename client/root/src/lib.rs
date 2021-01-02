@@ -17,9 +17,9 @@ use yew::services::websocket::{WebSocketService, WebSocketStatus, WebSocketTask}
 use yew::html::ComponentLink;
 
 struct Model {
-	console: ConsoleService,
+	// console: ConsoleService,
 	ws: Option<WebSocketTask>,
-	wss: WebSocketService,
+	// wss: WebSocketService,
 	link: ComponentLink<Model>,
 	text: String,                    // text in our input box
 	server_data: String,             // data received from the server
@@ -40,9 +40,9 @@ impl Component for Model {
 
 	fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
 		Model {
-			console: ConsoleService {},
+			// console: ConsoleService {},
 			ws: None,
-			wss: WebSocketService {},
+			// wss: WebSocketService {},
 			link: link,
 			text: String::new(),
 			server_data: String::new(),
@@ -65,7 +65,7 @@ impl Component for Model {
 				});
 				if self.ws.is_none() {
 					let task = match WebSocketService::connect("ws://127.0.0.1:8080/ws", cbout, cbnot) {
-						Err(e) => {ConsoleService::info("NÔ"); ConsoleService::error(e);None},
+						Err(e) => {ConsoleService::error(e); None},
 						Ok(f) => Some(f),
 					};
 					
@@ -74,7 +74,6 @@ impl Component for Model {
 					// self.ws = Some(task);
 					self.ws = task;
 				}
-				ConsoleService::info("HI");
 				true
 			}
 			Msg::Disconnected => {
