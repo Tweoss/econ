@@ -1,3 +1,5 @@
+//* uses app.rs
+
 use actix_files::Files;
 use actix_web::{web, middleware, App, Error, HttpRequest, HttpResponse, HttpServer, Responder};
 use actix::{Actor, StreamHandler};
@@ -21,7 +23,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for MyWs {
 		match msg {
 			// Ok(ws::Message::Text) => (),
 			Ok(ws::Message::Text(text)) => {
-				//* let textt = "\"hehehehehehe\"".to_owned();
+				// let textt = "\"hehehehehehe: the\"".to_owned();
 				ctx.text(text);
 			},
 			Ok(ws::Message::Binary(bin)) => ctx.binary(bin),
@@ -32,6 +34,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for MyWs {
 
 
 async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, Error> {
+	// println!("called handle_ws");
 	let resp = ws::start(MyWs {}, &req, stream);
 	println!("{:?}", resp);
 	resp
@@ -46,13 +49,12 @@ async fn manual_hello() -> impl Responder {
 async fn main() -> std::io::Result<()> {
 	std::env::set_var("RUST_LOG", "actix_web=debug");
 	env_logger::init();
-
 	HttpServer::new(|| {
 		App::new()
 			// Enable the logger.
 			.wrap(middleware::Logger::default())
-			// We allow the visitor to see an index of the images at `/images`.
-			.service(Files::new("/images", "static/images/").show_files_listing())
+			// // We allow the visitor to see an index of the images at `/images`.
+			// .service(Files::new("/images", "static/images/").show_files_listing())
 			// fun
 			.route("/hey", web::get().to(manual_hello))
 			.route("/ws", web::get().to(handle_ws))
@@ -60,12 +62,12 @@ async fn main() -> std::io::Result<()> {
 			// Note that the root path should always be defined as the last item. The paths are
 			// resolved in the order they are defined. If this would be placed before the `/images`
 			// path then the service for the static images would never be reached.
-			.service(Files::new("/", "../client/root/static/").index_file("index.html"))
-			// .service(web::resource("/ws").to(handle_ws))
-			// HttpServer::new(|| App::new().route("/ws/", web::get().to(index)))
+			// .service(Files::new("/", "../client/root/static/").index_file("index.html"))
+			.service(Files::new("/", "/home/runner/rust-server-wrapper/client/root/static/").index_file("index.html"))
 
 	})
-	.bind("127.0.0.1:8080")?
+	// .bind("127.0.0.1:8080")?
+	.bind("0.0.0.0:8080")?
 	.run()
 	.await
 }
