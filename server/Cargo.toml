@@ -12,3 +12,5 @@ actix-web-actors = "3.0.0"
 actix = "0.10.0"
 actix-files = "0.3"
 env_logger = "0.8"
+uuid = { version = "0.8", features = ["serde", "v4"] }
+time = "0.2"
