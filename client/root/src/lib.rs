@@ -35,7 +35,6 @@ enum Msg {
 	SendText,                        // send our text to server
 	Received(Result<String, Error>), // data received from server
 	SendReq,
-	Noop,							 // do nothing
 }
 
 impl Component for Model {
@@ -126,15 +125,16 @@ impl Component for Model {
 				
 				let task = fetch::FetchService::fetch(request, self.link.callback(|response: Response<Result<String, Error>>| {
 					if response.status().is_success() {
-						Msg::Noop
+						// response.
+						Msg::Received(Ok("HIIIIIII".to_string()))
 					} else {
 						Msg::Ignore
 					}
 				})).unwrap();
+
 				ConsoleService::log("hi");
 				false
 			},
-			Msg::Noop => false,
 		}
 	}
 	fn view(&self) -> Html {
@@ -144,6 +144,8 @@ impl Component for Model {
 		let sendreq = self.link.callback(|_| Msg::SendReq);
 		html! {
 			<>
+			<input type="text" placeholder="Game ID" style="margin:auto"/>
+			<input type="text" placeholder="Username" style="margin:auto"/>
 			// connect button
 			<p><button onclick=onbuttonconnect,>{ "Connect" }</button></p><br/>
 			// text showing whether we're connected or not

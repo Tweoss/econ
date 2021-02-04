@@ -14,3 +14,6 @@ actix-files = "0.3"
 env_logger = "0.8"
 uuid = { version = "0.8", features = ["serde", "v4"] }
 time = "0.2"
+sentry = "0.21.0"
+sentry-actix = "0.21.0"
+# rand = "0.8.2"

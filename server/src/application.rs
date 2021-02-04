@@ -1,5 +1,5 @@
 pub mod app;
-pub mod app_messages;
-pub mod player;
+pub mod handle_to_app;
+pub mod participants;
 pub mod game;
-pub mod other_messages;
+pub mod app_to_game;

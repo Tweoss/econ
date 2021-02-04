@@ -7,13 +7,21 @@ use actix::{/* Addr, */Actor, Context};
 // //* players can make actions to be sent to the game to manage
 pub struct Player {
 	//* will never be modified
-	// id: usize,
-	// //* will never be modified
-	// addr: Addr<Player>,
+	pub uuid: String,
+	pub username: String,
 	//* will never be modified
 	// game_addr: Addr<Game>,
 }
 
 impl Actor for Player {
     type Context = Context<Self>;
+}
+
+impl Player {
+	pub fn new (uuid: String, username: String) -> Player{
+		Player {
+			uuid,
+			username,
+		}
+	}
 }
