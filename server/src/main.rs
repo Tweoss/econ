@@ -1,22 +1,19 @@
 //* uses app.rs
 
 use actix::{Actor, StreamHandler};
-use actix_files::{Files, NamedFile};
-use actix_web::{
-	get, middleware, web, App, Error, HttpRequest, HttpResponse, HttpServer,
-	Responder,
-};
+use actix_files::Files;
+use actix_files::NamedFile;
+use actix_web::{middleware, web, App, Error, HttpRequest, HttpResponse, HttpServer};
 use actix_web_actors::ws;
-use std::path::PathBuf;
+
 // use uuid::Uuid;
 
 mod application;
 
 use application::app::AppState;
 
-mod cookies;
-use cookies::set_cookies;
-
+mod html_handlers;
+use html_handlers::{get_html, redirect, set_cookies};
 
 /// Define HTTP actor
 struct MyWs;
@@ -39,6 +36,12 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for MyWs {
 	}
 }
 
+
+async fn index_404(req: HttpRequest) -> actix_web::Result<NamedFile> {
+    // let path: PathBuf = req.match_info().query("filename").parse().unwrap();
+    Ok(NamedFile::open("../client/404/static/index.html")?)
+}
+
 async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, Error> {
 	// println!("called handle_ws");
 	let resp = ws::start(MyWs {}, &req, stream);
@@ -46,64 +49,13 @@ async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpRespons
 	resp
 }
 
-//todo UNNECESSARY??
-#[get("/play/producer/{gameid}/")]
-async fn redirect() -> impl Responder {
-	//* ABSOLUTE URL FOR SOME REASON
-	HttpResponse::PermanentRedirect()
-		.header("LOCATION", "../index.html")
-		.finish()
-}
-
 // #[get("/director/{filename}.{ext}")]
 
 // #[get("/login/{filename}.{ext}")]
 
-#[get("/play/{producer}/{gameid}/{filename}.{ext}")]
-//* #[get("/{play_view_direct}/{type}/{gameid}/{filename}.{ext}")]
-// type for authenticated directors or viewers are direct and view respectively
-async fn html_produce(req: HttpRequest) -> impl Responder {
-	// http://localhost:8080/play/producer/gameid/index.html
-	println!("Received request for Files");
-	// let prepath = "../client/producer/";
-	let prepath = "../client/root/static/";
-	// let mut path = "../client/";
-	let filename: &str = req.match_info().get("filename").unwrap();
-	let ext: &str = req.match_info().get("ext").unwrap();
-	println!(
-		"{prepath}\n{file}\n{ext}",
-		prepath = prepath,
-		file = filename,
-		ext = ext
-	);
-	match ext {
-		"html" | "js" => {
-			println!("got a request");
-			if true {
-				let temp = (*prepath).to_owned() + filename + "." + ext;
-				println!("HI: {cat}", cat = temp);
-				Ok(NamedFile::open(
-					(prepath.to_owned() + filename + "." + ext)
-						.parse::<PathBuf>()
-						.unwrap(),
-				))
-			} else {
-				Err(actix_web::error::ErrorUnauthorized("Not Authorized"))
-			}
-		}
-		_ => {
-			Err(actix_web::error::ErrorUnauthorized("Not Authorized"))
-			// 	println!("HILOOK AT ME");
-			// let temp = (*prepath).to_owned() + filename + "." + ext;
-			// Ok(NamedFile::open((prepath.to_owned() + filename + "." + ext).parse::<PathBuf>().unwrap()))
-		}
-	}
-	// let prepath: PathBuf = "../client/producer/".parse().unwrap();
-	// Ok(NamedFile::open(path)?)
-}
+// #[get("/play/{producer}/{gameid}/{filename}.{ext}")]
 
 //* set the auth cookies MAKE SURE TO CHECK COOKIES AT LOGIN AND AT PLAY URL
-
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -125,8 +77,9 @@ async fn main() -> std::io::Result<()> {
 		App::new()
 			.wrap(middleware::Logger::default())
 			.data(app_addr)
-			.route("/ws", web::get().to(handle_ws))
-			.route("/cookies", web::get().to(set_cookies))
+			// .route("/ws", web::get().to(handle_ws))
+			.route("/cookies", web::post().to(set_cookies))
+			.route("/redirect", web::get().to(redirect))
 			.service(
 				Files::new("/director/index", path.clone() + "/director_auth/static/")
 					.index_file("index.html"),
@@ -139,14 +92,17 @@ async fn main() -> std::io::Result<()> {
 				Files::new("/viewer/{gameid}", path.clone() + "viewer/static/")
 					.index_file("index.html"),
 			)
-			.service(html_produce)
-			.service(redirect)
-			// .route("/data/producer", web::get().to(data_produce))
-			// .route("/data/consumer", web::get().to(data_consume))
-			.service(Files::new("/", path + "root/static/").index_file("index.html"))
+			.service(get_html)
+			// ! SWITCH THIS REPL (MAYBE)
+			.service(Files::new("/", path.clone() + "root/static/").index_file("index.html"))
+			.service(Files::new("/login", "../client/root/static/").index_file("index.html"))
+			// .route("", web::get().to(index_404))
+			.default_service(web::get().to(index_404))
+		// .service(Files::new("/{anything:.+}", path.clone() + "404/static/").index_file("index.html"))
 	})
-	.bind("127.0.0.1:8080")?
-	// .bind("0.0.0.0:8080")?
+	// ! SWITCH THIS REPL
+	// .bind("127.0.0.1:8080")?
+	.bind("0.0.0.0:8080")?
 	.run()
 	.await
 }

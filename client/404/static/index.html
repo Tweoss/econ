@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>404 Page</title>
+</head>
+<style>
+    .container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100%;
+        /* background-color: red; */
+        flex-direction: column;
+    }
+    
+    .message {
+        font-size: 2vw;
+        text-align: center;
+        align-items: center;
+        flex-grow: 1;
+    }
+    
+    .link {
+        font-size: 5vw;
+        color: blue;
+        flex-grow: 3;
+    }
+    
+    body {
+        height: 100%;
+    }
+    
+    html {
+        height: 100%;
+        background-color: rgb(107, 178, 229);
+    }
+</style>
+
+<body>
+    <div class="container">
+        <p class="message">404: Page Not Found. The game may not exist or be terminated. Click the link to return to the login page.</p>
+        <a class="link" href="/login/index.html">Login Page</a>
+    </div>
+</body>
+
+</html>

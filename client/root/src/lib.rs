@@ -11,30 +11,31 @@ extern crate yew;
 use anyhow::Error;
 
 use http::{Request, Response};
-use yew::format::{Json, Nothing};
+use stdweb::js;
+use yew::format::Json;
 use yew::html::ComponentLink;
 use yew::prelude::*;
-use yew::services::websocket::{WebSocketService, WebSocketStatus, WebSocketTask};
-use yew::services::ConsoleService;
 use yew::services::fetch;
+use yew::services::ConsoleService;
+
+use serde_json::json;
 
 struct Model {
 	// console: ConsoleService,
-	ws: Option<WebSocketTask>,
-	// wss: WebSocketService,
+	// ws: Option<WebSocketTask>,
 	link: ComponentLink<Model>,
-	text: String,        // text in our input box
+	game_id: String, // text in our input box
+	name: String,
 	server_data: String, // data received from the server
+	task: Option<fetch::FetchTask>,
 }
 
 enum Msg {
-	Connect,                         // connect to websocket server
-	Disconnected,                    // disconnected from server
-	Ignore,                          // ignore this message
-	TextInput(String),               // text was input in the input box
-	SendText,                        // send our text to server
-	Received(Result<String, Error>), // data received from server
+	Ignore,              // ignore this message
+	GameIDInput(String), // text was input in the input box
+	NameInput(String),   // text was input in the input box
 	SendReq,
+	Receieved(String),
 }
 
 impl Component for Model {
@@ -44,120 +45,100 @@ impl Component for Model {
 	fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
 		Model {
 			// console: ConsoleService {},
-			ws: None,
-			// wss: WebSocketService {},
+			// ws: None,
 			link,
-			text: String::new(),
+			game_id: String::new(),
+			name: String::new(),
 			server_data: String::new(),
+			task: None,
 		}
 	}
 
 	fn update(&mut self, msg: Self::Message) -> ShouldRender {
 		match msg {
-			Msg::Connect => {
-				ConsoleService::log("Connecting");
-				let cbout = self.link.callback(|Json(data)| Msg::Received(data));
-				let cbnot = self.link.batch_callback(|input| {
-					ConsoleService::log(&format!("Notification: {:?}", input));
-					match input {
-						WebSocketStatus::Closed | WebSocketStatus::Error => {
-							std::vec![Msg::Disconnected]
-						}
-						_ => std::vec![Msg::Ignore],
-					}
-				});
-				if self.ws.is_none() {
-					// let task = match WebSocketService::connect("ws://127.0.0.1:8080/ws", cbout, cbnot) {
-					let task =
-						match WebSocketService::connect("wss://web.valour.vision/ws", cbout, cbnot)
-						{
-							Err(e) => {
-								ConsoleService::error(e);
-								None
-							}
-							Ok(f) => Some(f),
-						};
-					// let task = WebSocketService::connect("ws://127.0.0.1:8080/ws/", cbout, cbnot).unwrap();
-					// let task = self.wss.connect("ws://127.0.0.1:8080/ws/", cbout, cbnot.into());
-					// self.ws = Some(task);
-					self.ws = task;
-				}
-				true
-			}
-			Msg::Disconnected => {
-				self.ws = None;
-				true
-			}
 			Msg::Ignore => false,
-			Msg::TextInput(e) => {
-				self.text = e; // note input box value
+			Msg::GameIDInput(e) => {
+				self.game_id = e; // note input box value
 				true
 			}
-			Msg::SendText => {
-				match self.ws {
-					Some(ref mut task) => {
-						task.send(Json(&self.text));
-						self.text = "".to_string();
-						true // clear input box
-					}
-					None => false,
-				}
-			}
-			Msg::Received(Ok(s)) => {
-				self.server_data.push_str(&format!("{}\n", &s));
-				true
-			}
-			Msg::Received(Err(s)) => {
-				self.server_data.push_str(&format!(
-					"Error when reading data from server: {}\n",
-					&s.to_string()
-				));
+			Msg::NameInput(e) => {
+				self.name = e; // note input box value
 				true
 			}
 			Msg::SendReq => {
-				let request = Request::get("/cookies")
-					.header("username", "woemaster")
-					.header("game_id", "1111")
-					.header("viewtype", "player")
-					.body(Nothing)
+				let json = json!({"username": self.name, "viewtype": "director", "game_id": self.game_id, "password": "eDicTUingeTE"});
+				let post_request = Request::post("/cookies")
+					// let post_request = Request::post("https://a.valour.vision/cookies")
+					// .header("Content-Type", "text/plain")
+					.header("Content-Type", "application/json")
+					.body(Json(&json))
 					.unwrap();
-
-				
-				let task = fetch::FetchService::fetch(request, self.link.callback(|response: Response<Result<String, Error>>| {
-					if response.status().is_success() {
-						// response.
-						Msg::Received(Ok("HIIIIIII".to_string()))
-					} else {
-						Msg::Ignore
-					}
-				})).unwrap();
-
-				ConsoleService::log("hi");
+				// .expect("Could not build that request.");
+				// let options = FetchOptions {
+				// 	credentials: Some(web_sys::RequestCredentials::SameOrigin),
+				// 	..FetchOptions::default()
+				// };
+				let callback = self
+					.link
+					.callback(|response: Response<Result<String, Error>>| {
+						if response.status().is_success() {
+							// response.
+							ConsoleService::log("Sent Request and Received Response with code: ");
+							ConsoleService::log(response.status().as_str());
+							if response.body().as_ref().unwrap() == "Success" {
+								js! {
+									console.log("HI");
+									document.getElementById("link").click();
+								}
+							}
+							Msg::Receieved(response.body().as_ref().unwrap().to_string())
+						} else {
+							ConsoleService::log("Failed to Send Request");
+							Msg::Receieved(format!("Failed to send request: {}", response.status()))
+						}
+					});
+				let task = fetch::FetchService::fetch(
+					post_request,
+					// options,
+					callback,
+				)
+				.unwrap();
+				self.task = Some(task);
 				false
-			},
+			}
+			Msg::Receieved(data) => {
+				self.server_data = data;
+				true
+			}
 		}
 	}
 	fn view(&self) -> Html {
-		let onbuttonconnect = self.link.callback(|_| Msg::Connect);
-		let onbuttonsend = self.link.callback(|_| Msg::SendText);
-		let inputtext = self.link.callback(|e: InputData| Msg::TextInput(e.value));
+		let input_gameid = self.link.callback(|e: InputData| Msg::GameIDInput(e.value));
+		let input_name = self.link.callback(|e: InputData| Msg::NameInput(e.value));
 		let sendreq = self.link.callback(|_| Msg::SendReq);
 		html! {
 			<>
-			<input type="text" placeholder="Game ID" style="margin:auto"/>
-			<input type="text" placeholder="Username" style="margin:auto"/>
-			// connect button
-			<p><button onclick=onbuttonconnect,>{ "Connect" }</button></p><br/>
-			// text showing whether we're connected or not
-			<p>{ "Connected: " } { !self.ws.is_none() } </p><br/>
-			// input box for sending text
-			<p><input type="text", value=&self.text, oninput=inputtext,/></p><br/>
-			// button for sending text
-			<p><button onclick=onbuttonsend,>{ "Send" }</button></p><br/>
-			// text area for showing data from the server
-			<p><textarea value=&self.server_data,></textarea></p><br/>
-			// button to send request
-			<p><button onclick=sendreq,>{ "Send Req" }</button></p><br/>
+			<div class="container">
+				<input id="game_id" type="text" oninput=input_gameid placeholder="Game ID" class="input" maxlength="6" autocomplete="off"/>
+				<br/>
+				<input id="name" oninput=input_name placeholder="Username" class="input" maxlength="20" autocomplete="off"/>
+				<br/>
+				<button id="enter" class="enter" onclick=sendreq>{"Enter"}</button>
+				<p class="message">{self.server_data.clone()}</p>
+			</div>
+			<a id="link" class="link" href="/redirect"></a>
+			// // connect button
+			// <p><button onclick=onbuttonconnect,>{ "Connect" }</button></p><br/>
+			// // text showing whether we're connected or not
+			// <p>{ "Connected: " } { !self.ws.is_none() } </p><br/>
+			// // input box for sending text
+			// <p><input type="text", value=&self.text, oninput=inputtext,/></p><br/>
+			// // button for sending text
+			// <p><button onclick=onbuttonsend,>{ "Send" }</button></p><br/>
+			// // text area for showing data from the server
+			// <p><textarea value=&self.server_data,></textarea></p><br/>
+			// // button to send request
+			// <p><button onclick=sendreq,>{ "Send Req" }</button></p><br/>
 			</>
 		}
 	}
