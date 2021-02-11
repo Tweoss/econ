@@ -108,3 +108,50 @@ impl Handler<NewGame> for AppState {
         self.game_map.lock().unwrap().insert(msg.game_id, game.start());
     }
 }
+
+/// Handler for IsDirector
+/// 
+/// Creates a New Game with specified main director
+impl Handler<IsDirector> for AppState {
+    type Result = ResponseFuture<Option<Addr<Game>>>;
+    fn handle(&mut self, msg: IsDirector, _context: &mut Context<Self>) -> Self::Result {
+        if let Some(addr) = self.game_map.lock().unwrap().get(&msg.game_id) {
+            let async_addr = addr.clone();
+            Box::pin(async move {
+               if async_addr.clone().send(app_to_game::IsDirector {user_id: msg.user_id}).await.unwrap() {
+                   Some(async_addr)
+               }
+               else {
+                   None
+               }
+            })
+        }
+        else {
+            Box::pin(async move {None})
+        }
+    }
+}
+
+/// Handler for IsPlayer
+/// 
+/// Creates a New Game with specified main director
+impl Handler<IsPlayer> for AppState {
+    type Result = ResponseFuture<Option<Addr<Game>>>;
+    fn handle(&mut self, msg: IsPlayer, _context: &mut Context<Self>) -> Self::Result {
+        if let Some(addr) = self.game_map.lock().unwrap().get(&msg.game_id) {
+            let async_addr = addr.clone();
+            Box::pin(async move {
+               if async_addr.clone().send(app_to_game::IsPlayer {user_id: msg.user_id}).await.unwrap() {
+                   Some(async_addr)
+               }
+               else {
+                   None
+               }
+            })
+        }
+        else {
+            Box::pin(async move {None})
+        }
+    }
+}
+

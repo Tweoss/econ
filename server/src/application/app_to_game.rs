@@ -26,3 +26,17 @@ pub struct NewDirector {
 #[derive(Message)]
 #[rtype(bool)]
 pub struct IsGameOpen {}
+
+/// Check if Game is open to players
+#[derive(Message)]
+#[rtype(bool)]
+pub struct IsDirector {
+	pub user_id: String,
+}
+
+/// Check if Game is open to players
+#[derive(Message)]
+#[rtype(bool)]
+pub struct IsPlayer {
+	pub user_id: String,
+}
