@@ -1,53 +1,49 @@
 //* uses app.rs
 
-use actix::{Actor, StreamHandler};
+use actix::{Actor};
 use actix_files::Files;
 use actix_files::NamedFile;
-use actix_web::{middleware, web, App, Error, HttpRequest, HttpResponse, HttpServer};
-use actix_web_actors::ws;
+use actix_web::{middleware, web, App, HttpRequest, HttpServer};
 
 // use uuid::Uuid;
 
 mod application;
-
-use application::app::AppState;
+use crate::application::app::AppState;
 
 mod html_handlers;
 use html_handlers::{get_html, redirect, set_cookies};
 
-/// Define HTTP actor
-struct MyWs;
+mod ws_handler;
+use ws_handler::{handle_ws};
 
-impl Actor for MyWs {
-	type Context = ws::WebsocketContext<Self>;
-}
+// /// Define HTTP actor
+// struct MyWs;
 
-/// Handler for ws::Message message
-impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for MyWs {
-	fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
-		match msg {
-			// Ok(ws::Message::Text) => (),
-			Ok(ws::Message::Text(text)) => {
-				ctx.text(text);
-			}
-			Ok(ws::Message::Binary(bin)) => ctx.binary(bin),
-			_ => (),
-		}
-	}
-}
+// impl Actor for MyWs {
+// 	type Context = ws::WebsocketContext<Self>;
+// }
+
+// /// Handler for ws::Message message
+// impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for MyWs {
+// 	fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
+// 		match msg {
+// 			// Ok(ws::Message::Text) => (),
+// 			Ok(ws::Message::Text(text)) => {
+// 				ctx.text(text);
+// 			}
+// 			Ok(ws::Message::Binary(bin)) => ctx.binary(bin),
+// 			_ => (),
+// 		}
+// 	}
+// }
 
 
-async fn index_404(req: HttpRequest) -> actix_web::Result<NamedFile> {
+async fn index_404(_req: HttpRequest) -> actix_web::Result<NamedFile> {
     // let path: PathBuf = req.match_info().query("filename").parse().unwrap();
     Ok(NamedFile::open("../client/404/static/index.html")?)
 }
 
-async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, Error> {
-	// println!("called handle_ws");
-	let resp = ws::start(MyWs {}, &req, stream);
-	println!("{:?}", resp);
-	resp
-}
+
 
 // #[get("/director/{filename}.{ext}")]
 
@@ -92,13 +88,10 @@ async fn main() -> std::io::Result<()> {
 				Files::new("/viewer/{gameid}", path.clone() + "viewer/static/")
 					.index_file("index.html"),
 			)
+			.route("/ws", web::get().to(handle_ws))
 			.service(get_html)
-			// ! SWITCH THIS REPL (MAYBE)
-			.service(Files::new("/", path.clone() + "root/static/").index_file("index.html"))
-			.service(Files::new("/login", "../client/root/static/").index_file("index.html"))
-			// .route("", web::get().to(index_404))
+			.service(Files::new("/login",  path + "login/static/").index_file("index.html"))
 			.default_service(web::get().to(index_404))
-		// .service(Files::new("/{anything:.+}", path.clone() + "404/static/").index_file("index.html"))
 	})
 	// ! SWITCH THIS REPL
 	// .bind("127.0.0.1:8080")?

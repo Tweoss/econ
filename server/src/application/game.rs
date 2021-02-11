@@ -1,16 +1,15 @@
-use actix::prelude::*;
-use crate::application::app::AppState; 
 use super::participants::player::Player;
+use crate::application::app::AppState;
 use crate::application::app_to_game::*;
+use actix::prelude::*;
 
-use std::sync::Mutex;
 use std::collections::HashMap;
-
+use std::sync::Mutex;
 
 // //* Game can receive messages about a Player joining, admin Messages, other things?
 pub struct Game {
 	//* will never be modified - read multiple times
-	// id: usize, //* 6 digits? 
+	// id: usize, //* 6 digits?
 	//* will be modified
 	producers: Mutex<HashMap<String, Option<Addr<Player>>>>,
 	consumers: Mutex<HashMap<String, Option<Addr<Player>>>>,
@@ -20,11 +19,11 @@ pub struct Game {
 	is_open: bool,
 	// // * will never be modified
 	app_addr: Addr<AppState>,
-	producer_next: bool
+	producer_next: bool,
 }
 
 impl Actor for Game {
-    type Context = Context<Self>;
+	type Context = Context<Self>;
 }
 
 impl Game {
@@ -42,23 +41,21 @@ impl Game {
 	}
 }
 
-
 /// Handler for NewPlayer message.
 ///
 /// Register a NewPlayer
 impl Handler<NewPlayer> for Game {
-    type Result = String;
-    fn handle(&mut self, msg: NewPlayer, _: &mut Context<Self>) -> Self::Result {
+	type Result = String;
+	fn handle(&mut self, msg: NewPlayer, _: &mut Context<Self>) -> Self::Result {
 		self.producer_next = !self.producer_next;
 		if self.producer_next {
 			self.consumers.lock().unwrap().insert(msg.user_id, None);
 			"consumer".to_string()
-		}
-		else {
+		} else {
 			self.producers.lock().unwrap().insert(msg.user_id, None);
 			"producer".to_string()
 		}
-    }
+	}
 }
 
 /// Return if the Game is open to players
@@ -74,5 +71,23 @@ impl Handler<NewDirector> for Game {
 	type Result = ();
 	fn handle(&mut self, msg: NewDirector, _: &mut Context<Self>) -> Self::Result {
 		self.directors.lock().unwrap().insert(msg.user_id, None);
+	}
+}
+
+/// Register an additional director
+impl Handler<IsDirector> for Game {
+	type Result = bool;
+	fn handle(&mut self, msg: IsDirector, _: &mut Context<Self>) -> Self::Result {
+		self.directors.lock().unwrap().contains_key(&msg.user_id)
+			|| self.id_main_director == msg.user_id
+	}
+}
+
+/// Register an additional director
+impl Handler<IsPlayer> for Game {
+	type Result = bool;
+	fn handle(&mut self, msg: IsPlayer, _: &mut Context<Self>) -> Self::Result {
+		self.consumers.lock().unwrap().contains_key(&msg.user_id)
+			|| self.producers.lock().unwrap().contains_key(&msg.user_id)
 	}
 }

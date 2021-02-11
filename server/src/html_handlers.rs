@@ -252,7 +252,7 @@ pub async fn redirect(req: HttpRequest) -> impl Responder {
 	}
 
 	HttpResponse::build(http::StatusCode::FOUND)
-		.header(http::header::LOCATION, "/")
+		.header(http::header::LOCATION, "/login")
 		.finish()
 	// if let cookies = req.cookies() {
 	// 	cookies = ();
@@ -262,52 +262,3 @@ pub async fn redirect(req: HttpRequest) -> impl Responder {
 	// 		.finish()
 	// }
 }
-
-// pub async fn redirect(req: HttpRequest) -> impl Responder {
-// 	if let Some(game_id) = req.cookie("game_id") {
-// 		let game_string = game_id.value().to_owned();
-// 		println!("HEY: {}", game_string);
-// 		if let Some(viewtype) = req.cookie("viewtype") {
-// 			match viewtype.value() {
-// 				"director" => {
-// 					// return HttpResponse::build(http::StatusCode::OK)
-// 					// 	.body("HI")
-// 					return HttpResponse::build(http::StatusCode::PERMANENT_REDIRECT)
-// 						.header(
-// 							http::header::LOCATION,
-// 							format!("direct/{:?}/index.html", game_string),
-// 						)
-// 						.finish()
-// 				}
-// 				"consumer" => {
-// 					return HttpResponse::build(http::StatusCode::PERMANENT_REDIRECT)
-// 						.header(
-// 							http::header::LOCATION,
-// 							format!("play/consumer/{:?}/index.html", game_string),
-// 						)
-// 						.finish()
-// 				}
-// 				"producer" => {
-// 					return HttpResponse::build(http::StatusCode::PERMANENT_REDIRECT)
-// 						.header(
-// 							http::header::LOCATION,
-// 							format!("play/producer/{:?}/index.html", game_string),
-// 						)
-// 						.finish()
-// 				}
-// 				_ => (),
-// 			}
-// 		}
-// 	}
-
-// 	HttpResponse::build(http::StatusCode::PERMANENT_REDIRECT)
-// 		.header(http::header::LOCATION, "/")
-// 		.finish()
-// 	// if let cookies = req.cookies() {
-// 	// 	cookies = ();
-// 	// } else {
-// 	// 	HttpResponse::build(http::StatusCode::PERMANENT_REDIRECT)
-// 	// 		.header(http::header::LOCATION, "/viewer/123")
-// 	// 		.finish()
-// 	// }
-// }
