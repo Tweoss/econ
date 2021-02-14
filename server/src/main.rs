@@ -17,14 +17,14 @@ mod ws_handler;
 use ws_handler::{handle_ws};
 
 // /// Define HTTP actor
-// struct MyWs;
+// struct Director;
 
-// impl Actor for MyWs {
+// impl Actor for Director {
 // 	type Context = ws::WebsocketContext<Self>;
 // }
 
 // /// Handler for ws::Message message
-// impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for MyWs {
+// impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Director {
 // 	fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
 // 		match msg {
 // 			// Ok(ws::Message::Text) => (),
@@ -90,7 +90,8 @@ async fn main() -> std::io::Result<()> {
 			)
 			.route("/ws", web::get().to(handle_ws))
 			.service(get_html)
-			.service(Files::new("/login",  path + "login/static/").index_file("index.html"))
+			.service(Files::new("/director_login",  path.clone() + "director_login/static/").index_file("index.html"))
+			.service(Files::new("/login",  path.clone() + "login/static/").index_file("index.html"))
 			.default_service(web::get().to(index_404))
 	})
 	// ! SWITCH THIS REPL

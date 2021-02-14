@@ -31,25 +31,25 @@ impl Player {
 }
 
 /// Define HTTP actor
-pub struct MyWs {
+pub struct Director {
 	pub uuid: String,
 	pub game_id: String,
 	pub game_addr: Addr<Game>,
 }
 
-impl Actor for MyWs {
+impl Actor for Director {
 	type Context = ws::WebsocketContext<Self>;
 }
 
-impl MyWs {
-	pub async fn new(uuid: String, game_id: String, addr: &actix_web::web::Data<Addr<AppState>>) -> Option<MyWs> {
+impl Director {
+	pub async fn new(uuid: String, game_id: String, addr: &actix_web::web::Data<Addr<AppState>>) -> Option<Director> {
 		if let Some(game_addr) = addr.send(IsDirector {user_id: uuid.clone(), game_id: game_id.clone()}).await.unwrap() {
-			Some(MyWs {uuid, game_id, game_addr})
+			Some(Director {uuid, game_id, game_addr})
 		}
 		else {
 			None
 		}
-		// MyWs {
+		// Director {
 		// 	uuid,
 		// 	game_id,
 		// }
@@ -57,7 +57,7 @@ impl MyWs {
 }
 
 /// Handler for ws::Message message
-impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for MyWs {
+impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Director {
 	fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
 		match msg {
 			// Ok(ws::Message::Text) => (),

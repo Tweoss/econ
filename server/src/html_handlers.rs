@@ -175,43 +175,50 @@ pub async fn set_cookies(cookie_info: web::Json<CookieInfo>, req: HttpRequest) -
 
 // ! PLAN TO MAKE DIFFERENT HANDLERS
 #[get("/{play_view_direct}/{type}/{gameid:\\d*}/{filename}.{ext}")]
-// type for authenticated directors or viewers are direct and view respectively
+// type for authenticated directors or viewers are director and viewer respectively
 async fn get_html(req: HttpRequest) -> impl Responder {
 	// http://localhost:8080/play/producer/gameid/index.html
 	println!("Received request for Files");
-	// let prepath = "../client/producer/";
-	let prepath = "../client/root/static/";
-	// let mut path = "../client/";
-	let filename: &str = req.match_info().get("filename").unwrap();
-	let ext: &str = req.match_info().get("ext").unwrap();
-	println!(
-		"{prepath}\n{file}\n{ext}",
-		prepath = prepath,
-		file = filename,
-		ext = ext
-	);
-	match ext {
-		"html" | "js" => {
-			println!("got a request");
-			if true {
-				let temp = (*prepath).to_owned() + filename + "." + ext;
-				println!("HI: {cat}", cat = temp);
-				Ok(NamedFile::open(
-					(prepath.to_owned() + filename + "." + ext)
-						.parse::<PathBuf>()
-						.unwrap(),
-				))
-			} else {
-				Err(actix_web::error::ErrorUnauthorized("Not Authorized"))
+	let mut prepath = "../client/".to_owned();
+	// let prepath = "../client/root/static/";
+	let filename = req.match_info().get("filename").unwrap();
+	let ext = req.match_info().get("ext").unwrap();
+	let _play_view_direct = req.match_info().get("play_view_direct").unwrap();
+	let url_viewtype = req.match_info().get("type").unwrap();
+	let url_game_id = req.match_info().get("gameid").unwrap();
+	if let (Some(view_type), Some(game_id)) = (req.cookie("viewtype"), req.cookie("game_id")) {
+		if view_type.value() == url_viewtype && game_id.value() == url_game_id {
+			match ext {
+				"html" | "js" | "css" => {
+					// if let Some(view_type) = req.cookie("viewtype") {
+					prepath = match view_type.value() {
+						"viewer" => prepath + "viewer/",
+						"producer" => prepath + "producer/",
+						"consumer" => prepath + "consumer/",
+						"director" => prepath + "director_auth/",
+
+						_ => return Err(actix_web::error::ErrorUnauthorized("Not Authorized")),
+					};
+					prepath += "static/";
+					let temp = (*prepath).to_owned() + filename + "." + ext;
+					println!("HI: {cat}", cat = temp);
+					return Ok(NamedFile::open(
+						(prepath + filename + "." + ext).parse::<PathBuf>().unwrap(),
+					));
+				}
+
+				_ => ()
 			}
 		}
-		_ => {
-			Err(actix_web::error::ErrorUnauthorized("Not Authorized"))
-			// 	println!("HILOOK AT ME");
-			// let temp = (*prepath).to_owned() + filename + "." + ext;
-			// Ok(NamedFile::open((prepath.to_owned() + filename + "." + ext).parse::<PathBuf>().unwrap()))
-		}
 	}
+
+	Err(actix_web::error::ErrorUnauthorized("Not Authorized"))
+	// println!(
+	// 	"{prepath}\n{file}\n{ext}",
+	// 	prepath = prepath,
+	// 	file = filename,
+	// 	ext = ext
+	// );
 	// let prepath: PathBuf = "../client/producer/".parse().unwrap();
 	// Ok(NamedFile::open(path)?)
 }
@@ -228,7 +235,7 @@ pub async fn redirect(req: HttpRequest) -> impl Responder {
 							http::header::LOCATION,
 							format!("direct/{}/index.html", game_id.value()),
 						)
-						.finish()
+						.finish();
 				}
 				"consumer" => {
 					return HttpResponse::build(http::StatusCode::FOUND)
