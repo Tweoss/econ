@@ -26,6 +26,7 @@ struct Model {
 	link: ComponentLink<Model>,
 	game_id: String, // text in our input box
 	name: String,
+	password: String,
 	server_data: String, // data received from the server
 	task: Option<fetch::FetchTask>,
 }
@@ -36,6 +37,7 @@ enum Msg {
 	NameInput(String),   // text was input in the input box
 	SendReq,
 	Receieved(String),
+	PasswordInput(String),
 }
 
 impl Component for Model {
@@ -49,6 +51,7 @@ impl Component for Model {
 			link,
 			game_id: String::new(),
 			name: String::new(),
+			password: String::new(),
 			server_data: String::new(),
 			task: None,
 		}
@@ -59,14 +62,15 @@ impl Component for Model {
 			Msg::Ignore => false,
 			Msg::GameIDInput(e) => {
 				self.game_id = e; // note input box value
-				true
+				false
 			}
 			Msg::NameInput(e) => {
 				self.name = e; // note input box value
-				true
+				false
 			}
 			Msg::SendReq => {
-				let json = json!({"username": self.name, "viewtype": "director", "game_id": self.game_id, "password": "eDicTUingeTE"});
+				ConsoleService::log(&self.password);
+				let json = json!({"username": self.name, "viewtype": "director", "game_id": self.game_id, "password": &self.password});
 				let post_request = Request::post("/cookies")
 					// let post_request = Request::post("https://a.valour.vision/cookies")
 					// .header("Content-Type", "text/plain")
@@ -110,11 +114,18 @@ impl Component for Model {
 				self.server_data = data;
 				true
 			}
+			Msg::PasswordInput(e) => {
+				self.password = e;
+				false
+			}
 		}
 	}
 	fn view(&self) -> Html {
 		let input_gameid = self.link.callback(|e: InputData| Msg::GameIDInput(e.value));
 		let input_name = self.link.callback(|e: InputData| Msg::NameInput(e.value));
+		let input_password = self
+			.link
+			.callback(|e: InputData| Msg::PasswordInput(e.value));
 		let sendreq = self.link.callback(|_| Msg::SendReq);
 		html! {
 			<>
@@ -123,10 +134,24 @@ impl Component for Model {
 				<br/>
 				<input id="name" oninput=input_name placeholder="Username" class="input" maxlength="20" autocomplete="off"/>
 				<br/>
+				<input id="password" oninput=input_password placeholder="Password" class="input" maxlength="12" autocomplete="off"/>
+				<br/>
 				<button id="enter" class="enter" onclick=sendreq>{"Enter"}</button>
 				<p class="message">{self.server_data.clone()}</p>
 			</div>
 			<a id="link" class="link" href="/redirect"></a>
+			// // connect button
+			// <p><button onclick=onbuttonconnect,>{ "Connect" }</button></p><br/>
+			// // text showing whether we're connected or not
+			// <p>{ "Connected: " } { !self.ws.is_none() } </p><br/>
+			// // input box for sending text
+			// <p><input type="text", value=&self.text, oninput=inputtext,/></p><br/>
+			// // button for sending text
+			// <p><button onclick=onbuttonsend,>{ "Send" }</button></p><br/>
+			// // text area for showing data from the server
+			// <p><textarea value=&self.server_data,></textarea></p><br/>
+			// // button to send request
+			// <p><button onclick=sendreq,>{ "Send Req" }</button></p><br/>
 			</>
 		}
 	}
@@ -136,7 +161,7 @@ impl Component for Model {
 	fn rendered(&mut self, first_render: bool) {
 		if first_render {
 			js! {
-				document.getElementById("name").addEventListener("keyup", function(event) {
+				document.getElementById("password").addEventListener("keyup", function(event) {
 					// Number 13 is the "Enter" key on the keyboard
 					if (event.keyCode === 13) {
 					  // Cancel the default action, if needed
