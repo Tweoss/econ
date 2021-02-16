@@ -1,0 +1,214 @@
+#![recursion_limit = "1024"]
+use wasm_bindgen::prelude::*;
+use yew::prelude::*;
+
+// use failure::Error;
+use anyhow::Error;
+
+use http::{Request, Response};
+use yew::format::{Json, Nothing};
+use yew::html::ComponentLink;
+// use yew::prelude::*;
+use yew::services::fetch;
+use yew::services::websocket::{WebSocketService, WebSocketStatus, WebSocketTask};
+use yew::services::ConsoleService;
+
+use serde_json::json;
+use stdweb::js;
+
+struct Model {
+    link: ComponentLink<Self>,
+    ws: Option<WebSocketTask>,
+    server_data: String, // data received from the server
+    value: i64,
+    text: String, // text in our input box
+    task: Option<fetch::FetchTask>,
+}
+
+enum Msg {
+    AddOne,
+    Connect(Vec<String>),            // connect to websocket server
+    Disconnected,                    // disconnected from server
+    Ignore,                          // ignore this message
+    TextInput(String),               // text was input in the input box
+    SendText,                        // send our text to server
+    Received(Result<String, Error>), // data received from server
+    SendReq,
+    PrepWsConnect,
+}
+
+impl Component for Model {
+    type Message = Msg;
+    type Properties = ();
+    fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
+        Self {
+            link,
+            value: 0,
+            server_data: String::new(),
+            ws: None,
+            text: String::new(),
+            task: None,
+        }
+    }
+
+    fn update(&mut self, msg: Self::Message) -> ShouldRender {
+        match msg {
+            Msg::AddOne => {
+                self.value += 1;
+                true
+            }
+            Msg::Connect(v) => {
+                ConsoleService::log("Connecting");
+                let cbout = self.link.callback(|Json(data)| Msg::Received(data));
+                let cbnot = self.link.batch_callback(|input| {
+                    ConsoleService::log(&format!("Notification: {:?}", input));
+                    match input {
+                        WebSocketStatus::Closed | WebSocketStatus::Error => {
+                            std::vec![Msg::Disconnected]
+                        }
+                        _ => std::vec![Msg::Ignore],
+                    }
+                });
+                if self.ws.is_none() {
+                    let url = format!("ws://127.0.0.1:8080/ws/{}/{}/{}", v[0], v[1], v[2]);
+                    // ! SWITCH THIS REPL
+                    // let task =
+                    // 	match WebSocketService::connect("wss://web.valour.vision/ws", cbout, cbnot)
+                    let task = match WebSocketService::connect(&url, cbout, cbnot) {
+                        Err(e) => {
+                            ConsoleService::error(e);
+                            None
+                        }
+                        Ok(f) => Some(f),
+                    };
+                    // let task = WebSocketService::connect("ws://127.0.0.1:8080/ws/", cbout, cbnot).unwrap();
+                    // let task = self.wss.connect("ws://127.0.0.1:8080/ws/", cbout, cbnot.into());
+                    // self.ws = Some(task);
+                    self.ws = task;
+                }
+                true
+            }
+            Msg::Disconnected => {
+                self.ws = None;
+                true
+            }
+            Msg::Ignore => false,
+            Msg::TextInput(e) => {
+                self.text = e; // note input box value
+                true
+            }
+            Msg::SendText => {
+                match self.ws {
+                    Some(ref mut task) => {
+                        task.send(Json(&self.text));
+                        self.text = "".to_string();
+                        true // clear input box
+                    }
+                    None => false,
+                }
+            }
+            Msg::Received(Ok(s)) => {
+                self.server_data.push_str(&format!("{}\n", &s));
+                true
+            }
+            Msg::Received(Err(s)) => {
+                self.server_data.push_str(&format!(
+                    "Error when reading data from server: {}\n",
+                    &s.to_string()
+                ));
+                true
+            }
+            Msg::SendReq => {
+                let request = Request::get("/cookies")
+                    .header("username", "woemaster")
+                    .header("game_id", "1111")
+                    .header("viewtype", "player")
+                    .body(Nothing)
+                    .unwrap();
+
+                let task = fetch::FetchService::fetch(
+                    request,
+                    self.link
+                        .callback(|response: Response<Result<String, Error>>| {
+                            if response.status().is_success() {
+                                // response.
+                                Msg::Received(Ok("HIIIIIII".to_string()))
+                            } else {
+                                Msg::Ignore
+                            }
+                        }),
+                )
+                .unwrap();
+
+                ConsoleService::log("hi");
+                false
+            }
+            Msg::PrepWsConnect => {
+                let post_request = Request::post("/wsprep")
+                    // let post_request = Request::post("https://web.valour.vision/cookies")
+                    .body(yew::format::Nothing)
+                    .unwrap();
+                let callback = self
+                    .link
+                    .callback(|response: Response<Result<String, Error>>| {
+                        if response.status().is_success() {
+                            // response.
+                            ConsoleService::log("Sent Request and Received Response with code: ");
+                            ConsoleService::log(response.status().as_str());
+                            let mut cookie_values: Vec<String> = Vec::new();
+                            for cookie_value in response.body().as_ref().unwrap().split('\n') {
+                                cookie_values.push(cookie_value.to_owned());
+                            }
+                            Msg::Connect(cookie_values)
+                        } else {
+                            ConsoleService::log("Failed to Send Request");
+                            Msg::Received(Ok(format!(
+                                "Failed to send request: {}",
+                                response.status()
+                            )))
+                        }
+                    });
+                let task = fetch::FetchService::fetch(post_request, callback).unwrap();
+                self.task = Some(task);
+                false
+            }
+        }
+        // true
+    }
+
+    fn change(&mut self, _props: Self::Properties) -> ShouldRender {
+        // Should only return "true" if new properties are different to
+        // previously received properties.
+        // This component has no properties so we will always return "false".
+        false
+    }
+
+    fn view(&self) -> Html {
+        let onbuttonconnect = self.link.callback(|_| Msg::PrepWsConnect);
+        let onbuttonsend = self.link.callback(|_| Msg::SendText);
+        let inputtext = self.link.callback(|e: InputData| Msg::TextInput(e.value));
+        let sendreq = self.link.callback(|_| Msg::SendReq);
+        html! {
+            <>
+                // <button onclick=self.link.callback(|_| Msg::AddOne)>{ "+1" }</button>
+                // <p>{ self.value }</p>
+                <p><button onclick=onbuttonconnect,>{ "Connect" }</button></p><br/>
+                // text showing whether we're connected or not
+                <p>{ "Connected: " } { !self.ws.is_none() } </p><br/>
+                // input box for sending text
+                <p><input type="text", value=&self.text, oninput=inputtext,/></p><br/>
+                // button for sending text
+                <p><button onclick=onbuttonsend,>{ "Send" }</button></p><br/>
+                // text area for showing data from the server
+                <p><textarea value=&self.server_data,></textarea></p><br/>
+                // button to send request
+                <p><button onclick=sendreq,>{ "Send Req" }</button></p><br/>
+            </>
+        }
+    }
+}
+
+#[wasm_bindgen(start)]
+pub fn run_app() {
+    App::<Model>::new().mount_to_body();
+}

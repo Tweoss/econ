@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hasher, Hash};
 
-use crate::application::handle_to_app::*; use crate::application::app_to_game;
+use crate::application::handle_to_app::*; use crate::application::app_to_game; use crate::application::participants::ws_to_app;
 use crate::application::game::Game; 
 // use crate::application::player::Player; 
 
@@ -23,6 +23,7 @@ pub struct AppState {
 	game_map: Mutex<HashMap<String,Addr<Game>>>,
 	// game_ids: Mutex<Vec<String>>,
 	password_hash: u64,
+    temp_addr: Option<Addr<Game>>,
 }
 
 impl AppState {
@@ -31,12 +32,17 @@ impl AppState {
 			game_map: Mutex::new(HashMap::new()),
 			// game_ids: Mutex::new(Vec::new()),
 			password_hash: 9612577385432581406,
+            temp_addr: None,
 		}
 	}
 }
 
 impl Actor for AppState {
     type Context = actix::Context<Self>;
+    fn stopping(&mut self, ctx: &mut Self::Context) -> Running {
+        println!("APP TRIED TO STOP");
+        Running::Continue
+    }
 }
 
 /// Handler for DoesGameExist message.
@@ -105,20 +111,37 @@ impl Handler<NewGame> for AppState {
     type Result = ();
     fn handle(&mut self, msg: NewGame, context: &mut Context<Self>) -> Self::Result {
         let game = Game::new(context.address(),msg.user_id);
-        self.game_map.lock().unwrap().insert(msg.game_id, game.start());
+        self.game_map.lock().unwrap().insert(msg.game_id.clone(), game.start());
+        println!("Inserted a new game id {}", msg.game_id);
+        for key in self.game_map.lock().unwrap().keys() {
+            println!("{}", key);
+        }
+        if let Some(addr) = self.game_map.lock().unwrap().get(&msg.game_id) {
+            println!("HI");
+            self.temp_addr = Some(addr.clone());
+            addr.do_send(app_to_game::IsDirector {user_id: "2".to_string()});
+        }
     }
 }
 
-/// Handler for IsDirector
+
+/// Handler for IsRegisteredDirector
 /// 
 /// Creates a New Game with specified main director
-impl Handler<IsDirector> for AppState {
+impl Handler<ws_to_app::IsRegisteredDirector> for AppState {
     type Result = ResponseFuture<Option<Addr<Game>>>;
-    fn handle(&mut self, msg: IsDirector, _context: &mut Context<Self>) -> Self::Result {
-        if let Some(addr) = self.game_map.lock().unwrap().get(&msg.game_id) {
+    fn handle(&mut self, msg: ws_to_app::IsRegisteredDirector, _context: &mut Context<Self>) -> Self::Result {
+        println!("Msg::IsRegisteredDirector");
+        let game_map = self.game_map.lock().unwrap();
+        for elem in game_map.keys() {
+            println!("{}", elem);
+        }
+        if let Some(addr) = game_map.get(&msg.game_id) {
             let async_addr = addr.clone();
+            println!("About to ask game if is a director");
             Box::pin(async move {
                if async_addr.clone().send(app_to_game::IsDirector {user_id: msg.user_id}).await.unwrap() {
+                   println!("Told APP that this is a registereddirector ID.");
                    Some(async_addr)
                }
                else {
@@ -127,7 +150,11 @@ impl Handler<IsDirector> for AppState {
             })
         }
         else {
-            Box::pin(async move {None})
+            println!("Could not find with ID {}", msg.game_id);
+            Box::pin(async move {
+                // async_addr.unwrap().send(app_to_game::IsDirector {user_id: msg.user_id}).await.unwrap();
+                None
+            })
         }
     }
 }
@@ -135,9 +162,9 @@ impl Handler<IsDirector> for AppState {
 /// Handler for IsPlayer
 /// 
 /// Creates a New Game with specified main director
-impl Handler<IsPlayer> for AppState {
+impl Handler<ws_to_app::IsPlayer> for AppState {
     type Result = ResponseFuture<Option<Addr<Game>>>;
-    fn handle(&mut self, msg: IsPlayer, _context: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, msg: ws_to_app::IsPlayer, _context: &mut Context<Self>) -> Self::Result {
         if let Some(addr) = self.game_map.lock().unwrap().get(&msg.game_id) {
             let async_addr = addr.clone();
             Box::pin(async move {
@@ -154,4 +181,24 @@ impl Handler<IsPlayer> for AppState {
         }
     }
 }
+
+// impl Handler<IsPlayer> for AppState {
+//     type Result = ResponseFuture<Option<Addr<Game>>>;
+//     fn handle(&mut self, msg: IsPlayer, _context: &mut Context<Self>) -> Self::Result {
+//         if let Some(addr) = self.game_map.lock().unwrap().get(&msg.game_id) {
+//             let async_addr = addr.clone();
+//             Box::pin(async move {
+//                if async_addr.clone().send(app_to_game::IsPlayer {user_id: msg.user_id}).await.unwrap() {
+//                    Some(async_addr)
+//                }
+//                else {
+//                    None
+//                }
+//             })
+//         }
+//         else {
+//             Box::pin(async move {None})
+//         }
+//     }
+// }
 
