@@ -119,7 +119,8 @@ pub async fn set_cookies(cookie_info: web::Json<CookieInfo>, req: HttpRequest) -
 						.cookie(name_cookie)
 						.cookie(viewtype_cookie)
 						.cookie(game_id_cookie)
-						.finish()
+						.content_type("plain/text")
+						.body("Success")
 				// } else {
 				// 	HttpResponse::build(http::StatusCode::OK)
 				// 		.cookie(id_cookie)
@@ -236,7 +237,7 @@ pub async fn redirect(req: HttpRequest) -> impl Responder {
 					return HttpResponse::build(http::StatusCode::FOUND)
 						.header(
 							http::header::LOCATION,
-							format!("direct/{}/index.html", game_id.value()),
+							format!("direct/director/{}/index.html", game_id.value()),
 						)
 						.finish();
 				}
