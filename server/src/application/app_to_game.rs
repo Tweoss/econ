@@ -40,3 +40,16 @@ pub struct IsDirector {
 pub struct IsPlayer {
 	pub user_id: String,
 }
+
+/// Check if this id is the main director
+/// ```
+/// #[rtype(bool)]
+/// pub struct IsMainDirector {
+///     pub user_id: String,
+/// }
+/// ```
+#[derive(Message)]
+#[rtype(bool)]
+pub struct IsMainDirector {
+	pub user_id: String,
+}

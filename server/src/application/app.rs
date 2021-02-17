@@ -146,6 +146,20 @@ impl Handler<NewGame> for AppState {
     }
 }
 
+
+impl Handler<IsMainDirector> for AppState {
+    type Result = ResponseFuture<bool>;
+    fn handle(&mut self, msg: IsMainDirector, context: &mut Context<Self>) -> Self::Result {
+        if let Some(game_id) = self.game_map.read().unwrap().iter().find(|&x| x.0 == msg.game_id) {
+            let game_addr = game_id.1.clone();
+            Box::pin(async move { game_addr.send(app_to_game::IsMainDirector {user_id: msg.user_id}).await.unwrap() })
+        }
+        else {
+            Box::pin(async move { false })
+        }
+    }
+}
+
 /// Handler for IsRegisteredDirector
 ///
 /// Creates a New Game with specified main director

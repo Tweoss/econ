@@ -28,10 +28,25 @@ pub async fn set_cookies(cookie_info: web::Json<CookieInfo>, req: HttpRequest) -
 		"Username: {:?}, Viewtype: {:?}, GameID: {:?}",
 		username, viewtype, game_id
 	);
+	let addr = req.app_data::<web::Data<actix::Addr<AppState>>>().unwrap();
 
-	let addr = req
-		.app_data::<web::Data<actix::Addr<AppState>>>()
-		.unwrap();
+	if let (Some(uuid), Some(viewtype), Some(game_id)) = (
+		req.cookie("uuid"),
+		req.cookie("viewtype"),
+		req.cookie("game_id"),
+	) {
+		if viewtype.value() == "director" && addr
+				.send(handle_to_app::IsMainDirector {
+					game_id: game_id.value().to_string(),
+					user_id: uuid.value().to_string(),
+				})
+				.await
+				.unwrap() {
+  				return HttpResponse::Ok()
+  					.content_type("plain/text")
+  					.body("Cannot join a game while being a main director. Redirect.");
+  			}
+	}
 	println!("\nThese are the cookies sent from client.");
 	if let Ok(cookies) = req.cookies() {
 		for cookie in cookies.to_owned() {

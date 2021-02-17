@@ -95,3 +95,19 @@ pub struct NewGame {
     pub username: String,
 }
 
+/// Prevent main directors from joining other games
+/// ```
+/// #[rtype(result="()")]
+/// pub struct NewGame {
+///     pub user_id: String,
+///     pub game_id: String,
+///     pub username: String,
+/// }
+/// ```
+#[derive(Message)]
+#[rtype(bool)]
+pub struct IsMainDirector {
+    pub game_id: String,
+    pub user_id: String,
+}
+

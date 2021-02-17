@@ -17,7 +17,6 @@ mod ws_handler;
 use ws_handler::{handle_prep, handle_ws};
 
 async fn index_404(_req: HttpRequest) -> actix_web::Result<NamedFile> {
-	// let path: PathBuf = req.match_info().query("filename").parse().unwrap();
 	Ok(NamedFile::open("../client/404/static/index.html")?)
 }
 

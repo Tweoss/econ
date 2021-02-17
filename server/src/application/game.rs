@@ -105,6 +105,13 @@ impl Handler<IsPlayer> for Game {
 	}
 }
 
+impl Handler<IsMainDirector> for Game {
+	type Result = bool;
+	fn handle(&mut self, msg: IsMainDirector, _: &mut Context<Self>) -> Self::Result {
+		self.id_main_director == msg.user_id
+	}
+}
+
 // ! WEBSOCKET TO GAME HANDLERS
 
 
