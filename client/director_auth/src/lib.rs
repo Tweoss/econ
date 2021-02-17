@@ -6,27 +6,31 @@ use yew::prelude::*;
 use anyhow::Error;
 
 use http::{Request, Response};
-use yew::format::{Json, Nothing};
+use yew::format::Json;
 use yew::html::ComponentLink;
 // use yew::prelude::*;
 use yew::services::fetch;
 use yew::services::websocket::{WebSocketService, WebSocketStatus, WebSocketTask};
 use yew::services::ConsoleService;
 
-use serde_json::json;
-use stdweb::js;
+use serde_cbor::{from_slice, to_vec};
+use serde::{Deserialize, Serialize};
+
+
+// use serde_json::json;
+// use stdweb::js;
+
 
 struct Model {
     link: ComponentLink<Self>,
     ws: Option<WebSocketTask>,
     server_data: String, // data received from the server
-    value: i64,
     text: String, // text in our input box
     task: Option<fetch::FetchTask>,
+    client_data: Data,
 }
 
 enum Msg {
-    AddOne,
     Connect(Vec<String>),            // connect to websocket server
     Disconnected,                    // disconnected from server
     Ignore,                          // ignore this message
@@ -37,26 +41,28 @@ enum Msg {
     PrepWsConnect,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct Data {
+    choice: u64,
+    string: String,
+}
+
 impl Component for Model {
     type Message = Msg;
     type Properties = ();
     fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
         Self {
             link,
-            value: 0,
             server_data: String::new(),
             ws: None,
             text: String::new(),
             task: None,
+            client_data: Data {choice: 420, string: "heyo".to_string()},
         }
     }
 
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
-            Msg::AddOne => {
-                self.value += 1;
-                true
-            }
             Msg::Connect(v) => {
                 ConsoleService::log("Connecting");
                 let cbout = self.link.callback(|Json(data)| Msg::Received(data));
@@ -119,29 +125,13 @@ impl Component for Model {
                 true
             }
             Msg::SendReq => {
-                let request = Request::get("/cookies")
-                    .header("username", "woemaster")
-                    .header("game_id", "1111")
-                    .header("viewtype", "player")
-                    .body(Nothing)
-                    .unwrap();
-
-                let task = fetch::FetchService::fetch(
-                    request,
-                    self.link
-                        .callback(|response: Response<Result<String, Error>>| {
-                            if response.status().is_success() {
-                                // response.
-                                Msg::Received(Ok("HIIIIIII".to_string()))
-                            } else {
-                                Msg::Ignore
-                            }
-                        }),
-                )
-                .unwrap();
-
-                ConsoleService::log("hi");
-                false
+                match self.ws {
+                    Some(ref mut task) => {
+                        task.send_binary(Ok(to_vec(&self.client_data).unwrap()));
+                        true
+                    }
+                    None => false,
+                }
             }
             Msg::PrepWsConnect => {
                 let post_request = Request::post("/wsprep")

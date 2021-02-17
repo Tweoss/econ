@@ -5,7 +5,6 @@ authors = ["tweoss <hwymonkey@gmail.com>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 actix-web = "3"
 actix-web-actors = "3.0.0"
@@ -17,3 +16,5 @@ time = "0.2"
 sentry = "0.21.0"
 sentry-actix = "0.21.0"
 serde = "1.0.123"
+anyhow = "1.0.37"
+serde_cbor = "0.11.1"
