@@ -10,16 +10,9 @@ use crate::application::game::Game;
 
 
 use crate::application::participants::ws_to_app;
-use crate::application::participants::json::{DirectorJson, DirectorMsgType};
+use crate::application::participants::json::{DirectorData, DirectorMsgType};
 
 use serde_cbor::{from_slice, to_vec};
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Data {
-    choice: u64,
-    string: String,
-}
 
 /// Define HTTP actor
 pub struct Director {
@@ -59,12 +52,10 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Director {
 		match msg {
 			// Ok(ws::Message::Text) => (),
 			Ok(ws::Message::Text(text)) => {
-				println!("HEY?");
 				ctx.text(text);
 			}
 			Ok(ws::Message::Binary(bin)) => {
-				println!("Hey?");
-				println!("{:?}", from_slice::<Data>(&bin.to_vec()));
+				println!("{:?}", from_slice::<DirectorData>(&bin.to_vec()));
 				ctx.binary(bin);
 			}
 			_ => (),

@@ -13,39 +13,42 @@ use yew::services::fetch;
 use yew::services::websocket::{WebSocketService, WebSocketStatus, WebSocketTask};
 use yew::services::ConsoleService;
 
-use serde_cbor::{from_slice, to_vec};
 use serde::{Deserialize, Serialize};
+use serde_cbor::{from_slice, to_vec};
+
+mod json;
+use json::{DirectorData, DirectorMsgType};
 
 
 // use serde_json::json;
 // use stdweb::js;
 
-
 struct Model {
     link: ComponentLink<Self>,
     ws: Option<WebSocketTask>,
     server_data: String, // data received from the server
-    text: String, // text in our input box
+    text: String,        // text in our input box
     task: Option<fetch::FetchTask>,
-    client_data: Data,
+    client_data: DirectorData,
 }
 
 enum Msg {
-    Connect(Vec<String>),            // connect to websocket server
-    Disconnected,                    // disconnected from server
-    Ignore,                          // ignore this message
-    TextInput(String),               // text was input in the input box
-    SendText,                        // send our text to server
-    Received(Result<String, Error>), // data received from server
+    Connect(Vec<String>),          // connect to websocket server
+    Disconnected,                  // disconnected from server
+    Ignore,                        // ignore this message
+    TextInput(String),             // text was input in the input box
+    SendText,                      // send our text to server
+    Received(Result<DirectorData, Error>), // data received from server
     SendReq,
     PrepWsConnect,
+    FailedToConnect,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct Data {
-    choice: u64,
-    string: String,
-}
+// #[derive(Debug, Serialize, Deserialize)]
+// struct Data {
+//     choice: u64,
+//     string: String,
+// }
 
 impl Component for Model {
     type Message = Msg;
@@ -57,7 +60,10 @@ impl Component for Model {
             ws: None,
             text: String::new(),
             task: None,
-            client_data: Data {choice: 420, string: "heyo".to_string()},
+            client_data: DirectorData {
+                msg_type: DirectorMsgType::OpenGame,
+                kick_target: None,
+            },
         }
     }
 
@@ -65,7 +71,9 @@ impl Component for Model {
         match msg {
             Msg::Connect(v) => {
                 ConsoleService::log("Connecting");
-                let cbout = self.link.callback(|Json(data)| Msg::Received(data));
+                let cbout = self.link.callback(|data: Result<Vec<u8>, anyhow::Error>| {
+                    Msg::Received(Ok(from_slice::<DirectorData>(&data.unwrap()).unwrap()))
+                });
                 let cbnot = self.link.batch_callback(|input| {
                     ConsoleService::log(&format!("Notification: {:?}", input));
                     match input {
@@ -80,7 +88,7 @@ impl Component for Model {
                     // ! SWITCH THIS REPL
                     // let task =
                     // 	match WebSocketService::connect("wss://web.valour.vision/ws", cbout, cbnot)
-                    let task = match WebSocketService::connect(&url, cbout, cbnot) {
+                    let task = match WebSocketService::connect_binary(&url, cbout, cbnot) {
                         Err(e) => {
                             ConsoleService::error(e);
                             None
@@ -100,21 +108,22 @@ impl Component for Model {
             }
             Msg::Ignore => false,
             Msg::TextInput(e) => {
-                self.text = e; // note input box value
-                true
+                // self.client_data.string = e; // note input box value
+                false
             }
             Msg::SendText => {
-                match self.ws {
-                    Some(ref mut task) => {
-                        task.send(Json(&self.text));
-                        self.text = "".to_string();
-                        true // clear input box
-                    }
-                    None => false,
-                }
+                // match self.ws {
+                //     Some(ref mut task) => {
+                //         task.send(Json(&self.text));
+                //         self.text = "".to_string();
+                //         true // clear input box
+                //     }
+                //     None => false,
+                // }
+                false
             }
             Msg::Received(Ok(s)) => {
-                self.server_data.push_str(&format!("{}\n", &s));
+                self.server_data.push_str(&format!("{:?}\n", s));
                 true
             }
             Msg::Received(Err(s)) => {
@@ -124,15 +133,13 @@ impl Component for Model {
                 ));
                 true
             }
-            Msg::SendReq => {
-                match self.ws {
-                    Some(ref mut task) => {
-                        task.send_binary(Ok(to_vec(&self.client_data).unwrap()));
-                        true
-                    }
-                    None => false,
+            Msg::SendReq => match self.ws {
+                Some(ref mut task) => {
+                    task.send_binary(Ok(to_vec(&self.client_data).unwrap()));
+                    true
                 }
-            }
+                None => false,
+            },
             Msg::PrepWsConnect => {
                 let post_request = Request::post("/wsprep")
                     // let post_request = Request::post("https://web.valour.vision/cookies")
@@ -152,15 +159,16 @@ impl Component for Model {
                             Msg::Connect(cookie_values)
                         } else {
                             ConsoleService::log("Failed to Send Request");
-                            Msg::Received(Ok(format!(
-                                "Failed to send request: {}",
-                                response.status()
-                            )))
+                            Msg::FailedToConnect
                         }
                     });
                 let task = fetch::FetchService::fetch(post_request, callback).unwrap();
                 self.task = Some(task);
                 false
+            },
+            Msg::FailedToConnect => {
+                self.text.push_str("Failed to reach /wsprep");
+                true
             }
         }
         // true
