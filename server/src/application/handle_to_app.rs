@@ -95,32 +95,3 @@ pub struct NewGame {
     pub username: String,
 }
 
-/// See if a director with this ID was previously authenticated and if so, return the correct game id
-/// ```
-/// #[rtype(result="Option<Addr<Game>>")]
-/// pub struct IsDirector {
-///     pub user_id: String,
-///     pub game_id: String,
-/// }
-/// ```
-#[derive(Message)]
-#[rtype(result="Option<Addr<Game>>")]
-pub struct IsDirector {
-    pub user_id: String,
-    pub game_id: String,
-}
-
-/// See if a player with this ID was previously registered and if so, return the correct game id
-/// ```
-/// #[rtype(result="Option<Addr<Game>>")]
-/// pub struct IsPlayer {
-///     pub user_id: String,
-///     pub game_id: String,
-/// }
-/// ```
-#[derive(Message)]
-#[rtype(result="Option<Addr<Game>>")]
-pub struct IsPlayer {
-    pub user_id: String,
-    pub game_id: String,
-}

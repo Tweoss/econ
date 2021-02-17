@@ -1,4 +1,7 @@
-use super::participants::player::Player;
+use super::participants::{
+	consumer::Consumer, director::Director, producer::Producer, viewer::Viewer,
+	ws_to_game::*
+};
 use crate::application::app::AppState;
 use crate::application::app_to_game::*;
 use actix::prelude::*;
@@ -11,11 +14,12 @@ pub struct Game {
 	//* will never be modified - read multiple times
 	// id: usize, //* 6 digits?
 	//* will be modified
-	producers: Mutex<HashMap<String, Option<Addr<Player>>>>,
-	consumers: Mutex<HashMap<String, Option<Addr<Player>>>>,
-	directors: Mutex<HashMap<String, Option<Addr<Player>>>>,
+	producers: Mutex<HashMap<String, Option<Addr<Producer>>>>,
+	consumers: Mutex<HashMap<String, Option<Addr<Consumer>>>>,
+	directors: Mutex<HashMap<String, Option<Addr<Director>>>>,
+	viewers: Mutex<HashMap<String, Option<Addr<Viewer>>>>,
 	id_main_director: String,
-	addr_main_director: Option<Addr<Player>>,
+	addr_main_director: Option<Addr<Director>>,
 	is_open: bool,
 	// // * will never be modified
 	app_addr: Addr<AppState>,
@@ -24,14 +28,20 @@ pub struct Game {
 
 impl Actor for Game {
 	type Context = Context<Self>;
+	fn stopping(&mut self, ctx: &mut Self::Context) -> Running {
+		println!("TRIED TO STOP");
+		Running::Continue
+	}
 }
 
 impl Game {
 	pub fn new(app_addr: Addr<AppState>, id_main_director: String) -> Game {
+		println!("Making a new GAME with director id: {}", id_main_director);
 		Game {
 			producers: Mutex::new(HashMap::new()),
 			consumers: Mutex::new(HashMap::new()),
 			directors: Mutex::new(HashMap::new()),
+			viewers: Mutex::new(HashMap::new()),
 			id_main_director,
 			addr_main_director: None,
 			is_open: false,
@@ -40,6 +50,8 @@ impl Game {
 		}
 	}
 }
+
+// ! APPLICATION TO GAME HANDLERS
 
 /// Handler for NewPlayer message.
 ///
@@ -74,16 +86,17 @@ impl Handler<NewDirector> for Game {
 	}
 }
 
-/// Register an additional director
+/// Check if this director is registered
 impl Handler<IsDirector> for Game {
 	type Result = bool;
 	fn handle(&mut self, msg: IsDirector, _: &mut Context<Self>) -> Self::Result {
+		println!("Asked if IsDirector for a game.");
 		self.directors.lock().unwrap().contains_key(&msg.user_id)
 			|| self.id_main_director == msg.user_id
 	}
 }
 
-/// Register an additional director
+/// Check if this consumer or producer is registered
 impl Handler<IsPlayer> for Game {
 	type Result = bool;
 	fn handle(&mut self, msg: IsPlayer, _: &mut Context<Self>) -> Self::Result {
@@ -91,3 +104,33 @@ impl Handler<IsPlayer> for Game {
 			|| self.producers.lock().unwrap().contains_key(&msg.user_id)
 	}
 }
+
+// ! WEBSOCKET TO GAME HANDLERS
+
+
+// /// Check if this consumer is registered
+// impl Handler<IsConsumer> for Game {
+// 	type Result = bool;
+// 	fn handle(&mut self, msg: IsPlayer, _: &mut Context<Self>) -> Self::Result {
+// 		self.consumers.lock().unwrap().contains_key(&msg.user_id)
+// 			|| self.producers.lock().unwrap().contains_key(&msg.user_id)
+// 	}
+// }
+
+// /// Check if this consumer is registered
+// impl Handler<IsProducerr> for Game {
+// 	type Result = bool;
+// 	fn handle(&mut self, msg: IsPlayer, _: &mut Context<Self>) -> Self::Result {
+// 		self.consumers.lock().unwrap().contains_key(&msg.user_id)
+// 			|| self.producers.lock().unwrap().contains_key(&msg.user_id)
+// 	}
+// }
+
+// /// Check if this consumer is registered
+// impl Handler<IsViewer> for Game {
+// 	type Result = bool;
+// 	fn handle(&mut self, msg: IsPlayer, _: &mut Context<Self>) -> Self::Result {
+// 		self.consumers.lock().unwrap().contains_key(&msg.user_id)
+// 			|| self.producers.lock().unwrap().contains_key(&msg.user_id)
+// 	}
+// }

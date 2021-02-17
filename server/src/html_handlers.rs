@@ -29,7 +29,9 @@ pub async fn set_cookies(cookie_info: web::Json<CookieInfo>, req: HttpRequest) -
 		username, viewtype, game_id
 	);
 
-	let addr = req.app_data::<web::Data<actix::Addr<AppState>>>().unwrap();
+	let addr = req
+		.app_data::<web::Data<actix::Addr<AppState>>>()
+		.unwrap();
 	println!("\nThese are the cookies sent from client.");
 	if let Ok(cookies) = req.cookies() {
 		for cookie in cookies.to_owned() {
@@ -145,7 +147,7 @@ pub async fn set_cookies(cookie_info: web::Json<CookieInfo>, req: HttpRequest) -
 			.unwrap()
 		{
 			addr.send(handle_to_app::NewGame {
-				user_id: temp_uuid,
+				user_id: temp_uuid.clone(),
 				game_id,
 				username: username.to_string(),
 			})
@@ -188,26 +190,27 @@ async fn get_html(req: HttpRequest) -> impl Responder {
 	let url_game_id = req.match_info().get("gameid").unwrap();
 	if let (Some(view_type), Some(game_id)) = (req.cookie("viewtype"), req.cookie("game_id")) {
 		if view_type.value() == url_viewtype && game_id.value() == url_game_id {
+			prepath = match view_type.value() {
+				"viewer" => prepath + "viewer/",
+				"producer" => prepath + "producer/",
+				"consumer" => prepath + "consumer/",
+				"director" => prepath + "director_auth/",
+				// Ok(NamedFile::open(
+				// 	(prepath + filename + "." + ext).parse::<PathBuf>().unwrap(),
+				// ));
+				_ => return Ok(NamedFile::open("../client/404/static/index.html")),
+			};
+			prepath += "static/";
+			let full_path = (*prepath).to_owned() + filename + "." + ext;
 			match ext {
-				"html" | "js" | "css" => {
+				"html" | "js" | "css" | "wasm" => {
 					// if let Some(view_type) = req.cookie("viewtype") {
-					prepath = match view_type.value() {
-						"viewer" => prepath + "viewer/",
-						"producer" => prepath + "producer/",
-						"consumer" => prepath + "consumer/",
-						"director" => prepath + "director_auth/",
-
-						_ => return Err(actix_web::error::ErrorUnauthorized("Not Authorized")),
-					};
-					prepath += "static/";
-					let temp = (*prepath).to_owned() + filename + "." + ext;
-					println!("HI: {cat}", cat = temp);
+					println!("HI: {cat}", cat = full_path);
 					return Ok(NamedFile::open(
 						(prepath + filename + "." + ext).parse::<PathBuf>().unwrap(),
 					));
 				}
-
-				_ => ()
+				_ => (),
 			}
 		}
 	}

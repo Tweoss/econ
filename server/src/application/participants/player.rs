@@ -43,7 +43,7 @@ impl Actor for Director {
 
 impl Director {
 	pub async fn new(uuid: String, game_id: String, addr: &actix_web::web::Data<Addr<AppState>>) -> Option<Director> {
-		if let Some(game_addr) = addr.send(IsDirector {user_id: uuid.clone(), game_id: game_id.clone()}).await.unwrap() {
+		if let Some(game_addr) = addr.send(IsRegisteredDirector {user_id: uuid.clone(), game_id: game_id.clone()}).await.unwrap() {
 			Some(Director {uuid, game_id, game_addr})
 		}
 		else {
