@@ -36,7 +36,7 @@ enum Msg {
 	GameIDInput(String), // text was input in the input box
 	NameInput(String),   // text was input in the input box
 	SendReq,
-	Receieved(String),
+	Received(String),
 	PasswordInput(String),
 }
 
@@ -95,10 +95,10 @@ impl Component for Model {
 									document.getElementById("link").click();
 								}
 							}
-							Msg::Receieved(response.body().as_ref().unwrap().to_string())
+							Msg::Received(response.body().as_ref().unwrap().to_string())
 						} else {
 							ConsoleService::log("Failed to Send Request");
-							Msg::Receieved(format!("Failed to send request: {}", response.status()))
+							Msg::Received(format!("Failed to send request: {}", response.status()))
 						}
 					});
 				let task = fetch::FetchService::fetch(
@@ -110,7 +110,7 @@ impl Component for Model {
 				self.task = Some(task);
 				false
 			}
-			Msg::Receieved(data) => {
+			Msg::Received(data) => {
 				self.server_data = data;
 				true
 			}
