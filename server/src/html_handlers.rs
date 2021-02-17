@@ -44,7 +44,7 @@ pub async fn set_cookies(cookie_info: web::Json<CookieInfo>, req: HttpRequest) -
 				.unwrap() {
   				return HttpResponse::Ok()
   					.content_type("plain/text")
-  					.body("Cannot join a game while being a main director. Redirect.");
+  					.body(format!("Cannot join a game while being a main director. Go to /direct/director/{}/index.html", game_id.value()));
   			}
 	}
 	println!("\nThese are the cookies sent from client.");
