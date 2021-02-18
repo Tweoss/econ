@@ -42,6 +42,7 @@ enum Msg {
     SendReq,
     PrepWsConnect,
     FailedToConnect,
+    CloseGame,
 }
 
 // #[derive(Debug, Serialize, Deserialize)]
@@ -84,10 +85,10 @@ impl Component for Model {
                     }
                 });
                 if self.ws.is_none() {
-                    let url = format!("ws://127.0.0.1:8080/ws/{}/{}/{}", v[0], v[1], v[2]);
                     // ! SWITCH THIS REPL
-                    // let task =
-                    // 	match WebSocketService::connect("wss://web.valour.vision/ws", cbout, cbnot)
+                    let url = format!("ws://127.0.0.1:8080/ws/{}/{}/{}", v[0], v[1], v[2]);
+                    // let url = format!("wss://web.valour.vision/ws/{}/{}/{}", v[0], v[1], v[2]);
+                    // let task = match WebSocketService::connect("wss://web.valour.vision/ws", cbout, cbnot)
                     let task = match WebSocketService::connect_binary(&url, cbout, cbnot) {
                         Err(e) => {
                             ConsoleService::error(e);
@@ -104,6 +105,7 @@ impl Component for Model {
             }
             Msg::Disconnected => {
                 self.ws = None;
+                ConsoleService::log("Disconnected");
                 true
             }
             Msg::Ignore => false,
@@ -170,14 +172,17 @@ impl Component for Model {
                 self.text.push_str("Failed to reach /wsprep");
                 true
             }
+            Msg::CloseGame => match self.ws {
+                Some(ref mut task) => {
+                    task.send_binary(Ok(to_vec(&DirectorData {msg_type: DirectorMsgType::CloseGame, kick_target: None}).unwrap()));
+                    true
+                }
+                None => false
+            }
         }
-        // true
     }
 
     fn change(&mut self, _props: Self::Properties) -> ShouldRender {
-        // Should only return "true" if new properties are different to
-        // previously received properties.
-        // This component has no properties so we will always return "false".
         false
     }
 
@@ -186,6 +191,7 @@ impl Component for Model {
         let onbuttonsend = self.link.callback(|_| Msg::SendText);
         let inputtext = self.link.callback(|e: InputData| Msg::TextInput(e.value));
         let sendreq = self.link.callback(|_| Msg::SendReq);
+        let endgame = self.link.callback(|_| Msg::CloseGame);
         html! {
             <>
                 // <button onclick=self.link.callback(|_| Msg::AddOne)>{ "+1" }</button>
@@ -201,6 +207,8 @@ impl Component for Model {
                 <p><textarea value=&self.server_data,></textarea></p><br/>
                 // button to send request
                 <p><button onclick=sendreq,>{ "Send Req" }</button></p><br/>
+                // close game
+                <button onclick=endgame>{ "End Game"}</button>
             </>
         }
     }
