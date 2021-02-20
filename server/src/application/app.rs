@@ -29,7 +29,7 @@ use crate::handle_to_app::*;
 /// ```
 pub struct AppState {
     // game_map: Mutex<HashMap<String,Addr<Game>>>,
-    game_map: RwLock<Vec<(String, Addr<Game>)>>,
+    game_map: RwLock<HashMap<String, Addr<Game>>>,
     // game_ids: Mutex<Vec<String>>,
     password_hash: u64,
 }
@@ -37,7 +37,7 @@ pub struct AppState {
 impl AppState {
     pub fn new() -> AppState {
         AppState {
-            game_map: RwLock::new(Vec::new()),
+            game_map: RwLock::new(HashMap::new()),
             // game_ids: Mutex::new(Vec::new()),
             password_hash: 9612577385432581406,
         }
@@ -56,7 +56,8 @@ impl Handler<DoesGameExist> for AppState {
     fn handle(&mut self, msg: DoesGameExist, _: &mut Context<Self>) -> Self::Result {
         println!("msg: DoesGameExist");
         let string = msg.game_id;
-        self.game_map.read().unwrap().iter().any(|x| x.0 == string)
+        // self.game_map.read().unwrap().iter().any(|x| x.0 == string);
+        self.game_map.read().unwrap().contains_key(&string)
     }
 }
 
@@ -80,15 +81,8 @@ impl Handler<IsRightPswd> for AppState {
 impl Handler<NewPlayer> for AppState {
     type Result = ResponseFuture<String>;
     fn handle(&mut self, msg: NewPlayer, _: &mut Context<Self>) -> Self::Result {
-        let game_addr = self
-            .game_map
-            .read()
-            .unwrap()
-            .iter()
-            .find(|&x| x.0 == msg.game_id)
-            .unwrap()
-            .1
-            .clone();
+        // let game_addr = self.game_map.read().unwrap().iter().find(|&x| x.0 == msg.game_id).unwrap().1.clone();
+        let game_addr = self.game_map.read().unwrap().get(&msg.game_id).unwrap().clone();
         Box::pin(async move {
             game_addr
                 .send(app_to_game::NewPlayer {
@@ -104,15 +98,8 @@ impl Handler<NewPlayer> for AppState {
 impl Handler<IsGameOpen> for AppState {
     type Result = ResponseFuture<bool>;
     fn handle(&mut self, msg: IsGameOpen, _: &mut Context<Self>) -> Self::Result {
-        let game_addr = self
-            .game_map
-            .read()
-            .unwrap()
-            .iter()
-            .find(|&x| x.0 == msg.game_id)
-            .unwrap()
-            .1
-            .clone();
+        // let game_addr = self.game_map.read().unwrap().iter().find(|&x| x.0 == msg.game_id).unwrap().1.clone();
+        let game_addr = self.game_map.read().unwrap().get(&msg.game_id).unwrap().clone();
         Box::pin(async move { game_addr.send(app_to_game::IsGameOpen {}).await.unwrap() })
     }
 }
@@ -126,10 +113,12 @@ impl Handler<NewDirector> for AppState {
         self.game_map
             .read()
             .unwrap()
-            .iter()
-            .find(|&x| x.0 == msg.game_id)
+            .get(&msg.game_id)
             .unwrap()
-            .1
+            // .iter()
+            // .find(|&x| x.0 == msg.game_id)
+            // .unwrap()
+            // .1
             .do_send(app_to_game::NewDirector {
                 user_id: msg.user_id,
                 username: msg.username,
@@ -147,7 +136,8 @@ impl Handler<NewGame> for AppState {
         self.game_map
             .write()
             .unwrap()
-            .insert(0, (msg.game_id.clone(), game.start()));
+            .insert(msg.game_id.clone(), game.start());
+            // .insert(0, (msg.game_id.clone(), game.start()));
         println!("Inserted a new game id {}", msg.game_id);
     }
 }
@@ -155,16 +145,19 @@ impl Handler<NewGame> for AppState {
 impl Handler<IsMainDirector> for AppState {
     type Result = ResponseFuture<bool>;
     fn handle(&mut self, msg: IsMainDirector, context: &mut Context<Self>) -> Self::Result {
-        if let Some(game_id) = self
+        if let Some(game_addr) = self
+        // if let Some(game_id) = self
             .game_map
             .read()
             .unwrap()
-            .iter()
-            .find(|&x| x.0 == msg.game_id)
+            .get(&msg.game_id)
+            // .iter()
+            // .find(|&x| x.0 == msg.game_id)
         {
-            let game_addr = game_id.1.clone();
+            let game_addr_clone = game_addr.clone();
+            // let game_addr = game_id.1.clone();
             Box::pin(async move {
-                game_addr
+                game_addr_clone
                     .send(app_to_game::IsMainDirector {
                         user_id: msg.user_id,
                     })
@@ -192,10 +185,12 @@ impl Handler<director_to_app::IsRegisteredDirector> for AppState {
             .game_map
             .read()
             .unwrap()
-            .iter()
-            .find(|&x| x.0 == msg.game_id)
+            .get(&msg.game_id)
+            // .iter()
+            // .find(|&x| x.0 == msg.game_id)
         {
-            let async_addr = addr.1.clone();
+            let async_addr = addr.clone();
+            // let async_addr = addr.1.clone();
             Box::pin(async move {
                 if async_addr
                     .clone()
@@ -227,10 +222,12 @@ impl Handler<director_to_app::IsPlayer> for AppState {
             .game_map
             .read()
             .unwrap()
-            .iter()
-            .find(|&x| x.0 == msg.game_id)
+            .get(&msg.game_id)
+            // .iter()
+            // .find(|&x| x.0 == msg.game_id)
         {
-            let async_addr = addr.1.clone();
+            let async_addr = addr.clone();
+            // let async_addr = addr.1.clone();
             Box::pin(async move {
                 if async_addr
                     .clone()
@@ -254,10 +251,10 @@ impl Handler<director_to_app::IsPlayer> for AppState {
 impl Handler<director_to_app::CloseGame> for AppState {
     type Result = ();
     fn handle(&mut self, msg: director_to_app::CloseGame, _: &mut Context<Self>) -> Self::Result {
-        let mut vec = self.game_map.write().unwrap();
-        let index = vec.iter().position(|elem| elem.0 == msg.game_id).unwrap();
-        // vec[index].1.send
-        vec.remove(index);
+        // let mut vec = self.game_map.write().unwrap();
+        // let index = vec.iter().position(|elem| elem.0 == msg.game_id).unwrap();
+        // vec.remove(index);
+        self.game_map.write().unwrap().remove(&msg.game_id);
         println!("Removed a game from app");
     }
 }
