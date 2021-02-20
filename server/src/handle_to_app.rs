@@ -2,7 +2,7 @@
 
 use actix::prelude::*;
 // use crate::application::app::AppState;
-use crate::application::game::Game;
+use crate::application::game_folder::game::Game;
 
 
 /// Check if a game exists

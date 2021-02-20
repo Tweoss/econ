@@ -4,7 +4,7 @@ use actix_web::{http, web, Error, HttpRequest, HttpResponse};
 use actix_web_actors::ws;
 
 use crate::application::app::AppState;
-use crate::application::participants::director::Director;
+use crate::application::game_folder::participants::director_folder::director::Director;
 
 pub async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, Error> {
 	println!("called handle_ws");

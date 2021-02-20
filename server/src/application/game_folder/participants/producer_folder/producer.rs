@@ -6,26 +6,26 @@ use actix_web_actors::ws;
 // use crate::application::other_messages;
 
 use crate::application::app::AppState;
-use crate::application::game::Game;
+use crate::application::game_folder::game::Game;
 
 // mod application;
-use crate::application::handle_to_app::*;
+use crate::handle_to_app::*;
 
 /// Define HTTP actor
-pub struct Viewer {
+pub struct Producer {
 	pub uuid: String,
 	pub game_id: String,
 	pub game_addr: Addr<Game>,
 }
 
-impl Actor for Viewer {
+impl Actor for Producer {
 	type Context = ws::WebsocketContext<Self>;
 }
 
-impl Viewer {
-	// pub async fn new(uuid: String, game_id: String, addr: &actix_web::web::Data<Addr<AppState>>) -> Option<Viewer> {
-	// 	if let Some(game_addr) = addr.send(IsViewer {user_id: uuid.clone(), game_id: game_id.clone()}).await.unwrap() {
-	// 		Some(Viewer {uuid, game_id, game_addr})
+impl Producer {
+	// pub async fn new(uuid: String, game_id: String, addr: &actix_web::web::Data<Addr<AppState>>) -> Option<Producer> {
+	// 	if let Some(game_addr) = addr.send(IsProducer {user_id: uuid.clone(), game_id: game_id.clone()}).await.unwrap() {
+	// 		Some(Producer {uuid, game_id, game_addr})
 	// 	}
 	// 	else {
 	// 		None
@@ -34,7 +34,7 @@ impl Viewer {
 }
 
 /// Handler for ws::Message message
-impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Viewer {
+impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Producer {
 	fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
 		match msg {
 			// Ok(ws::Message::Text) => (),

@@ -1,5 +1,5 @@
 use actix::prelude::*;
-use crate::application::game::Game;
+use crate::application::game_folder::game::Game;
 
 /// See if a director with this ID was previously authenticated and if so, return the correct game address
 /// ```
@@ -28,5 +28,11 @@ pub struct IsRegisteredDirector {
 #[rtype(result="Option<Addr<Game>>")]
 pub struct IsPlayer {
     pub user_id: String,
+    pub game_id: String,
+}
+
+#[derive(Message)]
+#[rtype(result="()")]
+pub struct CloseGame {
     pub game_id: String,
 }

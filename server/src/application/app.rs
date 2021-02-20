@@ -5,11 +5,17 @@ use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::sync::RwLock;
 
+
+use crate::application::game_folder::game::Game;
+use crate::application::game_folder::participants::director_folder::director_to_game;
+use crate::application::game_folder::participants::director_folder::director_to_app;
+// use super::super::handle_to_app;
+// use super::super::ws_handler;
 use crate::application::app_to_game;
-use crate::application::game::Game;
-use crate::application::handle_to_app::*;
-use crate::application::participants::ws_to_app;
+use crate::handle_to_app::*;
+
 // use crate::application::player::Player;
+
 
 // //* App State can receive messages about a new Game, the end of a Game, getting a Game (to operate on)
 
@@ -146,15 +152,26 @@ impl Handler<NewGame> for AppState {
     }
 }
 
-
 impl Handler<IsMainDirector> for AppState {
     type Result = ResponseFuture<bool>;
     fn handle(&mut self, msg: IsMainDirector, context: &mut Context<Self>) -> Self::Result {
-        if let Some(game_id) = self.game_map.read().unwrap().iter().find(|&x| x.0 == msg.game_id) {
+        if let Some(game_id) = self
+            .game_map
+            .read()
+            .unwrap()
+            .iter()
+            .find(|&x| x.0 == msg.game_id)
+        {
             let game_addr = game_id.1.clone();
-            Box::pin(async move { game_addr.send(app_to_game::IsMainDirector {user_id: msg.user_id}).await.unwrap() })
-        }
-        else {
+            Box::pin(async move {
+                game_addr
+                    .send(app_to_game::IsMainDirector {
+                        user_id: msg.user_id,
+                    })
+                    .await
+                    .unwrap()
+            })
+        } else {
             Box::pin(async move { false })
         }
     }
@@ -163,11 +180,11 @@ impl Handler<IsMainDirector> for AppState {
 /// Handler for IsRegisteredDirector
 ///
 /// Creates a New Game with specified main director
-impl Handler<ws_to_app::IsRegisteredDirector> for AppState {
+impl Handler<director_to_app::IsRegisteredDirector> for AppState {
     type Result = ResponseFuture<Option<Addr<Game>>>;
     fn handle(
         &mut self,
-        msg: ws_to_app::IsRegisteredDirector,
+        msg: director_to_app::IsRegisteredDirector,
         _context: &mut Context<Self>,
     ) -> Self::Result {
         println!("Msg::IsRegisteredDirector");
@@ -195,9 +212,7 @@ impl Handler<ws_to_app::IsRegisteredDirector> for AppState {
             })
         } else {
             println!("Could not find with ID {}", msg.game_id);
-            Box::pin(async move {
-                None
-            })
+            Box::pin(async move { None })
         }
     }
 }
@@ -205,9 +220,9 @@ impl Handler<ws_to_app::IsRegisteredDirector> for AppState {
 /// Handler for IsPlayer
 ///
 /// Creates a New Game with specified main director
-impl Handler<ws_to_app::IsPlayer> for AppState {
+impl Handler<director_to_app::IsPlayer> for AppState {
     type Result = ResponseFuture<Option<Addr<Game>>>;
-    fn handle(&mut self, msg: ws_to_app::IsPlayer, _context: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, msg: director_to_app::IsPlayer, _context: &mut Context<Self>) -> Self::Result {
         if let Some(addr) = self
             .game_map
             .read()
@@ -233,5 +248,16 @@ impl Handler<ws_to_app::IsPlayer> for AppState {
         } else {
             Box::pin(async move { None })
         }
+    }
+}
+
+impl Handler<director_to_app::CloseGame> for AppState {
+    type Result = ();
+    fn handle(&mut self, msg: director_to_app::CloseGame, _: &mut Context<Self>) -> Self::Result {
+        let mut vec = self.game_map.write().unwrap();
+        let index = vec.iter().position(|elem| elem.0 == msg.game_id).unwrap();
+        // vec[index].1.send
+        vec.remove(index);
+        println!("Removed a game from app");
     }
 }

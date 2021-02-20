@@ -16,6 +16,8 @@ use html_handlers::{get_html, redirect, set_cookies};
 mod ws_handler;
 use ws_handler::{handle_prep, handle_ws};
 
+mod handle_to_app;
+
 async fn index_404(_req: HttpRequest) -> actix_web::Result<NamedFile> {
 	Ok(NamedFile::open("../client/404/static/index.html")?)
 }

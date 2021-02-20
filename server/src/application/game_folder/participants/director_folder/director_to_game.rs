@@ -26,3 +26,8 @@ pub struct IsProducer {
 pub struct IsViewer {
 	pub user_id: String,
 }
+
+/// Close Game
+#[derive(Message)]
+#[rtype(result="()")]
+pub struct CloseGame {}

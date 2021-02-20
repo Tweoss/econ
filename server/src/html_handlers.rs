@@ -5,7 +5,8 @@ use actix_web::{get, Responder};
 use std::path::PathBuf;
 
 use crate::application::app::AppState;
-use crate::application::handle_to_app;
+
+use crate::handle_to_app;
 
 use serde::Deserialize;
 
@@ -35,17 +36,19 @@ pub async fn set_cookies(cookie_info: web::Json<CookieInfo>, req: HttpRequest) -
 		req.cookie("viewtype"),
 		req.cookie("game_id"),
 	) {
-		if viewtype.value() == "director" && addr
+		if viewtype.value() == "director"
+			&& addr
 				.send(handle_to_app::IsMainDirector {
 					game_id: game_id.value().to_string(),
 					user_id: uuid.value().to_string(),
 				})
 				.await
-				.unwrap() {
-  				return HttpResponse::Ok()
+				.unwrap()
+		{
+			return HttpResponse::Ok()
   					.content_type("plain/text")
   					.body(format!("Cannot join a game while being a main director. Go to /direct/director/{}/index.html", game_id.value()));
-  			}
+		}
 	}
 	println!("\nThese are the cookies sent from client.");
 	if let Ok(cookies) = req.cookies() {
@@ -205,7 +208,16 @@ async fn get_html(req: HttpRequest) -> impl Responder {
 	let url_viewtype = req.match_info().get("type").unwrap();
 	let url_game_id = req.match_info().get("gameid").unwrap();
 	if let (Some(view_type), Some(game_id)) = (req.cookie("viewtype"), req.cookie("game_id")) {
-		if view_type.value() == url_viewtype && game_id.value() == url_game_id {
+		let addr = req.app_data::<web::Data<actix::Addr<AppState>>>().unwrap();
+		if view_type.value() == url_viewtype
+			&& game_id.value() == url_game_id
+			&& addr
+				.send(handle_to_app::DoesGameExist {
+					game_id: game_id.value().to_string(),
+				})
+				.await
+				.unwrap()
+		{
 			prepath = match view_type.value() {
 				"viewer" => prepath + "viewer/",
 				"producer" => prepath + "producer/",

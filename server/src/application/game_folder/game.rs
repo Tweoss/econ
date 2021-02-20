@@ -1,7 +1,7 @@
 use super::participants::{
-	consumer::Consumer, director::Director, producer::Producer, viewer::Viewer,
-	ws_to_game::*
+	consumer_folder::consumer::Consumer, director_folder::director::Director, producer_folder::producer::Producer, viewer_folder::viewer::Viewer,
 };
+use crate::application::game_folder::participants::director_folder::director_to_game;
 use crate::application::app::AppState;
 use crate::application::app_to_game::*;
 use actix::prelude::*;
@@ -28,9 +28,12 @@ pub struct Game {
 
 impl Actor for Game {
 	type Context = Context<Self>;
-	fn stopping(&mut self, ctx: &mut Self::Context) -> Running {
-		println!("TRIED TO STOP");
-		Running::Continue
+	fn stopping(&mut self, _: &mut Self::Context) -> Running {
+		println!(
+			"Stopping a game actor with main director being: {}",
+			self.id_main_director
+		);
+		Running::Stop
 	}
 }
 
@@ -113,6 +116,14 @@ impl Handler<IsMainDirector> for Game {
 }
 
 // ! WEBSOCKET TO GAME HANDLERS
+
+impl Handler<director_to_game::CloseGame> for Game {
+	type Result = ();
+	fn handle(&mut self, msg: director_to_game::CloseGame, ctx: &mut Context<Self>) -> Self::Result {
+		println!("Test");
+		ctx.stop();
+	}
+}
 
 
 // /// Check if this consumer is registered
