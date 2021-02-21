@@ -13,6 +13,7 @@ use crate::application::game_folder::participants::director_folder::director_to_
 // use super::super::ws_handler;
 use crate::application::app_to_game;
 use crate::handle_to_app::*;
+use crate::application::game_folder::game_to_app;
 
 // use crate::application::player::Player;
 
@@ -28,7 +29,6 @@ use crate::handle_to_app::*;
 /// let result = addr.send(handle_to_app::DoesGameExist {game_id} )
 /// ```
 pub struct AppState {
-    // game_map: Mutex<HashMap<String,Addr<Game>>>,
     game_map: RwLock<HashMap<String, Addr<Game>>>,
     // game_ids: Mutex<Vec<String>>,
     password_hash: u64,
@@ -132,7 +132,7 @@ impl Handler<NewDirector> for AppState {
 impl Handler<NewGame> for AppState {
     type Result = ();
     fn handle(&mut self, msg: NewGame, context: &mut Context<Self>) -> Self::Result {
-        let game = Game::new(context.address(), msg.user_id);
+        let game = Game::new(context.address(), msg.user_id, msg.game_id.clone());
         self.game_map
             .write()
             .unwrap()
@@ -248,9 +248,9 @@ impl Handler<director_to_app::IsPlayer> for AppState {
     }
 }
 
-impl Handler<director_to_app::CloseGame> for AppState {
+impl Handler<game_to_app::CloseGame> for AppState {
     type Result = ();
-    fn handle(&mut self, msg: director_to_app::CloseGame, _: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, msg: game_to_app::CloseGame, _: &mut Context<Self>) -> Self::Result {
         // let mut vec = self.game_map.write().unwrap();
         // let index = vec.iter().position(|elem| elem.0 == msg.game_id).unwrap();
         // vec.remove(index);

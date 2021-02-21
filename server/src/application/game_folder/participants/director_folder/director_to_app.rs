@@ -30,9 +30,3 @@ pub struct IsPlayer {
     pub user_id: String,
     pub game_id: String,
 }
-
-#[derive(Message)]
-#[rtype(result="()")]
-pub struct CloseGame {
-    pub game_id: String,
-}

@@ -6,6 +6,8 @@ use crate::application::app::AppState;
 use crate::application::app_to_game::*;
 use actix::prelude::*;
 
+
+use crate::application::game_folder::game_to_app;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
@@ -24,6 +26,7 @@ pub struct Game {
 	// // * will never be modified
 	app_addr: Addr<AppState>,
 	producer_next: bool,
+	game_id: String,
 }
 
 impl Actor for Game {
@@ -38,7 +41,7 @@ impl Actor for Game {
 }
 
 impl Game {
-	pub fn new(app_addr: Addr<AppState>, id_main_director: String) -> Game {
+	pub fn new(app_addr: Addr<AppState>, id_main_director: String, game_id: String) -> Game {
 		println!("Making a new GAME with director id: {}", id_main_director);
 		Game {
 			producers: Mutex::new(HashMap::new()),
@@ -50,6 +53,7 @@ impl Game {
 			is_open: false,
 			app_addr,
 			producer_next: true,
+			game_id,
 		}
 	}
 }
@@ -121,6 +125,7 @@ impl Handler<director_to_game::CloseGame> for Game {
 	type Result = ();
 	fn handle(&mut self, msg: director_to_game::CloseGame, ctx: &mut Context<Self>) -> Self::Result {
 		println!("Test");
+		self.app_addr.do_send(game_to_app::CloseGame { game_id: self.game_id.clone() });
 		ctx.stop();
 	}
 }

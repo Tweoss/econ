@@ -1,5 +1,5 @@
 use actix::Running;
-use actix::{Actor, Addr, Context};
+use actix::{Actor, Addr, Context, ActorContext};
 // use std::sync::Mutex;
 use actix::StreamHandler;
 use actix_web_actors::ws;
@@ -84,12 +84,14 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Director {
 					DirectorMsgType::CloseGame => {
 						println!("Sup");
 						self.game_addr.do_send(director_to_game::CloseGame {});
-						self.app_addr.do_send(director_to_app::CloseGame {
-							game_id: self.game_id.clone(),
-						});
-						ctx.close(Some(actix_web_actors::ws::CloseReason::from(
-							actix_web_actors::ws::CloseCode::Normal,
-						)));
+						// self.app_addr.do_send(director_to_app::CloseGame {
+						// 	game_id: self.game_id.clone(),
+						// });
+						// ctx.close(Some(actix_web_actors::ws::CloseReason::from(
+						// 	actix_web_actors::ws::CloseCode::Normal,
+						// )));
+						// ctx.close(None);
+						ctx.stop();
 					}
 					DirectorMsgType::OpenGame => {}
 					_ => (),
