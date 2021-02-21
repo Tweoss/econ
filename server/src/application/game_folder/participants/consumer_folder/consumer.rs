@@ -1,16 +1,12 @@
-use actix::{Addr, Actor, Context};
+use actix::{Addr, Actor};
 // use std::sync::Mutex;
 use actix::StreamHandler;
 use actix_web_actors::ws;
 
 // use crate::application::other_messages;
 
-use crate::application::app::AppState;
+// use crate::application::app::AppState;
 use crate::application::game_folder::game::Game;
-
-
-use crate::handle_to_app::*;
-use crate::application::game_folder::participants::director_folder::director_to_game::*;
 
 /// Define HTTP actor
 pub struct Consumer {

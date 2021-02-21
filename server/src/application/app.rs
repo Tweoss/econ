@@ -2,13 +2,10 @@ use actix::prelude::*;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
-use std::rc::Rc;
 use std::sync::RwLock;
 
 
 use crate::application::game_folder::game::Game;
-use crate::application::game_folder::participants::director_folder::director_to_game;
-use crate::application::game_folder::participants::director_folder::director_to_app;
 // use super::super::handle_to_app;
 // use super::super::ws_handler;
 use crate::application::app_to_game;
@@ -144,7 +141,7 @@ impl Handler<NewGame> for AppState {
 
 impl Handler<IsMainDirector> for AppState {
     type Result = ResponseFuture<bool>;
-    fn handle(&mut self, msg: IsMainDirector, context: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, msg: IsMainDirector, _context: &mut Context<Self>) -> Self::Result {
         if let Some(game_addr) = self
         // if let Some(game_id) = self
             .game_map

@@ -1,5 +1,5 @@
 use actix::Running;
-use actix::{Actor, Addr, Context, ActorContext};
+use actix::{Actor, Addr, ActorContext};
 // use std::sync::Mutex;
 use actix::StreamHandler;
 use actix_web_actors::ws;
@@ -9,7 +9,7 @@ use actix_web_actors::ws;
 use crate::application::app::AppState;
 use crate::application::game_folder::game::Game;
 
-use crate::application::game_folder::participants::director_folder::{director_to_app, director_to_game};
+use crate::application::game_folder::participants::director_folder::director_to_game;
 use crate::application::game_folder::participants::json::{DirectorData, DirectorMsgType};
 
 use serde_cbor::{from_slice, to_vec};
@@ -28,17 +28,13 @@ impl Actor for Director {
 	fn started(&mut self, _ctx: &mut Self::Context) {
 		// self.game_addr.send(ws_to_game::ConnectingDirector {user_id: self.uuid})
 	}
-	fn stopping(&mut self, ctx: &mut Self::Context) -> Running {
+	fn stopping(&mut self, _ctx: &mut Self::Context) -> Running {
 		println!(
 			"Stopping a director actor: {} and {}",
 			self.game_id, self.uuid
 		);
 		Running::Stop
 	}
-	// //* called by the game
-	// fn stopped(&mut self, ctx: &mut Self::Context) {
-	// 	// SEND A MESSAGE TO CLIENT TO TERMINATE CONNECTION
-	// }
 }
 
 impl Director {

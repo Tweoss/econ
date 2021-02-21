@@ -1,15 +1,13 @@
-use actix::{Addr, Actor, Context};
+use actix::{Addr, Actor};
 // use std::sync::Mutex;
 use actix::StreamHandler;
 use actix_web_actors::ws;
 
 // use crate::application::other_messages;
 
-use crate::application::app::AppState;
 use crate::application::game_folder::game::Game;
 
 // mod application;
-use crate::handle_to_app::*;
 
 /// Define HTTP actor
 pub struct Producer {

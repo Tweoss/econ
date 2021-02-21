@@ -66,7 +66,7 @@ async fn main() -> std::io::Result<()> {
 				Files::new("/director_login", path.clone() + "director_login/static/")
 					.index_file("index.html"),
 			)
-			.service(Files::new("/login", path.clone() + "login/static/").index_file("index.html"))
+			.service(Files::new("/login", path + "login/static/").index_file("index.html"))
 			.default_service(web::get().to(index_404))
 	})
 	// ! SWITCH THIS REPL

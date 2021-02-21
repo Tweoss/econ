@@ -123,7 +123,7 @@ impl Handler<IsMainDirector> for Game {
 
 impl Handler<director_to_game::CloseGame> for Game {
 	type Result = ();
-	fn handle(&mut self, msg: director_to_game::CloseGame, ctx: &mut Context<Self>) -> Self::Result {
+	fn handle(&mut self, _msg: director_to_game::CloseGame, ctx: &mut Context<Self>) -> Self::Result {
 		println!("Test");
 		self.app_addr.do_send(game_to_app::CloseGame { game_id: self.game_id.clone() });
 		ctx.stop();
