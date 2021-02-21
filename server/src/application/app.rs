@@ -245,9 +245,9 @@ impl Handler<IsRegisteredDirector> for AppState {
 //     }
 // }
 
-impl Handler<game_to_app::CloseGame> for AppState {
+impl Handler<game_to_app::EndGame> for AppState {
     type Result = ();
-    fn handle(&mut self, msg: game_to_app::CloseGame, _: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, msg: game_to_app::EndGame, _: &mut Context<Self>) -> Self::Result {
         // let mut vec = self.game_map.write().unwrap();
         // let index = vec.iter().position(|elem| elem.0 == msg.game_id).unwrap();
         // vec.remove(index);

@@ -1,4 +1,12 @@
 use actix::prelude::*;
+use crate::application::game_folder::participants::director_folder::director::Director;
+
+#[derive(Message)]
+#[rtype(result="()")]
+pub struct RegisterAddress {
+	pub user_id: String,
+	pub addr: Addr<Director>,
+}
 
 /// Check if this consumer is registered
 /// ```
@@ -30,4 +38,4 @@ pub struct IsViewer {
 /// Close Game
 #[derive(Message)]
 #[rtype(result="()")]
-pub struct CloseGame {}
+pub struct EndGame {}

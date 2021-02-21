@@ -35,7 +35,7 @@ pub async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpRes
 			// if let Some(director_ws) =
 			// 	Director::new(uuid.to_string(), game_id.to_string(), addr.clone()).await
 			{
-				let director_ws = Director::new(uuid.to_string(), game_id.to_string(), game_addr, addr.clone()).await;
+				let director_ws = Director::new(uuid.to_string(), game_id.to_string(), game_addr).await;
 				let resp = ws::start(director_ws, &req, stream);
 				println!("{:?}", resp);
 				return resp;

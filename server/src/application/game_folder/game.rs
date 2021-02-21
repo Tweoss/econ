@@ -1,11 +1,14 @@
 use super::participants::{
-	consumer_folder::consumer::Consumer, director_folder::director::Director, producer_folder::producer::Producer, viewer_folder::viewer::Viewer,
+	consumer_folder::consumer::Consumer, director_folder::director::Director,
+	producer_folder::producer::Producer, viewer_folder::viewer::Viewer,
 };
-use crate::application::game_folder::participants::director_folder::director_to_game;
 use crate::application::app::AppState;
 use crate::application::app_to_game::*;
+use crate::application::game_folder::game_to_director;
+use crate::application::game_folder::game_to_participant;
+use crate::application::game_folder::participants::director_folder::director_to_game;
+use crate::application::game_folder::participants::participant_to_game;
 use actix::prelude::*;
-
 
 use crate::application::game_folder::game_to_app;
 use std::collections::HashMap;
@@ -121,15 +124,60 @@ impl Handler<IsMainDirector> for Game {
 
 // ! WEBSOCKET TO GAME HANDLERS
 
-impl Handler<director_to_game::CloseGame> for Game {
+impl Handler<director_to_game::EndGame> for Game {
 	type Result = ();
-	fn handle(&mut self, _msg: director_to_game::CloseGame, ctx: &mut Context<Self>) -> Self::Result {
+	fn handle(&mut self, _msg: director_to_game::EndGame, ctx: &mut Context<Self>) -> Self::Result {
 		println!("Test");
-		self.app_addr.do_send(game_to_app::CloseGame { game_id: self.game_id.clone() });
+		println!("SUP2");
+		if let Some(addr) = &self.addr_main_director {
+			println!("SUP3");
+			addr.do_send(game_to_participant::EndedGame {});
+		}
+		for director in self.directors.lock().unwrap().values() {
+			if let Some(addr) = director {
+				addr.do_send(game_to_participant::EndedGame {});
+			}
+		}
+		self.app_addr.do_send(game_to_app::EndGame {
+			game_id: self.game_id.clone(),
+		});
 		ctx.stop();
 	}
 }
 
+impl Handler<director_to_game::RegisterAddress> for Game {
+	type Result = ();
+	fn handle(
+		&mut self,
+		msg: director_to_game::RegisterAddress,
+		_: &mut Context<Self>,
+	) -> Self::Result {
+		if msg.user_id == self.id_main_director {
+			self.addr_main_director = Some(msg.addr);
+		}
+		else if let Some(mut _addr_value) = self.directors.lock().unwrap().get(&msg.user_id) {
+			_addr_value = &Some(msg.addr);
+		}
+	}
+}
+
+impl Handler<participant_to_game::Unresponsive> for Game {
+	type Result = ();
+	fn handle(
+		&mut self,
+		msg: participant_to_game::Unresponsive,
+		_: &mut Context<Self>,
+	) -> Self::Result {
+		if let Some(addr) = &self.addr_main_director {
+			addr.do_send(game_to_director::Unresponsive { id: msg.id.clone() });
+		}
+		for elem in self.directors.lock().unwrap().values() {
+			if let Some(addr) = elem {
+				addr.do_send(game_to_director::Unresponsive { id: msg.id.clone() });
+			}
+		}
+	}
+}
 
 // /// Check if this consumer is registered
 // impl Handler<IsConsumer> for Game {

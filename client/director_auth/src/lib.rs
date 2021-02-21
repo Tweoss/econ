@@ -13,11 +13,11 @@ use yew::services::fetch;
 use yew::services::websocket::{WebSocketService, WebSocketStatus, WebSocketTask};
 use yew::services::ConsoleService;
 
-use serde::{Deserialize, Serialize};
+// use serde::{Deserialize, Serialize};
 use serde_cbor::{from_slice, to_vec};
 
 mod json;
-use json::{DirectorData, DirectorMsgType};
+use json::{DirectorClientMsg, DirectorClientType, DirectorServerMsg, DirectorServerType};
 
 
 // use serde_json::json;
@@ -29,7 +29,7 @@ struct Model {
     server_data: String, // data received from the server
     text: String,        // text in our input box
     task: Option<fetch::FetchTask>,
-    client_data: DirectorData,
+    client_data: DirectorClientMsg,
 }
 
 enum Msg {
@@ -38,11 +38,11 @@ enum Msg {
     Ignore,                        // ignore this message
     TextInput(String),             // text was input in the input box
     SendText,                      // send our text to server
-    Received(Result<DirectorData, Error>), // data received from server
+    Received(Result<DirectorServerMsg, Error>), // data received from server
     SendReq,
     PrepWsConnect,
     FailedToConnect,
-    CloseGame,
+    EndGame,
 }
 
 // #[derive(Debug, Serialize, Deserialize)]
@@ -61,8 +61,8 @@ impl Component for Model {
             ws: None,
             text: String::new(),
             task: None,
-            client_data: DirectorData {
-                msg_type: DirectorMsgType::OpenGame,
+            client_data: DirectorClientMsg {
+                msg_type: DirectorClientType::OpenGame,
                 kick_target: None,
             },
         }
@@ -73,7 +73,7 @@ impl Component for Model {
             Msg::Connect(v) => {
                 ConsoleService::log("Connecting");
                 let cbout = self.link.callback(|data: Result<Vec<u8>, anyhow::Error>| {
-                    Msg::Received(Ok(from_slice::<DirectorData>(&data.unwrap()).unwrap()))
+                    Msg::Received(Ok(from_slice::<DirectorServerMsg>(&data.unwrap()).unwrap()))
                 });
                 let cbnot = self.link.batch_callback(|input| {
                     ConsoleService::log(&format!("Notification: {:?}", input));
@@ -109,7 +109,7 @@ impl Component for Model {
                 true
             }
             Msg::Ignore => false,
-            Msg::TextInput(e) => {
+            Msg::TextInput(_e) => {
                 // self.client_data.string = e; // note input box value
                 false
             }
@@ -172,9 +172,9 @@ impl Component for Model {
                 self.text.push_str("Failed to reach /wsprep");
                 true
             }
-            Msg::CloseGame => match self.ws {
+            Msg::EndGame => match self.ws {
                 Some(ref mut task) => {
-                    task.send_binary(Ok(to_vec(&DirectorData {msg_type: DirectorMsgType::CloseGame, kick_target: None}).unwrap()));
+                    task.send_binary(Ok(to_vec(&DirectorClientMsg {msg_type: DirectorClientType::EndGame, kick_target: None}).unwrap()));
                     true
                 }
                 None => false
@@ -191,7 +191,7 @@ impl Component for Model {
         let onbuttonsend = self.link.callback(|_| Msg::SendText);
         let inputtext = self.link.callback(|e: InputData| Msg::TextInput(e.value));
         let sendreq = self.link.callback(|_| Msg::SendReq);
-        let endgame = self.link.callback(|_| Msg::CloseGame);
+        let endgame = self.link.callback(|_| Msg::EndGame);
         html! {
             <>
                 // <button onclick=self.link.callback(|_| Msg::AddOne)>{ "+1" }</button>
