@@ -6,6 +6,8 @@ use actix_web_actors::ws;
 use crate::application::app::AppState;
 use crate::application::game_folder::participants::director_folder::director::Director;
 
+use crate::handle_to_app;
+
 pub async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, Error> {
 	println!("called handle_ws");
 	let viewtype: String = req.match_info().get("viewtype").unwrap().parse().unwrap();
@@ -23,10 +25,17 @@ pub async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpRes
 	match viewtype.as_ref() {
 		"director" => {
 			println!("Asking for Director");
-
-			if let Some(director_ws) =
-				Director::new(uuid.to_string(), game_id.to_string(), addr.clone()).await
+			if let Some(game_addr) = addr
+			.send(handle_to_app::IsRegisteredDirector {
+				user_id: uuid.clone(),
+				game_id: game_id.clone(),
+			})
+			.await
+			.unwrap()
+			// if let Some(director_ws) =
+			// 	Director::new(uuid.to_string(), game_id.to_string(), addr.clone()).await
 			{
+				let director_ws = Director::new(uuid.to_string(), game_id.to_string(), game_addr, addr.clone()).await;
 				let resp = ws::start(director_ws, &req, stream);
 				println!("{:?}", resp);
 				return resp;

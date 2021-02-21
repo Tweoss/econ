@@ -111,3 +111,17 @@ pub struct IsMainDirector {
     pub user_id: String,
 }
 
+/// See if a director with this ID was previously authenticated and if so, return the correct game address
+/// ```
+/// #[rtype(result="Option<Addr<Game>>")]
+/// pub struct IsRegisteredDirector {
+///     pub user_id: String,
+///     pub game_id: String,
+/// }
+/// ```
+#[derive(Message)]
+#[rtype(result="Option<Addr<Game>>")]
+pub struct IsRegisteredDirector {
+    pub user_id: String,
+    pub game_id: String,
+}

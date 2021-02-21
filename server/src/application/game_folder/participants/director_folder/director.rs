@@ -42,29 +42,35 @@ impl Actor for Director {
 }
 
 impl Director {
-	pub async fn new(
-		uuid: String,
-		game_id: String,
-		addr: actix_web::web::Data<Addr<AppState>>,
-	) -> Option<Director> {
-		// pub async fn new(uuid: String, game_id: String, game_addr: Addr<Game>) -> Option<Director> {
-		println!("Attempting to make a new Director ws");
-		if let Some(game_addr) = addr
-			.send(director_to_app::IsRegisteredDirector {
-				user_id: uuid.clone(),
-				game_id: game_id.clone(),
-			})
-			.await
-			.unwrap()
-		{
-			Some(Director {
-				uuid,
-				game_id,
-				game_addr,
-				app_addr: addr,
-			})
-		} else {
-			None
+	// pub async fn new(
+	// 	uuid: String,
+	// 	game_id: String,
+	// 	addr: actix_web::web::Data<Addr<AppState>>,
+	// ) -> Option<Director> {
+	pub async fn new(uuid: String, game_id: String, game_addr: Addr<Game>, addr: actix_web::web::Data<Addr<AppState>>) -> Director {
+		// println!("Attempting to make a new Director ws");
+		// if let Some(game_addr) = addr
+		// 	.send(director_to_app::IsRegisteredDirector {
+		// 		user_id: uuid.clone(),
+		// 		game_id: game_id.clone(),
+		// 	})
+		// 	.await
+		// 	.unwrap()
+		// {
+		// 	Some(Director {
+		// 		uuid,
+		// 		game_id,
+		// 		game_addr,
+		// 		app_addr: addr,
+		// 	})
+		// } else {
+		// 	None
+		// }
+		Director {
+			uuid,
+			game_id,
+			game_addr,
+			app_addr: addr
 		}
 	}
 }
