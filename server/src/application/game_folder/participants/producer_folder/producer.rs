@@ -7,7 +7,26 @@ use actix_web_actors::ws;
 
 use crate::application::game_folder::game::Game;
 
-// mod application;
+
+pub struct ProducerState {
+	pub is_connected: bool,
+	pub score: i64,
+	pub quantity_remaining: u64,
+	pub price: i64,
+	pub addr: Option<Addr<Producer>>,
+}
+
+impl ProducerState {
+	pub fn new() -> ProducerState {
+		ProducerState {
+			is_connected: false,
+			score: 0,
+			quantity_remaining: 0,
+			price: 0,
+			addr: None,
+		}
+	}
+}
 
 /// Define HTTP actor
 pub struct Producer {

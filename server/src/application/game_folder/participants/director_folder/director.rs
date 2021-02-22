@@ -12,8 +12,10 @@ use crate::application::app::AppState;
 use crate::application::game_folder::game::Game;
 
 use crate::application::game_folder::participants::director_folder::director_to_game;
+use crate::application::game_folder::participants::json::{
+	DirectorClientMsg, DirectorClientType, DirectorServerMsg, DirectorServerType,
+};
 use crate::application::game_folder::participants::participant_to_game;
-use crate::application::game_folder::participants::json::{DirectorClientMsg, DirectorClientType, DirectorServerMsg, DirectorServerType};
 
 use crate::application::game_folder::game_to_director;
 use crate::application::game_folder::game_to_participant;
@@ -23,6 +25,20 @@ use serde_cbor::{from_slice, to_vec};
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 /// How long before lack of client response causes a timeout
 const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
+
+pub struct DirectorState {
+	pub is_connected: bool,
+	pub addr: Option<Addr<Director>>,
+}
+
+impl DirectorState {
+	pub fn new() -> DirectorState {
+		DirectorState {
+			is_connected: false,
+			addr: None,
+		}
+	}
+}
 
 /// Define HTTP actor
 pub struct Director {
@@ -38,7 +54,10 @@ impl Actor for Director {
 	//* giving the game the address
 	fn started(&mut self, ctx: &mut Self::Context) {
 		// self.game_addr.send(ws_to_game::ConnectingDirector {user_id: self.uuid})
-		self.game_addr.do_send(director_to_game::RegisterAddress {user_id: self.uuid.clone(), addr: ctx.address()});
+		self.game_addr.do_send(director_to_game::RegisterAddress {
+			user_id: self.uuid.clone(),
+			addr: ctx.address(),
+		});
 		self.hb(ctx);
 	}
 	fn stopping(&mut self, _ctx: &mut Self::Context) -> Running {
@@ -71,10 +90,15 @@ impl Director {
 			if Instant::now().duration_since(act.hb) > CLIENT_TIMEOUT {
 				// heartbeat timed out
 				// notify game
-				act.game_addr.do_send(participant_to_game::Unresponsive { id: act.uuid.clone() });
-
+				act.game_addr.do_send(participant_to_game::Unresponsive {
+					id: act.uuid.clone(),
+				});
 			}
-			let response = to_vec(&DirectorServerMsg {msg_type: DirectorServerType::Ping, target: None}).unwrap();
+			let response = to_vec(&DirectorServerMsg {
+				msg_type: DirectorServerType::Ping,
+				target: None,
+			})
+			.unwrap();
 			ctx.binary(response);
 		});
 	}
@@ -89,7 +113,8 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Director {
 				ctx.text(text);
 			}
 			Ok(ws::Message::Binary(bin)) => {
-				let message: DirectorClientMsg = from_slice::<DirectorClientMsg>(&bin.to_vec()).unwrap();
+				let message: DirectorClientMsg =
+					from_slice::<DirectorClientMsg>(&bin.to_vec()).unwrap();
 				println!("{:?}", message);
 				match message.msg_type {
 					DirectorClientType::EndGame => {
@@ -103,11 +128,18 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Director {
 						// ctx.close(None);
 						// ctx.stop();
 					}
-					DirectorClientType::OpenGame => {},
-					DirectorClientType::Pong => {self.hb = Instant::now(); println!("Received Pong");},
+					DirectorClientType::OpenGame => {}
+					DirectorClientType::Pong => {
+						self.hb = Instant::now();
+						println!("Received Pong");
+					}
 					_ => (),
 				}
-				let response = to_vec(&DirectorServerMsg {msg_type: DirectorServerType::Ignore, target: None}).unwrap();
+				let response = to_vec(&DirectorServerMsg {
+					msg_type: DirectorServerType::Ignore,
+					target: None,
+				})
+				.unwrap();
 				ctx.binary(response);
 			}
 			_ => (),
@@ -117,13 +149,21 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Director {
 
 impl Handler<game_to_director::Unresponsive> for Director {
 	type Result = ();
-	fn handle(&mut self, msg: game_to_director::Unresponsive, _: &mut Self::Context) -> Self::Result {
+	fn handle(
+		&mut self,
+		msg: game_to_director::Unresponsive,
+		_: &mut Self::Context,
+	) -> Self::Result {
 	}
 }
 
 impl Handler<game_to_participant::EndedGame> for Director {
 	type Result = ();
-	fn handle(&mut self, _msg: game_to_participant::EndedGame, ctx: &mut Self::Context) -> Self::Result {
+	fn handle(
+		&mut self,
+		_msg: game_to_participant::EndedGame,
+		ctx: &mut Self::Context,
+	) -> Self::Result {
 		ctx.stop()
 	}
 }

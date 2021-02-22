@@ -8,6 +8,22 @@ use actix_web_actors::ws;
 // use crate::application::app::AppState;
 use crate::application::game_folder::game::Game;
 
+pub struct ConsumerState {
+	pub is_connected: bool,
+	pub score: i64,
+	pub addr: Option<Addr<Consumer>>,
+}
+
+impl ConsumerState {
+	pub fn new() -> ConsumerState {
+		ConsumerState {
+			is_connected: false,
+			score: 0,
+			addr: None,
+		}
+	}
+}
+
 /// Define HTTP actor
 pub struct Consumer {
 	pub uuid: String,

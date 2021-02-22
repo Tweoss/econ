@@ -7,6 +7,20 @@ use actix_web_actors::ws;
 
 use crate::application::game_folder::game::Game;
 
+pub struct ViewerState {
+	pub is_connected: bool,
+	pub addr: Option<Addr<Viewer>>,
+}
+
+impl ViewerState {
+	pub fn new() -> ViewerState {
+		ViewerState {
+			is_connected: false,
+			addr: None,
+		}
+	}
+}
+
 /// Define HTTP actor
 pub struct Viewer {
 	pub uuid: String,
