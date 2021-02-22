@@ -70,16 +70,9 @@ impl Director {
 			// check client heartbeats
 			if Instant::now().duration_since(act.hb) > CLIENT_TIMEOUT {
 				// heartbeat timed out
-				println!("Websocket Client heartbeat failed!");
-
-				// notify chat server
+				// notify game
 				act.game_addr.do_send(participant_to_game::Unresponsive { id: act.uuid.clone() });
 
-				// stop actor
-				// ctx.stop();
-
-				// don't try to send a ping
-				// return;
 			}
 			let response = to_vec(&DirectorServerMsg {msg_type: DirectorServerType::Ping, target: None}).unwrap();
 			ctx.binary(response);
@@ -100,7 +93,6 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Director {
 				println!("{:?}", message);
 				match message.msg_type {
 					DirectorClientType::EndGame => {
-						println!("Sup");
 						self.game_addr.do_send(director_to_game::EndGame {});
 						// self.app_addr.do_send(director_to_app::EndGame {
 						// 	game_id: self.game_id.clone(),
@@ -132,7 +124,6 @@ impl Handler<game_to_director::Unresponsive> for Director {
 impl Handler<game_to_participant::EndedGame> for Director {
 	type Result = ();
 	fn handle(&mut self, _msg: game_to_participant::EndedGame, ctx: &mut Self::Context) -> Self::Result {
-		println!("SUP");
 		ctx.stop()
 	}
 }

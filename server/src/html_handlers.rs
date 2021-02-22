@@ -300,3 +300,22 @@ pub async fn redirect(req: HttpRequest) -> impl Responder {
 	// 		.finish()
 	// }
 }
+
+#[get("/{play_view_direct}/{type}/{gameid:\\d*}/assets/{rest_of_path:.*}")]
+async fn assets(req: HttpRequest) -> impl Responder {
+	let mut prepath = "../client/".to_owned();
+	let url_viewtype = req.match_info().get("type").unwrap();
+	let path = req.match_info().get("rest_of_path").unwrap();
+	println!("Handling css");
+	println!("{}", path);
+	prepath = match url_viewtype {
+		"viewer" => prepath + "viewer/",
+		"producer" => prepath + "producer/",
+		"consumer" => prepath + "consumer/",
+		"director" => prepath + "director_auth/",
+		_ => {let ree: actix_files::NamedFile = NamedFile::open("../client/404/static/index.html").unwrap(); return ree;},
+	};
+	prepath += "static/assets/";
+	prepath += path;
+	NamedFile::open(prepath).unwrap()
+}

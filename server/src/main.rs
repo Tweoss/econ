@@ -11,7 +11,7 @@ mod application;
 use crate::application::app::AppState;
 
 mod html_handlers;
-use html_handlers::{get_html, redirect, set_cookies};
+use html_handlers::{get_html, redirect, set_cookies, assets};
 
 mod ws_handler;
 use ws_handler::{handle_prep, handle_ws};
@@ -62,6 +62,7 @@ async fn main() -> std::io::Result<()> {
 			.route("/ws/{viewtype}/{game_id}/{uuid}", web::get().to(handle_ws))
 			.route("/wsprep", web::post().to(handle_prep))
 			.service(get_html)
+			.service(assets)
 			.service(
 				Files::new("/director_login", path.clone() + "director_login/static/")
 					.index_file("index.html"),

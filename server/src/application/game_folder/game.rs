@@ -130,10 +130,7 @@ impl Handler<IsMainDirector> for Game {
 impl Handler<director_to_game::EndGame> for Game {
 	type Result = ();
 	fn handle(&mut self, _msg: director_to_game::EndGame, ctx: &mut Context<Self>) -> Self::Result {
-		println!("Test");
-		println!("SUP2");
 		if let Some(addr) = &self.addr_main_director {
-			println!("SUP3");
 			addr.do_send(game_to_participant::EndedGame {});
 		}
 		for director in self.directors.lock().unwrap().values() {
