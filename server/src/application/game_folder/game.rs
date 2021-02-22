@@ -1,25 +1,24 @@
 use super::participants::{
-	consumer_folder::consumer::Consumer, director_folder::director::Director,
-	producer_folder::producer::Producer, viewer_folder::viewer::Viewer,
-};
-use super::participants::{
 	director_folder::director::DirectorState, consumer_folder::consumer::ConsumerState,
 	viewer_folder::viewer::ViewerState, producer_folder::producer::ProducerState,
 };
+use actix::prelude::*;
+
 use crate::application::app::AppState;
 use crate::application::app_to_game::*;
 use crate::application::game_folder::game_to_director;
 use crate::application::game_folder::game_to_participant;
 use crate::application::game_folder::participants::director_folder::director_to_game;
 use crate::application::game_folder::participants::participant_to_game;
-use actix::prelude::*;
+
+use super::participants::json;
 
 use crate::application::game_folder::game_to_app;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
 // //* Game can receive messages about a Player joining, admin Messages, other things?
-#[allow(clippy::type_complexity)] 
+
 pub struct Game {
 	// is_connected, i64: score in dollars
 	consumers: Mutex<HashMap<String, ConsumerState>>,
@@ -77,10 +76,26 @@ impl Handler<NewPlayer> for Game {
 	fn handle(&mut self, msg: NewPlayer, _: &mut Context<Self>) -> Self::Result {
 		self.producer_next = !self.producer_next;
 		if self.producer_next {
-			self.consumers.lock().unwrap().insert(msg.user_id, ConsumerState::new());
+			self.consumers.lock().unwrap().insert(msg.user_id.clone(), ConsumerState::new());
+			for elem in self.directors.lock().unwrap().values() {
+				if let Some(addr) = &elem.addr {
+					addr.do_send(game_to_director::NewParticipant {id: msg.user_id.clone(), participant_type: json::ParticipantType::Consumer});
+				}
+			}
+			if let Some(addr) = &self.state_main_director.addr {
+				addr.do_send(game_to_director::NewParticipant {id: msg.user_id, participant_type: json::ParticipantType::Consumer})
+			}
 			"consumer".to_string()
 		} else {
-			self.producers.lock().unwrap().insert(msg.user_id, ProducerState::new());
+			self.producers.lock().unwrap().insert(msg.user_id.clone(), ProducerState::new());
+			for elem in self.directors.lock().unwrap().values() {
+				if let Some(addr) = &elem.addr {
+					addr.do_send(game_to_director::NewParticipant {id: msg.user_id.clone(), participant_type: json::ParticipantType::Producer});
+				}
+			}
+			if let Some(addr) = &self.state_main_director.addr {
+				addr.do_send(game_to_director::NewParticipant {id: msg.user_id, participant_type: json::ParticipantType::Producer})
+			}
 			"producer".to_string()
 		}
 	}
@@ -98,7 +113,12 @@ impl Handler<IsGameOpen> for Game {
 impl Handler<NewDirector> for Game {
 	type Result = ();
 	fn handle(&mut self, msg: NewDirector, _: &mut Context<Self>) -> Self::Result {
-		self.directors.lock().unwrap().insert(msg.user_id, DirectorState::new());
+		self.directors.lock().unwrap().insert(msg.user_id.clone(), DirectorState::new());
+		for elem in self.directors.lock().unwrap().values() {
+			if let Some(addr) = &elem.addr {
+				addr.do_send(game_to_director::NewParticipant {id: msg.user_id.clone(), participant_type: json::ParticipantType::Director});
+			}
+		}
 	}
 }
 

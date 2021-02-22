@@ -20,10 +20,11 @@ use crate::application::game_folder::participants::participant_to_game;
 use crate::application::game_folder::game_to_director;
 use crate::application::game_folder::game_to_participant;
 
+use super::super::json::ParticipantType;
+
 use serde_cbor::{from_slice, to_vec};
 
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
-/// How long before lack of client response causes a timeout
 const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 
 pub struct DirectorState {
@@ -45,7 +46,6 @@ pub struct Director {
 	pub uuid: String,
 	pub game_id: String,
 	pub game_addr: Addr<Game>,
-	// pub app_addr: actix_web::web::Data<Addr<AppState>>,
 	hb: Instant,
 }
 
@@ -53,7 +53,6 @@ impl Actor for Director {
 	type Context = ws::WebsocketContext<Self>;
 	//* giving the game the address
 	fn started(&mut self, ctx: &mut Self::Context) {
-		// self.game_addr.send(ws_to_game::ConnectingDirector {user_id: self.uuid})
 		self.game_addr.do_send(director_to_game::RegisterAddress {
 			user_id: self.uuid.clone(),
 			addr: ctx.address(),
@@ -154,6 +153,26 @@ impl Handler<game_to_director::Unresponsive> for Director {
 		msg: game_to_director::Unresponsive,
 		_: &mut Self::Context,
 	) -> Self::Result {
+	}
+}
+
+impl Handler<game_to_director::NewParticipant> for Director {
+	type Result = ();
+	fn handle(&mut self, msg: game_to_director::NewParticipant, ctx: &mut Self::Context) -> Self::Result {
+		match msg.participant_type  {
+			ParticipantType::Director => {
+				ctx.binary(to_vec(&DirectorServerMsg {msg_type: DirectorServerType::NewDirector, target: Some(msg.id)}).unwrap())
+			},
+			ParticipantType::Producer => {
+				ctx.binary(to_vec(&DirectorServerMsg {msg_type: DirectorServerType::NewProducer, target: Some(msg.id)}).unwrap())
+			},
+			ParticipantType::Consumer => {
+				ctx.binary(to_vec(&DirectorServerMsg {msg_type: DirectorServerType::NewConsumer, target: Some(msg.id)}).unwrap())
+			},
+			ParticipantType::Viewer => {
+				ctx.binary(to_vec(&DirectorServerMsg {msg_type: DirectorServerType::NewViewer, target: Some(msg.id)}).unwrap())
+			},
+		}
 	}
 }
 
