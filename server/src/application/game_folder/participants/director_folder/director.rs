@@ -67,7 +67,6 @@ impl Director {
 	}
 	fn hb(&self, ctx: &mut ws::WebsocketContext<Self>) {
 		ctx.run_interval(HEARTBEAT_INTERVAL, |act, ctx| {
-			println!("Sending Heartbeat");
 			// check client heartbeats
 			if Instant::now().duration_since(act.hb) > CLIENT_TIMEOUT {
 				// heartbeat timed out
@@ -82,8 +81,8 @@ impl Director {
 				// don't try to send a ping
 				// return;
 			}
-
-			ctx.ping(b"");
+			let response = to_vec(&DirectorServerMsg {msg_type: DirectorServerType::Ping, target: None}).unwrap();
+			ctx.binary(response);
 		});
 	}
 }
@@ -112,7 +111,8 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Director {
 						// ctx.close(None);
 						// ctx.stop();
 					}
-					DirectorClientType::OpenGame => {}
+					DirectorClientType::OpenGame => {},
+					DirectorClientType::Pong => {self.hb = Instant::now(); println!("Received Pong");},
 					_ => (),
 				}
 				let response = to_vec(&DirectorServerMsg {msg_type: DirectorServerType::Ignore, target: None}).unwrap();

@@ -1,17 +1,18 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug,Deserialize,Serialize)]
+#[derive(Debug, Deserialize)]
 pub struct DirectorClientMsg {
 	pub msg_type: DirectorClientType,
 	pub kick_target: Option<String>,
 }
 
-#[derive(Debug,Deserialize,Serialize)]
+#[derive(Debug, Deserialize, PartialEq)]
 pub enum DirectorClientType {
 	OpenGame,
 	CloseGame,
 	EndGame,
 	Kick,
+	Pong,
 }
 
 #[derive(Debug, Serialize)]
@@ -21,9 +22,10 @@ pub struct DirectorServerMsg {
 	pub target: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, PartialEq)]
 pub enum DirectorServerType {
 	UnresponsivePlayer,
 	GameEnded,
 	Ignore,
+	Ping,
 }

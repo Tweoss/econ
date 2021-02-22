@@ -125,6 +125,12 @@ impl Component for Model {
                 false
             }
             Msg::Received(Ok(s)) => {
+                if s.msg_type == DirectorServerType::Ping {
+                    if let Some(ref mut task) = self.ws {
+                        ConsoleService::log("Sending Pong");
+                        task.send_binary(Ok(to_vec(&DirectorClientMsg {msg_type: DirectorClientType::Pong, kick_target: None}).unwrap()));
+                    }
+                }
                 self.server_data.push_str(&format!("{:?}\n", s));
                 true
             }

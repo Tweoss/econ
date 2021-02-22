@@ -15,12 +15,15 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 
 // //* Game can receive messages about a Player joining, admin Messages, other things?
+#[allow(clippy::type_complexity)] 
 pub struct Game {
 	//* will never be modified - read multiple times
 	// id: usize, //* 6 digits?
 	//* will be modified
-	producers: Mutex<HashMap<String, Option<Addr<Producer>>>>,
-	consumers: Mutex<HashMap<String, Option<Addr<Consumer>>>>,
+	// i64: score in dollars
+	consumers: Mutex<HashMap<String, (i64, Option<Addr<Producer>>)>>,
+	// i64: score in dollars, u64 is price, u64 is quantity
+	producers: Mutex<HashMap<String, (i64, u64, u64, Option<Addr<Consumer>>)>>,
 	directors: Mutex<HashMap<String, Option<Addr<Director>>>>,
 	viewers: Mutex<HashMap<String, Option<Addr<Viewer>>>>,
 	id_main_director: String,
@@ -71,10 +74,10 @@ impl Handler<NewPlayer> for Game {
 	fn handle(&mut self, msg: NewPlayer, _: &mut Context<Self>) -> Self::Result {
 		self.producer_next = !self.producer_next;
 		if self.producer_next {
-			self.consumers.lock().unwrap().insert(msg.user_id, None);
+			self.consumers.lock().unwrap().insert(msg.user_id, (0, None));
 			"consumer".to_string()
 		} else {
-			self.producers.lock().unwrap().insert(msg.user_id, None);
+			self.producers.lock().unwrap().insert(msg.user_id, (0, 0, 0, None));
 			"producer".to_string()
 		}
 	}

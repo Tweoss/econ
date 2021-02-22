@@ -209,41 +209,6 @@ impl Handler<IsRegisteredDirector> for AppState {
     }
 }
 
-// /// Handler for IsPlayer
-// ///
-// /// Creates a New Game with specified main director
-// impl Handler<director_to_app::IsPlayer> for AppState {
-//     type Result = ResponseFuture<Option<Addr<Game>>>;
-//     fn handle(&mut self, msg: director_to_app::IsPlayer, _context: &mut Context<Self>) -> Self::Result {
-//         if let Some(addr) = self
-//             .game_map
-//             .read()
-//             .unwrap()
-//             .get(&msg.game_id)
-//             // .iter()
-//             // .find(|&x| x.0 == msg.game_id)
-//         {
-//             let async_addr = addr.clone();
-//             // let async_addr = addr.1.clone();
-//             Box::pin(async move {
-//                 if async_addr
-//                     .clone()
-//                     .send(app_to_game::IsPlayer {
-//                         user_id: msg.user_id,
-//                     })
-//                     .await
-//                     .unwrap()
-//                 {
-//                     Some(async_addr)
-//                 } else {
-//                     None
-//                 }
-//             })
-//         } else {
-//             Box::pin(async move { None })
-//         }
-//     }
-// }
 
 impl Handler<game_to_app::EndGame> for AppState {
     type Result = ();
