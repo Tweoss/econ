@@ -19,7 +19,6 @@ use serde_cbor::{from_slice, to_vec};
 mod json;
 use json::{DirectorClientMsg, DirectorClientType, DirectorServerMsg, DirectorServerType};
 
-
 // use serde_json::json;
 // use stdweb::js;
 
@@ -30,14 +29,39 @@ struct Model {
     text: String,        // text in our input box
     task: Option<fetch::FetchTask>,
     client_data: DirectorClientMsg,
+    consumers: Vec<Participant>,
+    producers: Vec<Participant>,
+    directors: Vec<Participant>,
+    viewers: Vec<Participant>,
+}
+
+struct Participant {
+    id: String,
+    state: PlayerState,
+}
+
+impl Participant {
+    fn new(id: String) -> Participant {
+        Participant {
+            id,
+            state: PlayerState::Disconnected,
+        }
+    }
+}
+
+enum PlayerState {
+    Unresponsive,
+    Connected,
+    Disconnected,
+    Kicked,
 }
 
 enum Msg {
-    Connect(Vec<String>),          // connect to websocket server
-    Disconnected,                  // disconnected from server
-    Ignore,                        // ignore this message
-    TextInput(String),             // text was input in the input box
-    SendText,                      // send our text to server
+    Connect(Vec<String>),                       // connect to websocket server
+    Disconnected,                               // disconnected from server
+    Ignore,                                     // ignore this message
+    TextInput(String),                          // text was input in the input box
+    SendText,                                   // send our text to server
     Received(Result<DirectorServerMsg, Error>), // data received from server
     SendReq,
     PrepWsConnect,
@@ -65,6 +89,10 @@ impl Component for Model {
                 msg_type: DirectorClientType::OpenGame,
                 kick_target: None,
             },
+            consumers: Vec::new(),
+            producers: Vec::new(),
+            directors: Vec::new(),
+            viewers: Vec::new(),
         }
     }
 
@@ -125,11 +153,34 @@ impl Component for Model {
                 false
             }
             Msg::Received(Ok(s)) => {
-                if s.msg_type == DirectorServerType::Ping {
-                    if let Some(ref mut task) = self.ws {
-                        ConsoleService::log("Sending Pong");
-                        task.send_binary(Ok(to_vec(&DirectorClientMsg {msg_type: DirectorClientType::Pong, kick_target: None}).unwrap()));
+                match s.msg_type {
+                    DirectorServerType::Ping => {
+                        if let Some(ref mut task) = self.ws {
+                            ConsoleService::log("Sending Pong");
+                            task.send_binary(Ok(to_vec(&DirectorClientMsg {
+                                msg_type: DirectorClientType::Pong,
+                                kick_target: None,
+                            })
+                            .unwrap()));
+                        }
                     }
+                    DirectorServerType::NewConsumer => {
+                        self.consumers
+                            .push(Participant::new(s.target.clone().unwrap()));
+                    }
+                    DirectorServerType::NewProducer => {
+                        self.producers
+                            .push(Participant::new(s.target.clone().unwrap()));
+                    }
+                    DirectorServerType::NewDirector => {
+                        self.directors
+                            .push(Participant::new(s.target.clone().unwrap()));
+                    }
+                    DirectorServerType::NewViewer => {
+                        self.viewers
+                            .push(Participant::new(s.target.clone().unwrap()));
+                    }
+                    _ => {}
                 }
                 self.server_data.push_str(&format!("{:?}\n", s));
                 true
@@ -173,23 +224,33 @@ impl Component for Model {
                 let task = fetch::FetchService::fetch(post_request, callback).unwrap();
                 self.task = Some(task);
                 false
-            },
+            }
             Msg::FailedToConnect => {
                 self.text.push_str("Failed to reach /wsprep");
                 true
             }
             Msg::EndGame => match self.ws {
                 Some(ref mut task) => {
-                    task.send_binary(Ok(to_vec(&DirectorClientMsg {msg_type: DirectorClientType::EndGame, kick_target: None}).unwrap()));
+                    task.send_binary(Ok(to_vec(&DirectorClientMsg {
+                        msg_type: DirectorClientType::EndGame,
+                        kick_target: None,
+                    })
+                    .unwrap()));
                     true
                 }
-                None => false
-            }
+                None => false,
+            },
         }
     }
 
     fn change(&mut self, _props: Self::Properties) -> ShouldRender {
         false
+    }
+
+    fn rendered(&mut self, first_render: bool) {
+        if first_render {
+            self.link.send_message(Msg::PrepWsConnect);
+        }
     }
 
     fn view(&self) -> Html {
@@ -218,6 +279,8 @@ impl Component for Model {
             </>
         }
     }
+
+
 }
 
 #[wasm_bindgen(start)]
