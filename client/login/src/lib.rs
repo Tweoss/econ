@@ -66,7 +66,7 @@ impl Component for Model {
 				true
 			}
 			Msg::SendReq => {
-				let json = json!({"username": self.name, "viewtype": "director", "game_id": self.game_id, "password": "eDicTUingeTE"});
+				let json = json!({"username": self.name, "viewtype": "player", "game_id": self.game_id, "password": ""});
 				let post_request = Request::post("/cookies")
 					// let post_request = Request::post("https://a.valour.vision/cookies")
 					// .header("Content-Type", "text/plain")
