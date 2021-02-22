@@ -31,6 +31,7 @@ pub async fn set_cookies(cookie_info: web::Json<CookieInfo>, req: HttpRequest) -
 	);
 	let addr = req.app_data::<web::Data<actix::Addr<AppState>>>().unwrap();
 
+	//* make sure isnt main director
 	if let (Some(uuid), Some(viewtype), Some(game_id)) = (
 		req.cookie("uuid"),
 		req.cookie("viewtype"),
@@ -313,7 +314,11 @@ async fn assets(req: HttpRequest) -> impl Responder {
 		"producer" => prepath + "producer/",
 		"consumer" => prepath + "consumer/",
 		"director" => prepath + "director_auth/",
-		_ => {let ree: actix_files::NamedFile = NamedFile::open("../client/404/static/index.html").unwrap(); return ree;},
+		_ => {
+			let ree: actix_files::NamedFile =
+				NamedFile::open("../client/404/static/index.html").unwrap();
+			return ree;
+		}
 	};
 	prepath += "static/assets/";
 	prepath += path;

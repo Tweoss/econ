@@ -134,12 +134,12 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Director {
 					}
 					_ => (),
 				}
-				let response = to_vec(&DirectorServerMsg {
-					msg_type: DirectorServerType::Ignore,
-					target: None,
-				})
-				.unwrap();
-				ctx.binary(response);
+				// let response = to_vec(&DirectorServerMsg {
+				// 	msg_type: DirectorServerType::Ignore,
+				// 	target: None,
+				// })
+				// .unwrap();
+				// ctx.binary(response);
 			}
 			_ => (),
 		}

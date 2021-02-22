@@ -13,7 +13,6 @@ use yew::services::fetch;
 use yew::services::websocket::{WebSocketService, WebSocketStatus, WebSocketTask};
 use yew::services::ConsoleService;
 
-// use serde::{Deserialize, Serialize};
 use serde_cbor::{from_slice, to_vec};
 
 mod json;
@@ -45,6 +44,30 @@ impl Participant {
         Participant {
             id,
             state: PlayerState::Disconnected,
+        }
+    }
+    fn render(&self) -> Html {
+        match self.state {
+            PlayerState::Unresponsive => {
+                html! {
+                    <p class="kickable unresponsive">{self.id.clone()}</p>
+                }
+            }
+            PlayerState::Connected => {
+                html! {
+                    <p class="kickable live">{self.id.clone()}</p>
+                }
+            }
+            PlayerState::Disconnected => {
+                html! {
+                    <p class="kickable">{self.id.clone()}</p>
+                }
+            }
+            PlayerState::Kicked => {
+                html! {
+                    <p class="kicked">{self.id.clone()}</p>
+                }
+            }
         }
     }
 }
@@ -163,6 +186,7 @@ impl Component for Model {
                             })
                             .unwrap()));
                         }
+                        return false;
                     }
                     DirectorServerType::NewConsumer => {
                         self.consumers
@@ -259,6 +283,8 @@ impl Component for Model {
         let inputtext = self.link.callback(|e: InputData| Msg::TextInput(e.value));
         let sendreq = self.link.callback(|_| Msg::SendReq);
         let endgame = self.link.callback(|_| Msg::EndGame);
+        // let sendreq = link.callback(|event: yew::MouseEvent| {event.target(); Msg::SendReq});
+
         html! {
             <>
                 // <button onclick=self.link.callback(|_| Msg::AddOne)>{ "+1" }</button>
@@ -276,11 +302,22 @@ impl Component for Model {
                 <p><button onclick=sendreq,>{ "Send Req" }</button></p><br/>
                 // close game
                 <button onclick=endgame>{ "End Game"}</button>
+                {for self.consumers.iter().map(|elem| elem.render())}
+                {for self.producers.iter().map(|elem| elem.render())}
+                {for self.directors.iter().map(|elem| elem.render())}
+                {for self.viewers.iter().map(|elem| elem.render())}
+                // for elem in self.producers {
+                //     elem.render();
+                // }
+                // for elem in self.directors {
+                //     elem.render();
+                // }
+                // for elem in self.viewers {
+                //     elem.render();
+                // }
             </>
         }
     }
-
-
 }
 
 #[wasm_bindgen(start)]

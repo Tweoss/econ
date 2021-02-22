@@ -21,7 +21,7 @@ pub async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpRes
 	let addr = req.app_data::<web::Data<actix::Addr<AppState>>>().unwrap();
 	// addr.send(crate::application::handle_to_app::IsGameOpen{game_id: "HI".to_string()});
 
-	println!("Had some cookies");
+	// println!("Had some cookies");
 	match viewtype.as_ref() {
 		"director" => {
 			println!("Asking for Director");
@@ -66,6 +66,12 @@ pub async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpRes
 }
 
 pub async fn handle_prep(req: HttpRequest) -> impl Responder {
+	println!(
+		"{}\n{}\n{}",
+		req.cookie("viewtype").unwrap().value(),
+		req.cookie("game_id").unwrap().value(),
+		req.cookie("uuid").unwrap().value()
+	);
 	return format!(
 		"{}\n{}\n{}",
 		req.cookie("viewtype").unwrap().value(),
