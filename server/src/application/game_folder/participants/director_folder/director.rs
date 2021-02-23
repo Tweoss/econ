@@ -127,10 +127,18 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Director {
 						// ctx.close(None);
 						// ctx.stop();
 					}
-					DirectorClientType::OpenGame => {}
+					DirectorClientType::OpenGame => {
+						self.game_addr.do_send(director_to_game::OpenGame {});
+					}
+					DirectorClientType::CloseGame => {
+						self.game_addr.do_send(director_to_game::CloseGame {});
+					}
 					DirectorClientType::Pong => {
 						self.hb = Instant::now();
 						println!("Received Pong");
+					}
+					DirectorClientType::Kick => {
+						self.game_addr.do_send(director_to_game::KickParticipant {user_id: message.kick_target.unwrap()});
 					}
 					_ => (),
 				}
@@ -173,6 +181,27 @@ impl Handler<game_to_director::NewParticipant> for Director {
 				ctx.binary(to_vec(&DirectorServerMsg {msg_type: DirectorServerType::NewViewer, target: Some(msg.id)}).unwrap())
 			},
 		}
+	}
+}
+
+impl Handler<game_to_director::KickedParticipant> for Director {
+	type Result = ();
+	fn handle(&mut self, msg: game_to_director::KickedParticipant, ctx: &mut Self::Context) -> Self::Result {
+		ctx.binary(to_vec(&DirectorServerMsg {msg_type: DirectorServerType::ParticipantKicked, target: Some(msg.id)}).unwrap());
+	}
+}
+
+impl Handler<game_to_director::GameOpened> for Director {
+	type Result = ();
+	fn handle(&mut self, msg: game_to_director::GameOpened, ctx: &mut Self::Context) -> Self::Result {
+		ctx.binary(to_vec(&DirectorServerMsg {msg_type: DirectorServerType::GameOpened, target: None}).unwrap());
+	}
+}
+
+impl Handler<game_to_director::GameClosed> for Director {
+	type Result = ();
+	fn handle(&mut self, msg: game_to_director::GameClosed, ctx: &mut Self::Context) -> Self::Result {
+		ctx.binary(to_vec(&DirectorServerMsg {msg_type: DirectorServerType::GameClosed, target: None}).unwrap());
 	}
 }
 

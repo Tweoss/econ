@@ -1,6 +1,6 @@
 use super::participants::{
-	director_folder::director::DirectorState, consumer_folder::consumer::ConsumerState,
-	viewer_folder::viewer::ViewerState, producer_folder::producer::ProducerState,
+	consumer_folder::consumer::ConsumerState, director_folder::director::DirectorState,
+	producer_folder::producer::ProducerState, viewer_folder::viewer::ViewerState,
 };
 use actix::prelude::*;
 
@@ -76,25 +76,43 @@ impl Handler<NewPlayer> for Game {
 	fn handle(&mut self, msg: NewPlayer, _: &mut Context<Self>) -> Self::Result {
 		self.producer_next = !self.producer_next;
 		if self.producer_next {
-			self.consumers.lock().unwrap().insert(msg.user_id.clone(), ConsumerState::new());
+			self.consumers
+				.lock()
+				.unwrap()
+				.insert(msg.user_id.clone(), ConsumerState::new());
 			for elem in self.directors.lock().unwrap().values() {
 				if let Some(addr) = &elem.addr {
-					addr.do_send(game_to_director::NewParticipant {id: msg.user_id.clone(), participant_type: json::ParticipantType::Consumer});
+					addr.do_send(game_to_director::NewParticipant {
+						id: msg.user_id.clone(),
+						participant_type: json::ParticipantType::Consumer,
+					});
 				}
 			}
 			if let Some(addr) = &self.state_main_director.addr {
-				addr.do_send(game_to_director::NewParticipant {id: msg.user_id, participant_type: json::ParticipantType::Consumer})
+				addr.do_send(game_to_director::NewParticipant {
+					id: msg.user_id,
+					participant_type: json::ParticipantType::Consumer,
+				})
 			}
 			"consumer".to_string()
 		} else {
-			self.producers.lock().unwrap().insert(msg.user_id.clone(), ProducerState::new());
+			self.producers
+				.lock()
+				.unwrap()
+				.insert(msg.user_id.clone(), ProducerState::new());
 			for elem in self.directors.lock().unwrap().values() {
 				if let Some(addr) = &elem.addr {
-					addr.do_send(game_to_director::NewParticipant {id: msg.user_id.clone(), participant_type: json::ParticipantType::Producer});
+					addr.do_send(game_to_director::NewParticipant {
+						id: msg.user_id.clone(),
+						participant_type: json::ParticipantType::Producer,
+					});
 				}
 			}
 			if let Some(addr) = &self.state_main_director.addr {
-				addr.do_send(game_to_director::NewParticipant {id: msg.user_id, participant_type: json::ParticipantType::Producer})
+				addr.do_send(game_to_director::NewParticipant {
+					id: msg.user_id,
+					participant_type: json::ParticipantType::Producer,
+				})
 			}
 			"producer".to_string()
 		}
@@ -113,10 +131,16 @@ impl Handler<IsGameOpen> for Game {
 impl Handler<NewDirector> for Game {
 	type Result = ();
 	fn handle(&mut self, msg: NewDirector, _: &mut Context<Self>) -> Self::Result {
-		self.directors.lock().unwrap().insert(msg.user_id.clone(), DirectorState::new());
+		self.directors
+			.lock()
+			.unwrap()
+			.insert(msg.user_id.clone(), DirectorState::new());
 		for elem in self.directors.lock().unwrap().values() {
 			if let Some(addr) = &elem.addr {
-				addr.do_send(game_to_director::NewParticipant {id: msg.user_id.clone(), participant_type: json::ParticipantType::Director});
+				addr.do_send(game_to_director::NewParticipant {
+					id: msg.user_id.clone(),
+					participant_type: json::ParticipantType::Director,
+				});
 			}
 		}
 	}
@@ -177,9 +201,62 @@ impl Handler<director_to_game::RegisterAddress> for Game {
 	) -> Self::Result {
 		if msg.user_id == self.id_main_director {
 			self.state_main_director.addr = Some(msg.addr);
-		}
-		else if let Some(mut addr_value) = self.directors.lock().unwrap().get_mut(&msg.user_id) {
+		} else if let Some(mut addr_value) = self.directors.lock().unwrap().get_mut(&msg.user_id) {
 			addr_value.addr = Some(msg.addr);
+		}
+	}
+}
+
+impl Handler<director_to_game::KickParticipant> for Game {
+	type Result = ();
+	fn handle(
+		&mut self,
+		msg: director_to_game::KickParticipant,
+		_: &mut Context<Self>,
+	) -> Self::Result {
+		self.consumers.lock().unwrap().remove(&msg.user_id);
+		self.producers.lock().unwrap().remove(&msg.user_id);
+		self.directors.lock().unwrap().remove(&msg.user_id);
+		self.viewers.lock().unwrap().remove(&msg.user_id);
+		for elem in self.directors.lock().unwrap().values() {
+			if let Some(addr) = &elem.addr {
+				addr.do_send(game_to_director::KickedParticipant {
+					id: msg.user_id.clone(),
+				});
+			};
+		}
+		if let Some(addr) = &self.state_main_director.addr {
+			addr.do_send(game_to_director::KickedParticipant { id: msg.user_id });
+		}
+	}
+}
+
+impl Handler<director_to_game::OpenGame> for Game {
+	type Result = ();
+	fn handle(&mut self, msg: director_to_game::OpenGame, _: &mut Context<Self>) {
+		self.is_open = true;
+		for elem in self.directors.lock().unwrap().values() {
+			if let Some(addr) = &elem.addr {
+				addr.do_send(game_to_director::GameOpened {});
+			}
+		}
+		if let Some(addr) = &self.state_main_director.addr {
+			addr.do_send(game_to_director::GameOpened {});
+		}
+	}
+}
+
+impl Handler<director_to_game::CloseGame> for Game {
+	type Result = ();
+	fn handle(&mut self, msg: director_to_game::CloseGame, _: &mut Context<Self>) {
+		self.is_open = false;
+		for elem in self.directors.lock().unwrap().values() {
+			if let Some(addr) = &elem.addr {
+				addr.do_send(game_to_director::GameClosed {});
+			}
+		}
+		if let Some(addr) = &self.state_main_director.addr {
+			addr.do_send(game_to_director::GameClosed {});
 		}
 	}
 }

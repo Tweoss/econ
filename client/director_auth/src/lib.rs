@@ -1,5 +1,9 @@
-#![recursion_limit = "1024"]
+#![recursion_limit = "2048"]
 use wasm_bindgen::prelude::*;
+use wasm_bindgen::JsCast;
+use web_sys::EventTarget;
+use web_sys::HtmlParagraphElement;
+// use wasm_bindgen::{JsCast};
 use yew::prelude::*;
 
 // use failure::Error;
@@ -32,6 +36,7 @@ struct Model {
     producers: Vec<Participant>,
     directors: Vec<Participant>,
     viewers: Vec<Participant>,
+    is_open: String,
 }
 
 struct Participant {
@@ -83,13 +88,13 @@ enum Msg {
     Connect(Vec<String>),                       // connect to websocket server
     Disconnected,                               // disconnected from server
     Ignore,                                     // ignore this message
-    TextInput(String),                          // text was input in the input box
-    SendText,                                   // send our text to server
     Received(Result<DirectorServerMsg, Error>), // data received from server
     SendReq,
     PrepWsConnect,
     FailedToConnect,
     EndGame,
+    HandleClick(Option<EventTarget>),
+    ToggleOpen,
 }
 
 // #[derive(Debug, Serialize, Deserialize)]
@@ -116,6 +121,7 @@ impl Component for Model {
             producers: Vec::new(),
             directors: Vec::new(),
             viewers: Vec::new(),
+            is_open: "Open".to_string(),
         }
     }
 
@@ -160,21 +166,6 @@ impl Component for Model {
                 true
             }
             Msg::Ignore => false,
-            Msg::TextInput(_e) => {
-                // self.client_data.string = e; // note input box value
-                false
-            }
-            Msg::SendText => {
-                // match self.ws {
-                //     Some(ref mut task) => {
-                //         task.send(Json(&self.text));
-                //         self.text = "".to_string();
-                //         true // clear input box
-                //     }
-                //     None => false,
-                // }
-                false
-            }
             Msg::Received(Ok(s)) => {
                 match s.msg_type {
                     DirectorServerType::Ping => {
@@ -203,6 +194,24 @@ impl Component for Model {
                     DirectorServerType::NewViewer => {
                         self.viewers
                             .push(Participant::new(s.target.clone().unwrap()));
+                    }
+                    DirectorServerType::ParticipantKicked => {
+                        ConsoleService::log("Received Message to kick: ");
+                        ConsoleService::log(&s.target.clone().unwrap());
+                        //* remove any references to this id
+                        self.producers
+                            .retain(|x| &x.id != s.target.as_ref().unwrap());
+                        self.consumers
+                            .retain(|x| &x.id != s.target.as_ref().unwrap());
+                        self.directors
+                            .retain(|x| &x.id != s.target.as_ref().unwrap());
+                        self.viewers.retain(|x| &x.id != s.target.as_ref().unwrap());
+                    }
+                    DirectorServerType::GameOpened => {
+                        self.is_open = "Close".to_owned();
+                    }
+                    DirectorServerType::GameClosed => {
+                        self.is_open = "Open".to_owned();
                     }
                     _ => {}
                 }
@@ -264,6 +273,74 @@ impl Component for Model {
                 }
                 None => false,
             },
+            Msg::HandleClick(possible_target) => {
+                // if let Some(target) = possible_target {
+                //     // if target.
+                //     return true;
+                // }
+                match self.ws {
+                    Some(ref mut task) => {
+                        if let Some(target) = possible_target {
+                            let element: HtmlParagraphElement =
+                                target.dyn_ref::<HtmlParagraphElement>().unwrap().clone();
+                            match element.class_name().as_ref() {
+                                "kickable live" => {
+                                    task.send_binary(Ok(to_vec(&DirectorClientMsg {
+                                        msg_type: DirectorClientType::Kick,
+                                        kick_target: Some(element.inner_html()),
+                                    })
+                                    .unwrap()));
+                                    element.set_class_name("kicked");
+                                    return true;
+                                    // element.inner_text()
+                                }
+                                "kickable unresponsive" => {
+                                    task.send_binary(Ok(to_vec(&DirectorClientMsg {
+                                        msg_type: DirectorClientType::Kick,
+                                        kick_target: Some(element.inner_html()),
+                                    })
+                                    .unwrap()));
+                                    element.set_class_name("kicked");
+                                    return true;
+                                }
+                                "kickable" => {
+                                    task.send_binary(Ok(to_vec(&DirectorClientMsg {
+                                        msg_type: DirectorClientType::Kick,
+                                        kick_target: Some(element.inner_html()),
+                                    })
+                                    .unwrap()));
+                                    element.set_class_name("kicked");
+                                    return true;
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                    None => return false,
+                }
+                // &web_sys::EventTarget) -> String {
+                // if let Some(input) = target.dyn_ref::<web_sys::HtmlInputElement>() {
+                // return input.value();
+                // possible_target.is_prototype_of(&HtmlParagraphElement { obj:  });
+                false
+            }
+            Msg::ToggleOpen => {
+                if self.is_open == "Open" {
+                    self.ws.as_mut().expect("No websocket open").send_binary(Ok(to_vec(&DirectorClientMsg {
+                        msg_type: DirectorClientType::OpenGame,
+                        kick_target: None,
+                    })
+                    .unwrap()));
+                }
+                else {
+                    self.ws.as_mut().expect("No websocket open").send_binary(Ok(to_vec(&DirectorClientMsg {
+                        msg_type: DirectorClientType::CloseGame,
+                        kick_target: None,
+                    })
+                    .unwrap()));
+                }
+                false
+            }
         }
     }
 
@@ -278,34 +355,70 @@ impl Component for Model {
     }
 
     fn view(&self) -> Html {
-        let onbuttonconnect = self.link.callback(|_| Msg::PrepWsConnect);
-        let onbuttonsend = self.link.callback(|_| Msg::SendText);
-        let inputtext = self.link.callback(|e: InputData| Msg::TextInput(e.value));
-        let sendreq = self.link.callback(|_| Msg::SendReq);
-        let endgame = self.link.callback(|_| Msg::EndGame);
-        // let sendreq = link.callback(|event: yew::MouseEvent| {event.target(); Msg::SendReq});
+        // let onbuttonconnect = self.link.callback(|_| Msg::PrepWsConnect);
+        // let onbuttonsend = self.link.callback(|_| Msg::SendText);
+        // let inputtext = self.link.callback(|e: InputData| Msg::TextInput(e.value));
+        // let sendreq = self.link.callback(|_| Msg::SendReq);
+        // let endgame = self.link.callback(|_| Msg::EndGame);
+        let open_close = self.link.callback(|_| Msg::ToggleOpen);
+        let handle_click = self
+            .link
+            .callback(|event: yew::MouseEvent| Msg::HandleClick(event.target()));
 
         html! {
             <>
-                // <button onclick=self.link.callback(|_| Msg::AddOne)>{ "+1" }</button>
-                // <p>{ self.value }</p>
-                <p><button onclick=onbuttonconnect,>{ "Connect" }</button></p><br/>
-                // text showing whether we're connected or not
-                <p>{ "Connected: " } { !self.ws.is_none() } </p><br/>
-                // input box for sending text
-                <p><input type="text", value=&self.text, oninput=inputtext,/></p><br/>
-                // button for sending text
-                <p><button onclick=onbuttonsend,>{ "Send" }</button></p><br/>
-                // text area for showing data from the server
-                <p><textarea value=&self.server_data,></textarea></p><br/>
-                // button to send request
-                <p><button onclick=sendreq,>{ "Send Req" }</button></p><br/>
-                // close game
-                <button onclick=endgame>{ "End Game"}</button>
-                {for self.consumers.iter().map(|elem| elem.render())}
-                {for self.producers.iter().map(|elem| elem.render())}
-                {for self.directors.iter().map(|elem| elem.render())}
-                {for self.viewers.iter().map(|elem| elem.render())}
+                <div class="container text-center">
+                <h1> {"Director Controls"}</h1>
+                    <div class="row" style="margin-right: 0;margin-left: 0;">
+                        <div class="col-md-4 text-center" style="padding: 0;min-height: 40vmin;">
+                            <div class="row">
+                                <div class="col" style="min-height: 40vmin;">
+                                    <h2>{"Events"}</h2>
+                                    <div class="btn-group-vertical btn-group-lg" role="group"><button class="btn btn-primary border rounded" type="button">{"Supply Shock"}</button><button class="btn btn-primary border rounded" type="button">{"Subsidies"}</button><button class="btn btn-primary border rounded" type="button">{"Trending"}</button></div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col" style="min-height: 40vmin;">
+                                    <h2>{"Control Flow"}</h2>
+                                    <div class="btn-group-vertical btn-group-lg" role="group"><button class="btn btn-warning border rounded" type="button">{"Force Next Turn"}</button><button onclick=open_close class="btn btn-primary border rounded" type="button">{&self.is_open}</button><button class="btn btn-danger border rounded" type="button">{"End Game"}</button></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-center" style="padding: 0;min-height: 40vmin;">
+                            <div class="d-flex flex-column" style="height: 100%;width: 100%;">
+                                <h2>{"Graphs"}</h2>
+                                <div class="d-xl-flex flex-fill justify-content-xl-center align-items-xl-center"><img/></div>
+                                <div class="d-xl-flex flex-fill justify-content-xl-center align-items-xl-center" style="width: 100%;"><img/></div>
+                            </div>
+                        </div>
+                        <div onclick=handle_click class="col-md-4 text-center" style="padding: 0;min-height: 40vmin;">
+                            <h2>{"State"}</h2>
+                            <p>{"Game ID: 123456"}</p>
+                            <p>{"Turn: 5"}</p>
+                            <div id="participants" style="overflow-y: scroll;max-height: 50vh;">
+                                <p class="lead" style="background: var(--dark);">{"Directors"}</p>
+                                {for self.directors.iter().map(|elem| elem.render())}
+                                // <p class="kickable">{"Paragraph"}</p>
+                                <p class="lead" style="background: var(--dark);">{"Viewers"}</p>
+                                    {for self.viewers.iter().map(|elem| elem.render())}
+                                    // <p class="kickable live">{"Paragraph"}</p>
+                                <p class="lead" style="background: var(--dark);">{"Consumers"}</p>
+                                    {for self.consumers.iter().map(|elem| elem.render())}
+                                <p class="lead" style="background: var(--dark);">{"Producers"}</p>
+                                    {for self.producers.iter().map(|elem| elem.render())}
+                                // <p class="kickable">{"Paragraph"}</p>
+                                // <p class="kickable unresponsive">{"Paragraph"}</p>
+                                // <p class="kickable">{"Paragraph"}</p>
+                                // <p class="kickable">{"Paragraph"}</p>
+                                // <p class="kicked">{"Paragraph"}</p>
+                                // <p class="kicked">{"Paragraph"}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <footer>
+                        <p>{"Built by Francis Chua"}</p>
+                    </footer>
+            </div>
                 // for elem in self.producers {
                 //     elem.render();
                 // }

@@ -14,7 +14,7 @@ pub enum DirectorServerType {
 	GameOpened,
 	GameClosed,
 	GameEnded,
-	PlayerKicked,
+	ParticipantKicked,
 	Ping,
 	NewDirector,
 	NewConsumer,

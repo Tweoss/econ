@@ -244,7 +244,7 @@ async fn get_html(req: HttpRequest) -> impl Responder {
 		}
 	}
 
-	Err(actix_web::error::ErrorUnauthorized("Not Authorized"))
+	Err(actix_web::error::ErrorUnauthorized("Game does not exist."))
 	// println!(
 	// 	"{prepath}\n{file}\n{ext}",
 	// 	prepath = prepath,

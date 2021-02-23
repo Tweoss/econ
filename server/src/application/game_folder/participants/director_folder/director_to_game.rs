@@ -35,7 +35,26 @@ pub struct IsViewer {
 	pub user_id: String,
 }
 
-/// Close Game
+/// Try to Kick a player. returns if succeeded
+#[derive(Message)]
+#[rtype(result="()")]
+pub struct KickParticipant {
+	pub user_id: String,
+}
+
+/// End Game
 #[derive(Message)]
 #[rtype(result="()")]
 pub struct EndGame {}
+
+/// Open Game
+#[derive(Message)]
+#[rtype(result="()")]
+pub struct OpenGame {
+}
+
+/// Close Game
+#[derive(Message)]
+#[rtype(result="()")]
+pub struct CloseGame {
+}
