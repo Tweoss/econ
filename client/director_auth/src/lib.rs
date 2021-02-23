@@ -143,7 +143,10 @@ impl Component for Model {
                 });
                 if self.ws.is_none() {
                     // ! SWITCH THIS REPL
-                    let url = format!("ws://127.0.0.1:8080/ws/{}/{}/{}", v[0], v[1], v[2]);
+                    let window = web_sys::window;
+                    let host: String = window().unwrap().location().host().unwrap();
+                    let url = format!("ws://{}/ws/{}/{}/{}",host, v[0], v[1], v[2]);
+                    // let url = format!("ws://127.0.0.1:8080/ws/{}/{}/{}", v[0], v[1], v[2]);
                     // let url = format!("wss://web.valour.vision/ws/{}/{}/{}", v[0], v[1], v[2]);
                     // let task = match WebSocketService::connect("wss://web.valour.vision/ws", cbout, cbnot)
                     let task = match WebSocketService::connect_binary(&url, cbout, cbnot) {
@@ -284,34 +287,42 @@ impl Component for Model {
                             let element: HtmlParagraphElement =
                                 target.dyn_ref::<HtmlParagraphElement>().unwrap().clone();
                             match element.class_name().as_ref() {
-                                "kickable live" => {
+                                "kickable live" | "kickable unresponsive" | "kickable" => {
+                                    // element.set_class_name("kicked");
+                                    let iter = self.consumers.iter_mut().chain(self.producers.iter_mut()).chain(self.directors.iter_mut()).chain(self.viewers.iter_mut());
+                                    for participant in iter {
+                                        if participant.id == element.inner_html() {
+                                            participant.state = PlayerState::Kicked;
+                                        }
+                                    }
                                     task.send_binary(Ok(to_vec(&DirectorClientMsg {
                                         msg_type: DirectorClientType::Kick,
                                         kick_target: Some(element.inner_html()),
                                     })
                                     .unwrap()));
-                                    element.set_class_name("kicked");
                                     return true;
                                     // element.inner_text()
                                 }
-                                "kickable unresponsive" => {
-                                    task.send_binary(Ok(to_vec(&DirectorClientMsg {
-                                        msg_type: DirectorClientType::Kick,
-                                        kick_target: Some(element.inner_html()),
-                                    })
-                                    .unwrap()));
-                                    element.set_class_name("kicked");
-                                    return true;
-                                }
-                                "kickable" => {
-                                    task.send_binary(Ok(to_vec(&DirectorClientMsg {
-                                        msg_type: DirectorClientType::Kick,
-                                        kick_target: Some(element.inner_html()),
-                                    })
-                                    .unwrap()));
-                                    element.set_class_name("kicked");
-                                    return true;
-                                }
+                                // "kickable unresponsive" => {
+                                //     element.set_class_name("kicked");
+                                //     task.send_binary(Ok(to_vec(&DirectorClientMsg {
+                                //         msg_type: DirectorClientType::Kick,
+                                //         kick_target: Some(element.inner_html()),
+                                //     })
+                                //     .unwrap()));
+                                //     return true;
+                                // }
+                                // => {
+                                //     element.set_class_name("kicked");
+                                //     ConsoleService::log(&element.inner_html());
+                                //     ConsoleService::log("Gonna kick: ");
+                                //     task.send_binary(Ok(to_vec(&DirectorClientMsg {
+                                //         msg_type: DirectorClientType::Kick,
+                                //         kick_target: Some(element.inner_html()),
+                                //     })
+                                //     .unwrap()));
+                                    // return true;
+                                // }
                                 _ => {}
                             }
                         }
