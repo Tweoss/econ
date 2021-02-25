@@ -37,6 +37,7 @@ struct Model {
     directors: Vec<Participant>,
     viewers: Vec<Participant>,
     is_open: String,
+    graph_data: Graphs,
 }
 
 struct Participant {
@@ -84,6 +85,36 @@ enum PlayerState {
     Kicked,
 }
 
+// ! Make sure allowed graph values never goes below 0.
+struct Graphs {
+    consumer_x: f64,
+    consumer_y: f64,
+    producer_x: f64,
+    producer_y: f64,
+    trending: u8,
+    supply_shock: u8,
+    subsidies: u8,
+}
+
+impl Graphs {
+    fn new() -> Graphs {
+        Graphs {
+            consumer_x: 51.25,
+            consumer_y: 66.25,
+            producer_x: 32.50,
+            producer_y: 15.00,
+            trending: 0,
+            supply_shock: 0,
+            subsidies: 0,
+        }
+    }
+    fn data(&mut self, trending: u8, supply_shock: u8, subsidies: u8) {
+        self.trending = trending;
+        self.supply_shock = supply_shock;
+        self.subsidies = subsidies;
+    }
+}
+
 enum Msg {
     Connect(Vec<String>),                       // connect to websocket server
     Disconnected,                               // disconnected from server
@@ -122,6 +153,7 @@ impl Component for Model {
             directors: Vec::new(),
             viewers: Vec::new(),
             is_open: "Open".to_string(),
+            graph_data: Graphs::new(),
         }
     }
 
@@ -396,10 +428,50 @@ impl Component for Model {
                             </div>
                         </div>
                         <div class="col-md-4 text-center" style="padding: 0;min-height: 40vmin;">
+                            // <div class="d-flex flex-column" style="height: 100%;width: 100%;">
+                            //     <h2>{"Graphs"}</h2>
+                            //     <div class="d-xl-flex flex-fill justify-content-xl-center align-items-xl-center">
+                            //     </div>
+                            //     <div class="d-xl-flex flex-fill justify-content-xl-center align-items-xl-center" style="width: 100%;"><img/></div>
+                            // </div>
                             <div class="d-flex flex-column" style="height: 100%;width: 100%;">
                                 <h2>{"Graphs"}</h2>
-                                <div class="d-xl-flex flex-fill justify-content-xl-center align-items-xl-center"><img/></div>
-                                <div class="d-xl-flex flex-fill justify-content-xl-center align-items-xl-center" style="width: 100%;"><img/></div>
+                                <div class="d-xl-flex flex-fill justify-content-xl-center align-items-xl-center" style="width: 100%">
+                                    <svg viewBox="-5 -5 100 100" preserveAspectRatio="xMidYMid meet" fill="white">
+                                        <g transform="scale(1,-1) translate(0,-90)" style="cursor:cell">
+                                            <rect width="105" height="105" x="-5" y="-5" fill-opacity="0%"></rect>
+                                            
+                                            <text x="10" y="-30" style="font: 10px Georgia; " transform="scale(1,-1)">{format!("{:.2},{:.2}",self.graph_data.consumer_x,self.graph_data.consumer_y)}</text>
+    
+                                            <path d={
+                                                let temp: i16 = self.graph_data.trending.into();
+                                                format!("M 0 {} C 40 {}, 70 {}, 80 {}", temp+80, temp+80, temp+70, temp)
+                                            }  stroke="white" stroke-width="1" fill="transparent"/>
+                                            
+                                            <polygon points="0,95 -5,90 -1,90 -1,-1 90,-1 90,-5 95,0 90,5 90,1 1,1 1,90 5,90" fill="#1F6DDE" />
+    
+                                            <circle cx={format!("{:.2}",self.graph_data.consumer_x)} cy={format!("{:.2}",self.graph_data.consumer_y)} r="5" stroke="white" fill="#F34547" stroke-width="0.2" style="cursor:move"/>
+                                        </g>
+                                    </svg>
+                                </div>
+                                <div class="d-xl-flex flex-fill justify-content-xl-center align-items-xl-center" style="width: 100%;">
+                                    <svg viewBox="-5 -5 100 100" preserveAspectRatio="xMidYMid meet" fill="white">
+                                        <g transform="scale(1,-1) translate(0,-90)" style="cursor:cell">
+                                            <rect width="105" height="105" x="-5" y="-5" fill-opacity="0%"></rect>
+                                            <text x="10" y="-70" style="font: 10px Georgia; " transform="scale(1,-1)">{format!("{:.2},{:.2}",self.graph_data.producer_x,self.graph_data.producer_y)}</text>
+                                            
+                                            <path d={
+                                                let net: i16 = i16::from(self.graph_data.subsidies) - i16::from(self.graph_data.supply_shock); 
+                                                format!("M 0 {} C 10 {}, 50 {}, 80 {}", net+80, net-10, net-10, net+100)
+                                            } stroke="white" stroke-width="1" fill="transparent"/>
+
+                                            <polygon points="0,95 -5,90 -1,90 -1,-1 90,-1 90,-5 95,0 90,5 90,1 1,1 1,90 5,90" fill="#1F6DDE" />
+    
+                                            <circle cx={format!("{:.2}",self.graph_data.producer_x)} cy={format!("{:.2}",self.graph_data.producer_y)} r="5" stroke="white" fill="#F34547" stroke-width="0.2"/>
+                                        </g>
+                                            
+                                    </svg>
+                                </div>
                             </div>
                         </div>
                         <div onclick=handle_click class="col-md-4 text-center" style="padding: 0;min-height: 40vmin;">
@@ -408,21 +480,13 @@ impl Component for Model {
                             <p>{"Turn: 5"}</p>
                             <div id="participants" style="overflow-y: scroll;max-height: 50vh;">
                                 <p class="lead" style="background: var(--dark);">{"Directors"}</p>
-                                {for self.directors.iter().map(|elem| elem.render())}
-                                // <p class="kickable">{"Paragraph"}</p>
+                                    {for self.directors.iter().map(|elem| elem.render())}
                                 <p class="lead" style="background: var(--dark);">{"Viewers"}</p>
                                     {for self.viewers.iter().map(|elem| elem.render())}
-                                    // <p class="kickable live">{"Paragraph"}</p>
                                 <p class="lead" style="background: var(--dark);">{"Consumers"}</p>
                                     {for self.consumers.iter().map(|elem| elem.render())}
                                 <p class="lead" style="background: var(--dark);">{"Producers"}</p>
                                     {for self.producers.iter().map(|elem| elem.render())}
-                                // <p class="kickable">{"Paragraph"}</p>
-                                // <p class="kickable unresponsive">{"Paragraph"}</p>
-                                // <p class="kickable">{"Paragraph"}</p>
-                                // <p class="kickable">{"Paragraph"}</p>
-                                // <p class="kicked">{"Paragraph"}</p>
-                                // <p class="kicked">{"Paragraph"}</p>
                             </div>
                         </div>
                     </div>
