@@ -2,7 +2,7 @@
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::EventTarget;
-use web_sys::HtmlParagraphElement;
+use web_sys::{HtmlParagraphElement, SvggElement};
 // use wasm_bindgen::{JsCast};
 use yew::prelude::*;
 
@@ -38,6 +38,7 @@ struct Model {
     viewers: Vec<Participant>,
     is_open: String,
     graph_data: Graphs,
+    dragging: bool,
 }
 
 struct Participant {
@@ -125,14 +126,145 @@ enum Msg {
     FailedToConnect,
     EndGame,
     HandleClick(Option<EventTarget>),
+    StartConsumerClick(yew::MouseEvent),
+    ConsumerMove(yew::MouseEvent),
+    StartProducerClick(yew::MouseEvent),
+    ProducerMove(yew::MouseEvent),
+    EndDrag,
     ToggleOpen,
 }
 
-// #[derive(Debug, Serialize, Deserialize)]
-// struct Data {
-//     choice: u64,
-//     string: String,
-// }
+impl Model {
+    fn client_move(&mut self, mouse_x: f64, mouse_y: f64) {
+        let extra_y = self.graph_data.trending;
+        // ConsoleService::log(&format!("Mouse_x: {}, mouse_y: {}", mouse_x, mouse_y));
+        let t = Model::get_closest_point_to_cubic_bezier(
+            2,
+            mouse_x,
+            mouse_y,
+            0.,
+            1.,
+            10,
+            0.,
+            (extra_y + 80).into(),
+            40.,
+            (extra_y + 80).into(),
+            70.,
+            (extra_y + 70).into(),
+            80.,
+            extra_y.into(),
+        );
+        self.graph_data.consumer_x = 3. * f64::powi(1. - t, 2) * t * 40.
+            + 3. * (1. - t) * f64::powi(t, 2) * 70.
+            + f64::powi(t, 3) * 80.;
+        ConsoleService::log(&t.to_string());
+        self.graph_data.consumer_y = f64::powi(1. - t, 3) * f64::from(extra_y + 80)
+            + 3. * f64::powi(1. - t, 2) * t * f64::from(extra_y + 80)
+            + 3. * (1. - t) * f64::powi(t, 2) * f64::from(extra_y + 70)
+            + f64::powi(t, 3) * f64::from(extra_y);
+    }
+    fn producer_move(&mut self, mouse_x: f64, mouse_y: f64) {
+        let extra_y: i16 =
+            i16::from(self.graph_data.subsidies) - i16::from(self.graph_data.supply_shock);
+        // ConsoleService::log(&format!("Mouse_x: {}, mouse_y: {}", mouse_x, mouse_y));
+        let t = Model::get_closest_point_to_cubic_bezier(
+            5,
+            mouse_x,
+            mouse_y,
+            0.,
+            1.,
+            10,
+            0.,
+            (extra_y + 80).into(),
+            10.,
+            (extra_y - 10).into(),
+            50.,
+            (extra_y - 10).into(),
+            80.,
+            (extra_y + 100).into(),
+        );
+        self.graph_data.producer_x = 3. * f64::powi(1. - t, 2) * t * 10.
+            + 3. * (1. - t) * f64::powi(t, 2) * 50.
+            + f64::powi(t, 3) * 80.;
+        ConsoleService::log(&t.to_string());
+        self.graph_data.producer_y = f64::powi(1. - t, 3) * f64::from(extra_y + 80)
+            + 3. * f64::powi(1. - t, 2) * t * f64::from(extra_y - 10)
+            + 3. * (1. - t) * f64::powi(t, 2) * f64::from(extra_y - 10)
+            + f64::powi(t, 3) * f64::from(extra_y + 100);
+    }
+    // * Takes in number of iterations, the point to be projected, the start and end bounds on the guess, the resolution (slices), and the control points
+    // * Returns the t value of the minimum
+    #[allow(clippy::too_many_arguments)]
+    fn get_closest_point_to_cubic_bezier(
+        iterations: u32,
+        fx: f64,
+        fy: f64,
+        start: f64,
+        end: f64,
+        slices: u32,
+        x0: f64,
+        y0: f64,
+        x1: f64,
+        y1: f64,
+        x2: f64,
+        y2: f64,
+        x3: f64,
+        y3: f64,
+    ) -> f64 {
+        if iterations == 0 {
+            return (start + end) / 2.;
+        };
+        let tick: f64 = (end - start) / f64::from(slices);
+        // let (mut x, mut y);
+        let (mut x, mut y) = (0., 0.);
+        let (mut dx, mut dy);
+        let mut best: f64 = 0.;
+        let mut best_distance: f64 = f64::INFINITY;
+        let mut current_distance: f64;
+        let mut t: f64 = start;
+        while t <= end {
+            //B(t) = (1-t)**3 p0 + 3(1 - t)**2 t P1 + 3(1-t)t**2 P2 + t**3 P3
+            x = (1. - t) * (1. - t) * (1. - t) * x0
+                + 3. * (1. - t) * (1. - t) * t * x1
+                + 3. * (1. - t) * t * t * x2
+                + t * t * t * x3;
+            y = (1. - t) * (1. - t) * (1. - t) * y0
+                + 3. * (1. - t) * (1. - t) * t * y1
+                + 3. * (1. - t) * t * t * y2
+                + t * t * t * y3;
+            dx = x - fx;
+            dy = y - fy;
+            dx = f64::powi(dx, 2);
+            dy = f64::powi(dy, 2);
+            current_distance = dx + dy;
+            if current_distance < best_distance {
+                best_distance = current_distance;
+                best = t;
+            }
+            t += tick;
+        }
+        // ConsoleService::log(&format!(
+        //     "Best t: {}, best distance: {}, x: {}, y: {}",
+        //     best, best_distance, x, y
+        // ));
+        Model::get_closest_point_to_cubic_bezier(
+            iterations - 1,
+            fx,
+            fy,
+            f64::max(best - tick, 0.),
+            f64::min(best + tick, 1.),
+            slices,
+            x0,
+            y0,
+            x1,
+            y1,
+            x2,
+            y2,
+            x3,
+            y3,
+        )
+    }
+}
 
 impl Component for Model {
     type Message = Msg;
@@ -154,6 +286,7 @@ impl Component for Model {
             viewers: Vec::new(),
             is_open: "Open".to_string(),
             graph_data: Graphs::new(),
+            dragging: false,
         }
     }
 
@@ -177,7 +310,7 @@ impl Component for Model {
                     // ! SWITCH THIS REPL
                     let window = web_sys::window;
                     let host: String = window().unwrap().location().host().unwrap();
-                    let url = format!("ws://{}/ws/{}/{}/{}",host, v[0], v[1], v[2]);
+                    let url = format!("ws://{}/ws/{}/{}/{}", host, v[0], v[1], v[2]);
                     // let url = format!("ws://127.0.0.1:8080/ws/{}/{}/{}", v[0], v[1], v[2]);
                     // let url = format!("wss://web.valour.vision/ws/{}/{}/{}", v[0], v[1], v[2]);
                     // let task = match WebSocketService::connect("wss://web.valour.vision/ws", cbout, cbnot)
@@ -309,53 +442,53 @@ impl Component for Model {
                 None => false,
             },
             Msg::HandleClick(possible_target) => {
-                // if let Some(target) = possible_target {
-                //     // if target.
-                //     return true;
-                // }
                 match self.ws {
                     Some(ref mut task) => {
                         if let Some(target) = possible_target {
-                            let element: HtmlParagraphElement =
-                                target.dyn_ref::<HtmlParagraphElement>().unwrap().clone();
-                            match element.class_name().as_ref() {
-                                "kickable live" | "kickable unresponsive" | "kickable" => {
-                                    // element.set_class_name("kicked");
-                                    let iter = self.consumers.iter_mut().chain(self.producers.iter_mut()).chain(self.directors.iter_mut()).chain(self.viewers.iter_mut());
-                                    for participant in iter {
-                                        if participant.id == element.inner_html() {
-                                            participant.state = PlayerState::Kicked;
+                            if let Some(element) = target.dyn_ref::<HtmlParagraphElement>() {
+                                match element.class_name().as_ref() {
+                                    "kickable live" | "kickable unresponsive" | "kickable" => {
+                                        // element.set_class_name("kicked");
+                                        let iter = self
+                                            .consumers
+                                            .iter_mut()
+                                            .chain(self.producers.iter_mut())
+                                            .chain(self.directors.iter_mut())
+                                            .chain(self.viewers.iter_mut());
+                                        for participant in iter {
+                                            if participant.id == element.inner_html() {
+                                                participant.state = PlayerState::Kicked;
+                                            }
                                         }
+                                        task.send_binary(Ok(to_vec(&DirectorClientMsg {
+                                            msg_type: DirectorClientType::Kick,
+                                            kick_target: Some(element.inner_html()),
+                                        })
+                                        .unwrap()));
+                                        return true;
                                     }
-                                    task.send_binary(Ok(to_vec(&DirectorClientMsg {
-                                        msg_type: DirectorClientType::Kick,
-                                        kick_target: Some(element.inner_html()),
-                                    })
-                                    .unwrap()));
-                                    return true;
-                                    // element.inner_text()
-                                }
-                                // "kickable unresponsive" => {
-                                //     element.set_class_name("kicked");
-                                //     task.send_binary(Ok(to_vec(&DirectorClientMsg {
-                                //         msg_type: DirectorClientType::Kick,
-                                //         kick_target: Some(element.inner_html()),
-                                //     })
-                                //     .unwrap()));
-                                //     return true;
-                                // }
-                                // => {
-                                //     element.set_class_name("kicked");
-                                //     ConsoleService::log(&element.inner_html());
-                                //     ConsoleService::log("Gonna kick: ");
-                                //     task.send_binary(Ok(to_vec(&DirectorClientMsg {
-                                //         msg_type: DirectorClientType::Kick,
-                                //         kick_target: Some(element.inner_html()),
-                                //     })
-                                //     .unwrap()));
+                                    // "kickable unresponsive" => {
+                                    //     element.set_class_name("kicked");
+                                    //     task.send_binary(Ok(to_vec(&DirectorClientMsg {
+                                    //         msg_type: DirectorClientType::Kick,
+                                    //         kick_target: Some(element.inner_html()),
+                                    //     })
+                                    //     .unwrap()));
+                                    //     return true;
+                                    // }
+                                    // => {
+                                    //     element.set_class_name("kicked");
+                                    //     ConsoleService::log(&element.inner_html());
+                                    //     ConsoleService::log("Gonna kick: ");
+                                    //     task.send_binary(Ok(to_vec(&DirectorClientMsg {
+                                    //         msg_type: DirectorClientType::Kick,
+                                    //         kick_target: Some(element.inner_html()),
+                                    //     })
+                                    //     .unwrap()));
                                     // return true;
-                                // }
-                                _ => {}
+                                    // }
+                                    _ => {}
+                                }
                             }
                         }
                     }
@@ -369,19 +502,106 @@ impl Component for Model {
             }
             Msg::ToggleOpen => {
                 if self.is_open == "Open" {
-                    self.ws.as_mut().expect("No websocket open").send_binary(Ok(to_vec(&DirectorClientMsg {
-                        msg_type: DirectorClientType::OpenGame,
-                        kick_target: None,
-                    })
-                    .unwrap()));
+                    self.ws
+                        .as_mut()
+                        .expect("No websocket open")
+                        .send_binary(Ok(to_vec(&DirectorClientMsg {
+                            msg_type: DirectorClientType::OpenGame,
+                            kick_target: None,
+                        })
+                        .unwrap()));
+                } else {
+                    self.ws
+                        .as_mut()
+                        .expect("No websocket open")
+                        .send_binary(Ok(to_vec(&DirectorClientMsg {
+                            msg_type: DirectorClientType::CloseGame,
+                            kick_target: None,
+                        })
+                        .unwrap()));
                 }
-                else {
-                    self.ws.as_mut().expect("No websocket open").send_binary(Ok(to_vec(&DirectorClientMsg {
-                        msg_type: DirectorClientType::CloseGame,
-                        kick_target: None,
-                    })
-                    .unwrap()));
+                false
+            }
+            Msg::StartConsumerClick(event) => {
+                if let Some(target) = event.current_target() {
+                    let element: SvggElement = target.dyn_ref::<SvggElement>().unwrap().clone();
+                    self.dragging = true;
+                    let matrix: web_sys::SvgMatrix =
+                        element.get_screen_ctm().unwrap().inverse().unwrap();
+                    let temp_x: f64 = event.client_x().into();
+                    let temp_y: f64 = event.client_y().into();
+                    let mouse_x = f64::from(matrix.a()) * temp_x
+                        + f64::from(matrix.c()) * temp_y
+                        + f64::from(matrix.e());
+                    let mouse_y = f64::from(matrix.b()) * temp_x
+                        + f64::from(matrix.d()) * temp_y
+                        + f64::from(matrix.f());
+                    self.client_move(mouse_x, mouse_y);
                 }
+                true
+            }
+            Msg::ConsumerMove(event) => {
+                if self.dragging {
+                    if let Some(target) = event.current_target() {
+                        let element: SvggElement = target.dyn_ref::<SvggElement>().unwrap().clone();
+                        let matrix: web_sys::SvgMatrix =
+                            element.get_screen_ctm().unwrap().inverse().unwrap();
+                        let temp_x: f64 = event.client_x().into();
+                        let temp_y: f64 = event.client_y().into();
+                        let mouse_x = f64::from(matrix.a()) * temp_x
+                            + f64::from(matrix.c()) * temp_y
+                            + f64::from(matrix.e());
+                        let mouse_y = f64::from(matrix.b()) * temp_x
+                            + f64::from(matrix.d()) * temp_y
+                            + f64::from(matrix.f());
+                        self.client_move(mouse_x, mouse_y);
+                    }
+                    true
+                } else {
+                    false
+                }
+            }
+            Msg::StartProducerClick(event) => {
+                if let Some(target) = event.current_target() {
+                    let element: SvggElement = target.dyn_ref::<SvggElement>().unwrap().clone();
+                    self.dragging = true;
+                    let matrix: web_sys::SvgMatrix =
+                        element.get_screen_ctm().unwrap().inverse().unwrap();
+                    let temp_x: f64 = event.client_x().into();
+                    let temp_y: f64 = event.client_y().into();
+                    let mouse_x = f64::from(matrix.a()) * temp_x
+                        + f64::from(matrix.c()) * temp_y
+                        + f64::from(matrix.e());
+                    let mouse_y = f64::from(matrix.b()) * temp_x
+                        + f64::from(matrix.d()) * temp_y
+                        + f64::from(matrix.f());
+                    self.producer_move(mouse_x, mouse_y);
+                }
+                true
+            }
+            Msg::ProducerMove(event) => {
+                if self.dragging {
+                    if let Some(target) = event.current_target() {
+                        let element: SvggElement = target.dyn_ref::<SvggElement>().unwrap().clone();
+                        let matrix: web_sys::SvgMatrix =
+                            element.get_screen_ctm().unwrap().inverse().unwrap();
+                        let temp_x: f64 = event.client_x().into();
+                        let temp_y: f64 = event.client_y().into();
+                        let mouse_x = f64::from(matrix.a()) * temp_x
+                            + f64::from(matrix.c()) * temp_y
+                            + f64::from(matrix.e());
+                        let mouse_y = f64::from(matrix.b()) * temp_x
+                            + f64::from(matrix.d()) * temp_y
+                            + f64::from(matrix.f());
+                        self.producer_move(mouse_x, mouse_y);
+                    }
+                    true
+                } else {
+                    false
+                }
+            }
+            Msg::EndDrag => {
+                self.dragging = false;
                 false
             }
         }
@@ -407,6 +627,11 @@ impl Component for Model {
         let handle_click = self
             .link
             .callback(|event: yew::MouseEvent| Msg::HandleClick(event.target()));
+        let svg_consumer_down = self.link.callback(Msg::StartConsumerClick);
+        let svg_consumer_move = self.link.callback(Msg::ConsumerMove);
+        let svg_producer_down = self.link.callback(Msg::StartProducerClick);
+        let svg_producer_move = self.link.callback(Msg::ProducerMove);
+        let end_drag = self.link.callback(|_| Msg::EndDrag);
 
         html! {
             <>
@@ -428,57 +653,44 @@ impl Component for Model {
                             </div>
                         </div>
                         <div class="col-md-4 text-center" style="padding: 0;min-height: 40vmin;">
-                            // <div class="d-flex flex-column" style="height: 100%;width: 100%;">
-                            //     <h2>{"Graphs"}</h2>
-                            //     <div class="d-xl-flex flex-fill justify-content-xl-center align-items-xl-center">
-                            //     </div>
-                            //     <div class="d-xl-flex flex-fill justify-content-xl-center align-items-xl-center" style="width: 100%;"><img/></div>
-                            // </div>
                             <div class="d-flex flex-column" style="height: 100%;width: 100%;">
                                 <h2>{"Graphs"}</h2>
                                 <div class="d-xl-flex flex-fill justify-content-xl-center align-items-xl-center" style="width: 100%">
                                     <svg viewBox="-5 -5 100 100" preserveAspectRatio="xMidYMid meet" fill="white">
-                                        <g transform="scale(1,-1) translate(0,-90)" style="cursor:cell">
+                                        <g transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=svg_consumer_down onmousemove=svg_consumer_move onmouseup=end_drag.clone() onmouseleave=end_drag.clone()>
                                             <rect width="105" height="105" x="-5" y="-5" fill-opacity="0%"></rect>
-                                            
                                             <text x="10" y="-30" style="font: 10px Georgia; " transform="scale(1,-1)">{format!("{:.2},{:.2}",self.graph_data.consumer_x,self.graph_data.consumer_y)}</text>
-    
                                             <path d={
                                                 let temp: i16 = self.graph_data.trending.into();
                                                 format!("M 0 {} C 40 {}, 70 {}, 80 {}", temp+80, temp+80, temp+70, temp)
                                             }  stroke="white" stroke-width="1" fill="transparent"/>
-                                            
                                             <polygon points="0,95 -5,90 -1,90 -1,-1 90,-1 90,-5 95,0 90,5 90,1 1,1 1,90 5,90" fill="#1F6DDE" />
-    
-                                            <circle cx={format!("{:.2}",self.graph_data.consumer_x)} cy={format!("{:.2}",self.graph_data.consumer_y)} r="5" stroke="white" fill="#F34547" stroke-width="0.2" style="cursor:move"/>
+                                            <circle cx={format!("{:.2}",self.graph_data.consumer_x)} cy={format!("{:.2}",self.graph_data.consumer_y)} r="3" stroke="white" fill="#F34547" stroke-width="0.2"/>
                                         </g>
                                     </svg>
                                 </div>
                                 <div class="d-xl-flex flex-fill justify-content-xl-center align-items-xl-center" style="width: 100%;">
                                     <svg viewBox="-5 -5 100 100" preserveAspectRatio="xMidYMid meet" fill="white">
-                                        <g transform="scale(1,-1) translate(0,-90)" style="cursor:cell">
+                                        <g transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=svg_producer_down onmousemove=svg_producer_move onmouseup=end_drag.clone() onmouseleave=end_drag.clone()>
                                             <rect width="105" height="105" x="-5" y="-5" fill-opacity="0%"></rect>
                                             <text x="10" y="-70" style="font: 10px Georgia; " transform="scale(1,-1)">{format!("{:.2},{:.2}",self.graph_data.producer_x,self.graph_data.producer_y)}</text>
-                                            
                                             <path d={
-                                                let net: i16 = i16::from(self.graph_data.subsidies) - i16::from(self.graph_data.supply_shock); 
+                                                let net: i16 = i16::from(self.graph_data.subsidies) - i16::from(self.graph_data.supply_shock);
                                                 format!("M 0 {} C 10 {}, 50 {}, 80 {}", net+80, net-10, net-10, net+100)
                                             } stroke="white" stroke-width="1" fill="transparent"/>
 
                                             <polygon points="0,95 -5,90 -1,90 -1,-1 90,-1 90,-5 95,0 90,5 90,1 1,1 1,90 5,90" fill="#1F6DDE" />
-    
-                                            <circle cx={format!("{:.2}",self.graph_data.producer_x)} cy={format!("{:.2}",self.graph_data.producer_y)} r="5" stroke="white" fill="#F34547" stroke-width="0.2"/>
+                                            <circle cx={format!("{:.2}",self.graph_data.producer_x)} cy={format!("{:.2}",self.graph_data.producer_y)} r="3" stroke="white" fill="#F34547" stroke-width="0.2"/>
                                         </g>
-                                            
                                     </svg>
                                 </div>
                             </div>
                         </div>
-                        <div onclick=handle_click class="col-md-4 text-center" style="padding: 0;min-height: 40vmin;">
+                        <div class="col-md-4 text-center" style="padding: 0;min-height: 40vmin;">
                             <h2>{"State"}</h2>
                             <p>{"Game ID: 123456"}</p>
                             <p>{"Turn: 5"}</p>
-                            <div id="participants" style="overflow-y: scroll;max-height: 50vh;">
+                            <div onclick=handle_click id="participants" style="overflow-y: scroll;max-height: 50vh;">
                                 <p class="lead" style="background: var(--dark);">{"Directors"}</p>
                                     {for self.directors.iter().map(|elem| elem.render())}
                                 <p class="lead" style="background: var(--dark);">{"Viewers"}</p>
@@ -493,16 +705,7 @@ impl Component for Model {
                     <footer>
                         <p>{"Built by Francis Chua"}</p>
                     </footer>
-            </div>
-                // for elem in self.producers {
-                //     elem.render();
-                // }
-                // for elem in self.directors {
-                //     elem.render();
-                // }
-                // for elem in self.viewers {
-                //     elem.render();
-                // }
+                </div>
             </>
         }
     }

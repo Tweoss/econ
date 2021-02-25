@@ -26,6 +26,9 @@ web-sys = { version = "0.3.45", features = [
 	"HtmlCollection",
 	"Window",
 	"Location",
+	"SvgGraphicsElement",
+	"SvggElement",
+	"SvgMatrix",
 ] }
 stdweb = "0.4.20"
 serde_cbor = "0.11.1"
