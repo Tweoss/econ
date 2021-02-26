@@ -1,6 +1,10 @@
 #![recursion_limit = "2048"]
+use std::convert::TryInto;
+use stdweb::web::document;
+use stdweb::web::INonElementParentNode;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
+use web_sys::Element;
 use web_sys::EventTarget;
 use web_sys::{HtmlParagraphElement, SvggElement};
 // use wasm_bindgen::{JsCast};
@@ -130,12 +134,13 @@ enum Msg {
     ConsumerMove(yew::MouseEvent),
     StartProducerClick(yew::MouseEvent),
     ProducerMove(yew::MouseEvent),
+    ConsumerTouchStart(yew::TouchEvent),
     EndDrag,
     ToggleOpen,
 }
 
 impl Model {
-    fn client_move(&mut self, mouse_x: f64, mouse_y: f64) {
+    fn consumer_move(&mut self, mouse_x: f64, mouse_y: f64) {
         let extra_y = self.graph_data.trending;
         // ConsoleService::log(&format!("Mouse_x: {}, mouse_y: {}", mouse_x, mouse_y));
         let t = Model::get_closest_point_to_cubic_bezier(
@@ -536,7 +541,7 @@ impl Component for Model {
                     let mouse_y = f64::from(matrix.b()) * temp_x
                         + f64::from(matrix.d()) * temp_y
                         + f64::from(matrix.f());
-                    self.client_move(mouse_x, mouse_y);
+                    self.consumer_move(mouse_x, mouse_y);
                 }
                 true
             }
@@ -554,7 +559,7 @@ impl Component for Model {
                         let mouse_y = f64::from(matrix.b()) * temp_x
                             + f64::from(matrix.d()) * temp_y
                             + f64::from(matrix.f());
-                        self.client_move(mouse_x, mouse_y);
+                        self.consumer_move(mouse_x, mouse_y);
                     }
                     true
                 } else {
@@ -604,6 +609,33 @@ impl Component for Model {
                 self.dragging = false;
                 false
             }
+            Msg::ConsumerTouchStart(event) => {
+                let list = event.changed_touches();
+                if list.length() == 1 {
+                    if let Some(touch) = list.get(0) {
+                        let window = web_sys::window().unwrap();
+                        let document = window.document().unwrap();
+                        let element: SvggElement = document
+                            .get_element_by_id("Consumer Group")
+                            .unwrap()
+                            .dyn_ref::<web_sys::SvggElement>()
+                            .unwrap()
+                            .clone();
+                        let matrix: web_sys::SvgMatrix =
+                            element.get_screen_ctm().unwrap().inverse().unwrap();
+                        let temp_x: f64 = touch.client_x().into();
+                        let temp_y: f64 = touch.client_y().into();
+                        let mouse_x = f64::from(matrix.a()) * temp_x
+                            + f64::from(matrix.c()) * temp_y
+                            + f64::from(matrix.e());
+                        let mouse_y = f64::from(matrix.b()) * temp_x
+                            + f64::from(matrix.d()) * temp_y
+                            + f64::from(matrix.f());
+                        self.consumer_move(mouse_x, mouse_y);
+                    }
+                }
+                true
+            }
         }
     }
 
@@ -632,7 +664,8 @@ impl Component for Model {
         let svg_producer_down = self.link.callback(Msg::StartProducerClick);
         let svg_producer_move = self.link.callback(Msg::ProducerMove);
         let end_drag = self.link.callback(|_| Msg::EndDrag);
-
+        let consumertouchstart = self.link.callback(Msg::ConsumerTouchStart);
+        // let producertouchstart = self.link.callback(Msg::TouchStart);
         html! {
             <>
                 <div class="container text-center">
@@ -657,7 +690,7 @@ impl Component for Model {
                                 <h2>{"Graphs"}</h2>
                                 <div class="d-xl-flex flex-fill justify-content-xl-center align-items-xl-center" style="width: 100%">
                                     <svg viewBox="-5 -5 100 100" preserveAspectRatio="xMidYMid meet" fill="white">
-                                        <g transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=svg_consumer_down onmousemove=svg_consumer_move onmouseup=end_drag.clone() onmouseleave=end_drag.clone()>
+                                        <g id="Consumer Group" transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=svg_consumer_down onmousemove=svg_consumer_move onmouseup=end_drag.clone() onmouseleave=end_drag.clone() ontouchstart=consumertouchstart>
                                             <rect width="105" height="105" x="-5" y="-5" fill-opacity="0%"></rect>
                                             <text x="10" y="-30" style="font: 10px Georgia; " transform="scale(1,-1)">{format!("{:.2},{:.2}",self.graph_data.consumer_x,self.graph_data.consumer_y)}</text>
                                             <path d={
@@ -671,7 +704,7 @@ impl Component for Model {
                                 </div>
                                 <div class="d-xl-flex flex-fill justify-content-xl-center align-items-xl-center" style="width: 100%;">
                                     <svg viewBox="-5 -5 100 100" preserveAspectRatio="xMidYMid meet" fill="white">
-                                        <g transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=svg_producer_down onmousemove=svg_producer_move onmouseup=end_drag.clone() onmouseleave=end_drag.clone()>
+                                        <g id="Producer Group" transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=svg_producer_down onmousemove=svg_producer_move onmouseup=end_drag.clone() onmouseleave=end_drag.clone()>
                                             <rect width="105" height="105" x="-5" y="-5" fill-opacity="0%"></rect>
                                             <text x="10" y="-70" style="font: 10px Georgia; " transform="scale(1,-1)">{format!("{:.2},{:.2}",self.graph_data.producer_x,self.graph_data.producer_y)}</text>
                                             <path d={
