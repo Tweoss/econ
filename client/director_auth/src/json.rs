@@ -36,5 +36,8 @@ pub enum DirectorClientType {
 	EndGame,
 	Kick,
 	Pong,
+	SupplyShock,
+	Subsidies,
+	Trending,
 }
 

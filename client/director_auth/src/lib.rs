@@ -42,7 +42,7 @@ struct Model {
     viewers: Vec<Participant>,
     is_open: String,
     graph_data: Graphs,
-    dragging: bool,
+    // dragging: bool,
 }
 
 struct Participant {
@@ -99,6 +99,9 @@ struct Graphs {
     trending: u8,
     supply_shock: u8,
     subsidies: u8,
+    matrix: Option<(f64, f64, f64, f64, f64, f64)>,
+    dragging: bool,
+    is_consumer_target: bool,
 }
 
 impl Graphs {
@@ -111,12 +114,18 @@ impl Graphs {
             trending: 0,
             supply_shock: 0,
             subsidies: 0,
+            matrix: None,
+            dragging: false,
+            is_consumer_target: true,
         }
     }
     fn data(&mut self, trending: u8, supply_shock: u8, subsidies: u8) {
         self.trending = trending;
         self.supply_shock = supply_shock;
         self.subsidies = subsidies;
+    }
+    fn reset_matrix(&mut self) {
+        self.matrix = None;
     }
 }
 
@@ -130,10 +139,12 @@ enum Msg {
     FailedToConnect,
     EndGame,
     HandleClick(Option<EventTarget>),
-    StartConsumerClick(yew::MouseEvent),
-    ConsumerMove(yew::MouseEvent),
-    StartProducerClick(yew::MouseEvent),
-    ProducerMove(yew::MouseEvent),
+    StartClick(yew::MouseEvent, bool),
+    // ConsumerMove(yew::MouseEvent),
+    MouseMove(yew::MouseEvent),
+    // StartProducerClick(yew::MouseEvent, bool),
+    // ProducerMove(yew::MouseEvent),
+    StartTouch(yew::TouchEvent, bool),
     EndDrag,
     ToggleOpen,
 }
@@ -143,12 +154,12 @@ impl Model {
         let extra_y = self.graph_data.trending;
         // ConsoleService::log(&format!("Mouse_x: {}, mouse_y: {}", mouse_x, mouse_y));
         let t = Model::get_closest_point_to_cubic_bezier(
-            2,
+            10,
             mouse_x,
             mouse_y,
             0.,
             1.,
-            10,
+            20,
             0.,
             (extra_y + 80).into(),
             40.,
@@ -161,7 +172,6 @@ impl Model {
         self.graph_data.consumer_x = 3. * f64::powi(1. - t, 2) * t * 40.
             + 3. * (1. - t) * f64::powi(t, 2) * 70.
             + f64::powi(t, 3) * 80.;
-        ConsoleService::log(&t.to_string());
         self.graph_data.consumer_y = f64::powi(1. - t, 3) * f64::from(extra_y + 80)
             + 3. * f64::powi(1. - t, 2) * t * f64::from(extra_y + 80)
             + 3. * (1. - t) * f64::powi(t, 2) * f64::from(extra_y + 70)
@@ -172,12 +182,12 @@ impl Model {
             i16::from(self.graph_data.subsidies) - i16::from(self.graph_data.supply_shock);
         // ConsoleService::log(&format!("Mouse_x: {}, mouse_y: {}", mouse_x, mouse_y));
         let t = Model::get_closest_point_to_cubic_bezier(
-            5,
+            10,
             mouse_x,
             mouse_y,
             0.,
             1.,
-            10,
+            20,
             0.,
             (extra_y + 80).into(),
             10.,
@@ -290,7 +300,6 @@ impl Component for Model {
             viewers: Vec::new(),
             is_open: "Open".to_string(),
             graph_data: Graphs::new(),
-            dragging: false,
         }
     }
 
@@ -526,87 +535,138 @@ impl Component for Model {
                 }
                 false
             }
-            Msg::StartConsumerClick(event) => {
+            Msg::StartClick(event, is_consumer) => {
                 if let Some(target) = event.current_target() {
                     let element: SvggElement = target.dyn_ref::<SvggElement>().unwrap().clone();
-                    self.dragging = true;
                     let matrix: web_sys::SvgMatrix =
                         element.get_screen_ctm().unwrap().inverse().unwrap();
+                    self.graph_data.matrix = Some((
+                        matrix.a().into(),
+                        matrix.b().into(),
+                        matrix.c().into(),
+                        matrix.d().into(),
+                        matrix.e().into(),
+                        matrix.f().into(),
+                    ));
+                    let matrix = self.graph_data.matrix.unwrap();
                     let temp_x: f64 = event.client_x().into();
                     let temp_y: f64 = event.client_y().into();
-                    let mouse_x = f64::from(matrix.a()) * temp_x
-                        + f64::from(matrix.c()) * temp_y
-                        + f64::from(matrix.e());
-                    let mouse_y = f64::from(matrix.b()) * temp_x
-                        + f64::from(matrix.d()) * temp_y
-                        + f64::from(matrix.f());
-                    self.consumer_move(mouse_x, mouse_y);
-                }
-                true
-            }
-            Msg::ConsumerMove(event) => {
-                if self.dragging {
-                    if let Some(target) = event.current_target() {
-                        let element: SvggElement = target.dyn_ref::<SvggElement>().unwrap().clone();
-                        let matrix: web_sys::SvgMatrix =
-                            element.get_screen_ctm().unwrap().inverse().unwrap();
-                        let temp_x: f64 = event.client_x().into();
-                        let temp_y: f64 = event.client_y().into();
-                        let mouse_x = f64::from(matrix.a()) * temp_x
-                            + f64::from(matrix.c()) * temp_y
-                            + f64::from(matrix.e());
-                        let mouse_y = f64::from(matrix.b()) * temp_x
-                            + f64::from(matrix.d()) * temp_y
-                            + f64::from(matrix.f());
+                    let mouse_x = matrix.0 * temp_x + matrix.2 * temp_y + matrix.4;
+                    let mouse_y = matrix.1 * temp_x + matrix.3 * temp_y + matrix.5;
+                    if is_consumer {
                         self.consumer_move(mouse_x, mouse_y);
-                    }
-                    true
-                } else {
-                    false
-                }
-            }
-            Msg::StartProducerClick(event) => {
-                if let Some(target) = event.current_target() {
-                    let element: SvggElement = target.dyn_ref::<SvggElement>().unwrap().clone();
-                    self.dragging = true;
-                    let matrix: web_sys::SvgMatrix =
-                        element.get_screen_ctm().unwrap().inverse().unwrap();
-                    let temp_x: f64 = event.client_x().into();
-                    let temp_y: f64 = event.client_y().into();
-                    let mouse_x = f64::from(matrix.a()) * temp_x
-                        + f64::from(matrix.c()) * temp_y
-                        + f64::from(matrix.e());
-                    let mouse_y = f64::from(matrix.b()) * temp_x
-                        + f64::from(matrix.d()) * temp_y
-                        + f64::from(matrix.f());
-                    self.producer_move(mouse_x, mouse_y);
-                }
-                true
-            }
-            Msg::ProducerMove(event) => {
-                if self.dragging {
-                    if let Some(target) = event.current_target() {
-                        let element: SvggElement = target.dyn_ref::<SvggElement>().unwrap().clone();
-                        let matrix: web_sys::SvgMatrix =
-                            element.get_screen_ctm().unwrap().inverse().unwrap();
-                        let temp_x: f64 = event.client_x().into();
-                        let temp_y: f64 = event.client_y().into();
-                        let mouse_x = f64::from(matrix.a()) * temp_x
-                            + f64::from(matrix.c()) * temp_y
-                            + f64::from(matrix.e());
-                        let mouse_y = f64::from(matrix.b()) * temp_x
-                            + f64::from(matrix.d()) * temp_y
-                            + f64::from(matrix.f());
+                    } else {
                         self.producer_move(mouse_x, mouse_y);
                     }
+                    self.graph_data.dragging = true;
+                    self.graph_data.is_consumer_target = is_consumer;
+                }
+                true
+            }
+            Msg::MouseMove(event) => {
+                if self.graph_data.dragging {
+                    // if let Some(target) = event.current_target() {
+                    // let element: SvggElement = target.dyn_ref::<SvggElement>().unwrap().clone();
+                    let matrix =
+                            // element.get_screen_ctm().unwrap().inverse().unwrap();
+                            self.graph_data.matrix.unwrap();
+                    let temp_x: f64 = event.client_x().into();
+                    let temp_y: f64 = event.client_y().into();
+                    let mouse_x = matrix.0 * temp_x + matrix.2 * temp_y + matrix.4;
+                    let mouse_y = matrix.1 * temp_x + matrix.3 * temp_y + matrix.5;
+                    if self.graph_data.is_consumer_target {
+                        self.consumer_move(mouse_x, mouse_y);
+                    } else {
+                        self.producer_move(mouse_x, mouse_y);
+                    }
+                    // }
                     true
                 } else {
                     false
                 }
             }
+            // Msg::StartProducerClick(event) => {
+            //     if let Some(target) = event.current_target() {
+            //         let element: SvggElement = target.dyn_ref::<SvggElement>().unwrap().clone();
+            //         self.dragging = true;
+            //         let matrix: web_sys::SvgMatrix =
+            //             element.get_screen_ctm().unwrap().inverse().unwrap();
+            //         let temp_x: f64 = event.client_x().into();
+            //         let temp_y: f64 = event.client_y().into();
+            //         let mouse_x = f64::from(matrix.a()) * temp_x
+            //             + f64::from(matrix.c()) * temp_y
+            //             + f64::from(matrix.e());
+            //         let mouse_y = f64::from(matrix.b()) * temp_x
+            //             + f64::from(matrix.d()) * temp_y
+            //             + f64::from(matrix.f());
+            //         self.producer_move(mouse_x, mouse_y);
+            //     }
+            //     true
+            // }
+            // Msg::ProducerMove(event) => {
+            //     if self.graph_data.dragging {
+            //         // if let Some(target) = event.current_target() {
+            //             // let element: SvggElement = target.dyn_ref::<SvggElement>().unwrap().clone();
+            //             let matrix = self.graph_data.matrix.unwrap();
+            //             // element.get_screen_ctm().unwrap().inverse().unwrap();
+            //             let temp_x: f64 = event.client_x().into();
+            //             let temp_y: f64 = event.client_y().into();
+            //             let mouse_x = matrix.0 * temp_x + matrix.2 * temp_y + matrix.4;
+            //             let mouse_y = matrix.1 * temp_x + matrix.3 * temp_y + matrix.5;
+            //             self.producer_move(mouse_x, mouse_y);
+            //         // }
+            //         true
+            //     } else {
+            //         false
+            //     }
+            // }
             Msg::EndDrag => {
-                self.dragging = false;
+                self.graph_data.dragging = false;
+                self.graph_data.reset_matrix();
                 false
+            }
+            Msg::StartTouch(event, is_consumer) => {
+                let list = event.changed_touches();
+                if list.length() == 1 {
+                    if let Some(touch) = list.get(0) {
+                        let window = web_sys::window().unwrap();
+                        let document = window.document().unwrap();
+                        let temp_x: f64 = touch.client_x().into();
+                        let temp_y: f64 = touch.client_y().into();
+                        let string;
+                        if is_consumer {
+                            string = "Consumer Group";
+                        } else {
+                            string = "Producer Group";
+                        }
+                        let element: SvggElement = document
+                            .get_element_by_id(string)
+                            .unwrap()
+                            .dyn_ref::<web_sys::SvggElement>()
+                            .unwrap()
+                            .clone();
+                        let matrix: web_sys::SvgMatrix =
+                            element.get_screen_ctm().unwrap().inverse().unwrap();
+                        self.graph_data.matrix = Some((
+                            matrix.a().into(),
+                            matrix.b().into(),
+                            matrix.c().into(),
+                            matrix.d().into(),
+                            matrix.e().into(),
+                            matrix.f().into(),
+                        ));
+                        let matrix = self.graph_data.matrix.unwrap();
+                        let mouse_x = matrix.0 * temp_x + matrix.2 * temp_y + matrix.4;
+                        let mouse_y = matrix.1 * temp_x + matrix.3 * temp_y + matrix.5;
+                        if is_consumer {
+                            self.consumer_move(mouse_x, mouse_y);
+                        } else {
+                            self.producer_move(mouse_x, mouse_y);
+                        }
+                        self.graph_data.dragging = true;
+                    }
+                }
+                true
             }
         }
     }
@@ -631,11 +691,13 @@ impl Component for Model {
         let handle_click = self
             .link
             .callback(|event: yew::MouseEvent| Msg::HandleClick(event.target()));
-        let svg_consumer_down = self.link.callback(Msg::StartConsumerClick);
-        let svg_consumer_move = self.link.callback(Msg::ConsumerMove);
-        let svg_producer_down = self.link.callback(Msg::StartProducerClick);
-        let svg_producer_move = self.link.callback(Msg::ProducerMove);
+        let svg_consumer_down = self.link.callback(|event| Msg::StartClick(event, true));
+        let svg_consumer_move = self.link.callback(Msg::MouseMove);
+        let svg_producer_down = self.link.callback(|event| Msg::StartClick(event, false));
+        let svg_producer_move = self.link.callback(Msg::MouseMove);
         let end_drag = self.link.callback(|_| Msg::EndDrag);
+        let consumertouchstart = self.link.callback(|event| Msg::StartTouch(event, true));
+        let producertouchstart = self.link.callback(|event| Msg::StartTouch(event, false));
         html! {
             <>
                 <div class="container text-center">
@@ -649,9 +711,14 @@ impl Component for Model {
                                 </div>
                             </div>
                             <div class="row">
+                                <div class="col" style="min-height: 15vmin;">
+                                    <h2>{"Control Flow"}</h2><button class="btn btn-warning border rounded" type="button">{"Force Next Turn"}</button>
+                                </div>
+                            </div>
+                            <div class="row">
                                 <div class="col" style="min-height: 40vmin;">
-                                    <h2>{"Control Flow"}</h2>
-                                    <div class="btn-group-vertical btn-group-lg" role="group"><button class="btn btn-warning border rounded" type="button">{"Force Next Turn"}</button><button onclick=open_close class="btn btn-primary border rounded" type="button">{&self.is_open}</button><button class="btn btn-danger border rounded" type="button">{"End Game"}</button></div>
+                                    <h2>{"Danger"}</h2>
+                                    <div class="btn-group-vertical btn-group-lg" role="group"><button onclick=open_close class="btn btn-primary border rounded" type="button">{&self.is_open}</button><button class="btn btn-danger border rounded" type="button">{"End Game"}</button></div>
                                 </div>
                             </div>
                         </div>
@@ -660,7 +727,7 @@ impl Component for Model {
                                 <h2>{"Graphs"}</h2>
                                 <div class="d-xl-flex flex-fill justify-content-xl-center align-items-xl-center" style="width: 100%">
                                     <svg viewBox="-5 -5 100 100" preserveAspectRatio="xMidYMid meet" fill="white">
-                                        <g id="Consumer Group" transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=svg_consumer_down onmousemove=svg_consumer_move onmouseup=end_drag.clone() onmouseleave=end_drag.clone()>
+                                        <g id="Consumer Group" transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=svg_consumer_down onmousemove=svg_consumer_move onmouseup=end_drag.clone() onmouseleave=end_drag.clone() ontouchstart=consumertouchstart>
                                             <rect width="105" height="105" x="-5" y="-5" fill-opacity="0%"></rect>
                                             <text x="10" y="-30" style="font: 10px Georgia; " transform="scale(1,-1)">{format!("{:.2},{:.2}",self.graph_data.consumer_x,self.graph_data.consumer_y)}</text>
                                             <path d={
@@ -674,7 +741,7 @@ impl Component for Model {
                                 </div>
                                 <div class="d-xl-flex flex-fill justify-content-xl-center align-items-xl-center" style="width: 100%;">
                                     <svg viewBox="-5 -5 100 100" preserveAspectRatio="xMidYMid meet" fill="white">
-                                        <g id="Producer Group" transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=svg_producer_down onmousemove=svg_producer_move onmouseup=end_drag.clone() onmouseleave=end_drag.clone()>
+                                        <g id="Producer Group" transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=svg_producer_down onmousemove=svg_producer_move onmouseup=end_drag.clone() onmouseleave=end_drag.clone() ontouchstart=producertouchstart>
                                             <rect width="105" height="105" x="-5" y="-5" fill-opacity="0%"></rect>
                                             <text x="10" y="-70" style="font: 10px Georgia; " transform="scale(1,-1)">{format!("{:.2},{:.2}",self.graph_data.producer_x,self.graph_data.producer_y)}</text>
                                             <path d={

@@ -1,4 +1,4 @@
-use actix::{Addr, Actor};
+use actix::prelude::*;
 // use std::sync::Mutex;
 use actix::StreamHandler;
 use actix_web_actors::ws;
@@ -6,7 +6,7 @@ use actix_web_actors::ws;
 // use crate::application::other_messages;
 
 use crate::application::game_folder::game::Game;
-
+use crate::application::game_folder::game_to_participant;
 
 pub struct ProducerState {
 	pub is_connected: bool,
@@ -61,5 +61,12 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Producer {
 			Ok(ws::Message::Binary(bin)) => ctx.binary(bin),
 			_ => (),
 		}
+	}
+}
+
+impl Handler<game_to_participant::EndedGame> for Producer {
+	type Result = ();
+	fn handle(&mut self, _msg: game_to_participant::EndedGame, ctx: &mut Self::Context) -> Self::Result {
+		ctx.stop();
 	}
 }

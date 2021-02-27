@@ -36,7 +36,8 @@ impl AppState {
         AppState {
             game_map: RwLock::new(HashMap::new()),
             // game_ids: Mutex::new(Vec::new()),
-            password_hash: 9612577385432581406,
+            password_hash: 16528679900032520146,
+            // password_hash: 9612577385432581406,
         }
     }
 }
@@ -66,7 +67,6 @@ impl Handler<IsRightPswd> for AppState {
     fn handle(&mut self, msg: IsRightPswd, _: &mut Context<Self>) -> Self::Result {
         println!("msg: IsRightPswd");
         let mut hasher = DefaultHasher::new();
-        println!("Hash is {:x}!", hasher.finish());
         msg.pswd.hash(&mut hasher);
         hasher.finish() == self.password_hash
     }

@@ -1,4 +1,4 @@
-use actix::{Addr, Actor};
+use actix::prelude::*;
 // use std::sync::Mutex;
 use actix::StreamHandler;
 use actix_web_actors::ws;
@@ -8,9 +8,12 @@ use actix_web_actors::ws;
 // use crate::application::app::AppState;
 use crate::application::game_folder::game::Game;
 
+use crate::application::game_folder::game_to_participant;
+
 pub struct ConsumerState {
 	pub is_connected: bool,
 	pub score: i64,
+	pub is_responsive: bool,
 	pub addr: Option<Addr<Consumer>>,
 }
 
@@ -19,6 +22,7 @@ impl ConsumerState {
 		ConsumerState {
 			is_connected: false,
 			score: 0,
+			is_responsive: true,
 			addr: None,
 		}
 	}
@@ -59,3 +63,11 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Consumer {
 		}
 	}
 }
+
+impl Handler<game_to_participant::EndedGame> for Consumer {
+	type Result = ();
+	fn handle(&mut self, _msg: game_to_participant::EndedGame, ctx: &mut Self::Context) -> Self::Result {
+		ctx.stop();
+	}
+}
+
