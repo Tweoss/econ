@@ -140,11 +140,9 @@ enum Msg {
     EndGame,
     HandleClick(Option<EventTarget>),
     StartClick(yew::MouseEvent, bool),
-    // ConsumerMove(yew::MouseEvent),
     MouseMove(yew::MouseEvent),
-    // StartProducerClick(yew::MouseEvent, bool),
-    // ProducerMove(yew::MouseEvent),
     StartTouch(yew::TouchEvent, bool),
+    TouchMove(yew::TouchEvent),
     EndDrag,
     ToggleOpen,
 }
@@ -585,41 +583,6 @@ impl Component for Model {
                     false
                 }
             }
-            // Msg::StartProducerClick(event) => {
-            //     if let Some(target) = event.current_target() {
-            //         let element: SvggElement = target.dyn_ref::<SvggElement>().unwrap().clone();
-            //         self.dragging = true;
-            //         let matrix: web_sys::SvgMatrix =
-            //             element.get_screen_ctm().unwrap().inverse().unwrap();
-            //         let temp_x: f64 = event.client_x().into();
-            //         let temp_y: f64 = event.client_y().into();
-            //         let mouse_x = f64::from(matrix.a()) * temp_x
-            //             + f64::from(matrix.c()) * temp_y
-            //             + f64::from(matrix.e());
-            //         let mouse_y = f64::from(matrix.b()) * temp_x
-            //             + f64::from(matrix.d()) * temp_y
-            //             + f64::from(matrix.f());
-            //         self.producer_move(mouse_x, mouse_y);
-            //     }
-            //     true
-            // }
-            // Msg::ProducerMove(event) => {
-            //     if self.graph_data.dragging {
-            //         // if let Some(target) = event.current_target() {
-            //             // let element: SvggElement = target.dyn_ref::<SvggElement>().unwrap().clone();
-            //             let matrix = self.graph_data.matrix.unwrap();
-            //             // element.get_screen_ctm().unwrap().inverse().unwrap();
-            //             let temp_x: f64 = event.client_x().into();
-            //             let temp_y: f64 = event.client_y().into();
-            //             let mouse_x = matrix.0 * temp_x + matrix.2 * temp_y + matrix.4;
-            //             let mouse_y = matrix.1 * temp_x + matrix.3 * temp_y + matrix.5;
-            //             self.producer_move(mouse_x, mouse_y);
-            //         // }
-            //         true
-            //     } else {
-            //         false
-            //     }
-            // }
             Msg::EndDrag => {
                 self.graph_data.dragging = false;
                 self.graph_data.reset_matrix();
@@ -664,9 +627,34 @@ impl Component for Model {
                             self.producer_move(mouse_x, mouse_y);
                         }
                         self.graph_data.dragging = true;
+                        self.graph_data.is_consumer_target = is_consumer;
                     }
                 }
                 true
+            }
+            Msg::TouchMove(event) => {
+                if self.graph_data.dragging {
+                    let list = event.touches();
+                    if list.length() == 1 {
+                        if let Some(touch) = list.get(0) {
+                            let temp_x: f64 = touch.client_x().into();
+                            let temp_y: f64 = touch.client_y().into();
+                            let matrix = self.graph_data.matrix.unwrap();
+                            let mouse_x = matrix.0 * temp_x + matrix.2 * temp_y + matrix.4;
+                            let mouse_y = matrix.1 * temp_x + matrix.3 * temp_y + matrix.5;
+                            if self.graph_data.is_consumer_target {
+                                self.consumer_move(mouse_x, mouse_y);
+                            } else {
+                                self.producer_move(mouse_x, mouse_y);
+                            }
+                            return true;
+                        }
+                    }
+                    else {
+                        self.graph_data.dragging = false;
+                    }
+                }
+                false
             }
         }
     }
@@ -698,6 +686,7 @@ impl Component for Model {
         let end_drag = self.link.callback(|_| Msg::EndDrag);
         let consumertouchstart = self.link.callback(|event| Msg::StartTouch(event, true));
         let producertouchstart = self.link.callback(|event| Msg::StartTouch(event, false));
+        let touch_move = self.link.callback(Msg::TouchMove);
         html! {
             <>
                 <div class="container text-center">
@@ -712,7 +701,7 @@ impl Component for Model {
                             </div>
                             <div class="row">
                                 <div class="col" style="min-height: 15vmin;">
-                                    <h2>{"Control Flow"}</h2><button class="btn btn-warning border rounded" type="button">{"Force Next Turn"}</button>
+                                    <h2>{"Control Flow"}</h2><button class="btn btn-group-lg btn-warning border rounded" type="button">{"Force Next Turn"}</button>
                                 </div>
                             </div>
                             <div class="row">
@@ -727,7 +716,7 @@ impl Component for Model {
                                 <h2>{"Graphs"}</h2>
                                 <div class="d-xl-flex flex-fill justify-content-xl-center align-items-xl-center" style="width: 100%">
                                     <svg viewBox="-5 -5 100 100" preserveAspectRatio="xMidYMid meet" fill="white">
-                                        <g id="Consumer Group" transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=svg_consumer_down onmousemove=svg_consumer_move onmouseup=end_drag.clone() onmouseleave=end_drag.clone() ontouchstart=consumertouchstart>
+                                        <g id="Consumer Group" transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=svg_consumer_down onmousemove=svg_consumer_move onmouseup=end_drag.clone() onmouseleave=end_drag.clone() ontouchstart=consumertouchstart ontouchmove=touch_move.clone()>
                                             <rect width="105" height="105" x="-5" y="-5" fill-opacity="0%"></rect>
                                             <text x="10" y="-30" style="font: 10px Georgia; " transform="scale(1,-1)">{format!("{:.2},{:.2}",self.graph_data.consumer_x,self.graph_data.consumer_y)}</text>
                                             <path d={
@@ -735,21 +724,35 @@ impl Component for Model {
                                                 format!("M 0 {} C 40 {}, 70 {}, 80 {}", temp+80, temp+80, temp+70, temp)
                                             }  stroke="white" stroke-width="1" fill="transparent"/>
                                             <polygon points="0,95 -5,90 -1,90 -1,-1 90,-1 90,-5 95,0 90,5 90,1 1,1 1,90 5,90" fill="#1F6DDE" />
+                                            <line x1="25" x2="25" y1="2" y2="-2" stroke="white" stroke-width="1"/>
+                                            <line x1="50" x2="50" y1="3" y2="-3" stroke="white" stroke-width="1"/>
+                                            <text y="-5" x="47" style="font: 5px Georgia; " transform="scale(1,-1)">{"50"}</text>
+                                            <line x1="75" x2="75" y1="2" y2="-2" stroke="white" stroke-width="1"/>
+                                            <line y1="25" y2="25" x1="2" x2="-2" stroke="white" stroke-width="1"/>
+                                            <line y1="50" y2="50" x1="3" x2="-3" stroke="white" stroke-width="1"/>
+                                            <text x="5" y="-49" style="font: 5px Georgia; " transform="scale(1,-1)">{"50"}</text>
+                                            <line y1="75" y2="75" x1="2" x2="-2" stroke="white" stroke-width="1"/>
                                             <circle cx={format!("{:.2}",self.graph_data.consumer_x)} cy={format!("{:.2}",self.graph_data.consumer_y)} r="3" stroke="white" fill="#F34547" stroke-width="0.2"/>
                                         </g>
                                     </svg>
                                 </div>
                                 <div class="d-xl-flex flex-fill justify-content-xl-center align-items-xl-center" style="width: 100%;">
                                     <svg viewBox="-5 -5 100 100" preserveAspectRatio="xMidYMid meet" fill="white">
-                                        <g id="Producer Group" transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=svg_producer_down onmousemove=svg_producer_move onmouseup=end_drag.clone() onmouseleave=end_drag.clone() ontouchstart=producertouchstart>
+                                        <g id="Producer Group" transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=svg_producer_down onmousemove=svg_producer_move onmouseup=end_drag.clone() onmouseleave=end_drag.clone() ontouchstart=producertouchstart ontouchmove=touch_move>
                                             <rect width="105" height="105" x="-5" y="-5" fill-opacity="0%"></rect>
                                             <text x="10" y="-70" style="font: 10px Georgia; " transform="scale(1,-1)">{format!("{:.2},{:.2}",self.graph_data.producer_x,self.graph_data.producer_y)}</text>
                                             <path d={
                                                 let net: i16 = i16::from(self.graph_data.subsidies) - i16::from(self.graph_data.supply_shock);
                                                 format!("M 0 {} C 10 {}, 50 {}, 80 {}", net+80, net-10, net-10, net+100)
                                             } stroke="white" stroke-width="1" fill="transparent"/>
-
                                             <polygon points="0,95 -5,90 -1,90 -1,-1 90,-1 90,-5 95,0 90,5 90,1 1,1 1,90 5,90" fill="#1F6DDE" />
+                                            <line x1="25" x2="25" y1="2" y2="-2" stroke="white" stroke-width="1"/>
+                                            <line x1="50" x2="50" y1="3" y2="-3" stroke="white" stroke-width="1"/>
+                                            <text y="-5" x="47" style="font: 5px Georgia; " transform="scale(1,-1)">{"50"}</text>
+                                            <line x1="75" x2="75" y1="2" y2="-2" stroke="white" stroke-width="1"/>
+                                            <line y1="25" y2="25" x1="2" x2="-2" stroke="white" stroke-width="1"/>
+                                            <line y1="50" y2="50" x1="3" x2="-3" stroke="white" stroke-width="1"/>
+                                            <line y1="75" y2="75" x1="2" x2="-2" stroke="white" stroke-width="1"/>
                                             <circle cx={format!("{:.2}",self.graph_data.producer_x)} cy={format!("{:.2}",self.graph_data.producer_y)} r="3" stroke="white" fill="#F34547" stroke-width="0.2"/>
                                         </g>
                                     </svg>

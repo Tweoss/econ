@@ -566,6 +566,10 @@ async function init(input) {
         var ret = getObject(arg0) instanceof SVGGElement;
         return ret;
     };
+    imports.wbg.__wbg_touches_38b5f2318ddffd2b = function(arg0) {
+        var ret = getObject(arg0).touches;
+        return addHeapObject(ret);
+    };
     imports.wbg.__wbg_changedTouches_b2b93d69b317053e = function(arg0) {
         var ret = getObject(arg0).changedTouches;
         return addHeapObject(ret);
@@ -746,16 +750,16 @@ async function init(input) {
         var ret = wasm.memory;
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper251 = function(arg0, arg1, arg2) {
-        var ret = makeMutClosure(arg0, arg1, 108, __wbg_adapter_26);
+    imports.wbg.__wbindgen_closure_wrapper254 = function(arg0, arg1, arg2) {
+        var ret = makeMutClosure(arg0, arg1, 112, __wbg_adapter_26);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper537 = function(arg0, arg1, arg2) {
-        var ret = makeMutClosure(arg0, arg1, 206, __wbg_adapter_29);
+    imports.wbg.__wbindgen_closure_wrapper542 = function(arg0, arg1, arg2) {
+        var ret = makeMutClosure(arg0, arg1, 210, __wbg_adapter_29);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper599 = function(arg0, arg1, arg2) {
-        var ret = makeMutClosure(arg0, arg1, 235, __wbg_adapter_32);
+    imports.wbg.__wbindgen_closure_wrapper604 = function(arg0, arg1, arg2) {
+        var ret = makeMutClosure(arg0, arg1, 239, __wbg_adapter_32);
         return addHeapObject(ret);
     };
 
