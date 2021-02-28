@@ -198,7 +198,6 @@ impl Model {
         self.graph_data.producer_x = 3. * f64::powi(1. - t, 2) * t * 10.
             + 3. * (1. - t) * f64::powi(t, 2) * 50.
             + f64::powi(t, 3) * 80.;
-        ConsoleService::log(&t.to_string());
         self.graph_data.producer_y = f64::powi(1. - t, 3) * f64::from(extra_y + 80)
             + 3. * f64::powi(1. - t, 2) * t * f64::from(extra_y - 10)
             + 3. * (1. - t) * f64::powi(t, 2) * f64::from(extra_y - 10)
@@ -676,9 +675,6 @@ impl Component for Model {
         // let sendreq = self.link.callback(|_| Msg::SendReq);
         // let endgame = self.link.callback(|_| Msg::EndGame);
         let open_close = self.link.callback(|_| Msg::ToggleOpen);
-        let handle_click = self
-            .link
-            .callback(|event: yew::MouseEvent| Msg::HandleClick(event.target()));
         let svg_consumer_down = self.link.callback(|event| Msg::StartClick(event, true));
         let svg_consumer_move = self.link.callback(Msg::MouseMove);
         let svg_producer_down = self.link.callback(|event| Msg::StartClick(event, false));
@@ -687,6 +683,7 @@ impl Component for Model {
         let consumertouchstart = self.link.callback(|event| Msg::StartTouch(event, true));
         let producertouchstart = self.link.callback(|event| Msg::StartTouch(event, false));
         let touch_move = self.link.callback(Msg::TouchMove);
+        let handle_click = self.link.callback(|e: MouseEvent| Msg::HandleClick(e.target()));
         html! {
             <>
                 <div class="container text-center">
@@ -694,14 +691,14 @@ impl Component for Model {
                     <div class="row" style="margin-right: 0;margin-left: 0;">
                         <div class="col-md-4 text-center" style="padding: 0;min-height: 40vmin;">
                             <div class="row">
-                                <div class="col" style="min-height: 40vmin;">
+                                <div class="col" style="min-height: 30vmin;">
                                     <h2>{"Events"}</h2>
                                     <div class="btn-group-vertical btn-group-lg" role="group"><button class="btn btn-primary border rounded" type="button">{"Supply Shock"}</button><button class="btn btn-primary border rounded" type="button">{"Subsidies"}</button><button class="btn btn-primary border rounded" type="button">{"Trending"}</button></div>
                                 </div>
                             </div>
                             <div class="row">
                                 <div class="col" style="min-height: 15vmin;">
-                                    <h2>{"Control Flow"}</h2><button class="btn btn-group-lg btn-warning border rounded" type="button">{"Force Next Turn"}</button>
+                                    <h2>{"Control Flow"}</h2><button class="btn btn-lg btn-warning border rounded" type="button">{"Force Next Turn"}</button>
                                 </div>
                             </div>
                             <div class="row">
