@@ -15,17 +15,17 @@ use super::participants::json;
 
 use crate::application::game_folder::game_to_app;
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::RwLock;
 
 // //* Game can receive messages about a Player joining, admin Messages, other things?
 
 pub struct Game {
 	// is_connected, i64: score in dollars
-	consumers: Mutex<HashMap<String, ConsumerState>>,
+	consumers: RwLock<HashMap<String, ConsumerState>>,
 	// is_connected, i64: score in dollars, u64 is price, u64 is quantity
-	producers: Mutex<HashMap<String, ProducerState>>,
-	directors: Mutex<HashMap<String, DirectorState>>,
-	viewers: Mutex<HashMap<String, ViewerState>>,
+	producers: RwLock<HashMap<String, ProducerState>>,
+	directors: RwLock<HashMap<String, DirectorState>>,
+	viewers: RwLock<HashMap<String, ViewerState>>,
 	id_main_director: String,
 	state_main_director: DirectorState,
 	is_open: bool,
@@ -51,10 +51,10 @@ impl Game {
 	pub fn new(app_addr: Addr<AppState>, id_main_director: String, game_id: String) -> Game {
 		println!("Making a new GAME with director id: {}", id_main_director);
 		Game {
-			producers: Mutex::new(HashMap::new()),
-			consumers: Mutex::new(HashMap::new()),
-			directors: Mutex::new(HashMap::new()),
-			viewers: Mutex::new(HashMap::new()),
+			producers: RwLock::new(HashMap::new()),
+			consumers: RwLock::new(HashMap::new()),
+			directors: RwLock::new(HashMap::new()),
+			viewers: RwLock::new(HashMap::new()),
 			id_main_director,
 			state_main_director: DirectorState::new(),
 			is_open: false,
@@ -77,10 +77,10 @@ impl Handler<NewPlayer> for Game {
 		self.producer_next = !self.producer_next;
 		if self.producer_next {
 			self.consumers
-				.lock()
+				.write()
 				.unwrap()
 				.insert(msg.user_id.clone(), ConsumerState::new());
-			for elem in self.directors.lock().unwrap().values() {
+			for elem in self.directors.read().unwrap().values() {
 				if let Some(addr) = &elem.addr {
 					addr.do_send(game_to_director::NewParticipant {
 						id: msg.user_id.clone(),
@@ -97,10 +97,10 @@ impl Handler<NewPlayer> for Game {
 			"consumer".to_string()
 		} else {
 			self.producers
-				.lock()
+				.write()
 				.unwrap()
 				.insert(msg.user_id.clone(), ProducerState::new());
-			for elem in self.directors.lock().unwrap().values() {
+			for elem in self.directors.read().unwrap().values() {
 				if let Some(addr) = &elem.addr {
 					addr.do_send(game_to_director::NewParticipant {
 						id: msg.user_id.clone(),
@@ -132,10 +132,10 @@ impl Handler<NewDirector> for Game {
 	type Result = ();
 	fn handle(&mut self, msg: NewDirector, _: &mut Context<Self>) -> Self::Result {
 		self.directors
-			.lock()
+			.write()
 			.unwrap()
 			.insert(msg.user_id.clone(), DirectorState::new());
-		for elem in self.directors.lock().unwrap().values() {
+		for elem in self.directors.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
 				addr.do_send(game_to_director::NewParticipant {
 					id: msg.user_id.clone(),
@@ -157,7 +157,7 @@ impl Handler<IsDirector> for Game {
 	type Result = bool;
 	fn handle(&mut self, msg: IsDirector, _: &mut Context<Self>) -> Self::Result {
 		println!("Asked if IsDirector for a game.");
-		self.directors.lock().unwrap().contains_key(&msg.user_id)
+		self.directors.read().unwrap().contains_key(&msg.user_id)
 			|| self.id_main_director == msg.user_id
 	}
 }
@@ -166,8 +166,8 @@ impl Handler<IsDirector> for Game {
 impl Handler<IsPlayer> for Game {
 	type Result = bool;
 	fn handle(&mut self, msg: IsPlayer, _: &mut Context<Self>) -> Self::Result {
-		self.consumers.lock().unwrap().contains_key(&msg.user_id)
-			|| self.producers.lock().unwrap().contains_key(&msg.user_id)
+		self.consumers.read().unwrap().contains_key(&msg.user_id)
+			|| self.producers.read().unwrap().contains_key(&msg.user_id)
 	}
 }
 
@@ -186,7 +186,7 @@ impl Handler<director_to_game::EndGame> for Game {
 		if let Some(addr) = &self.state_main_director.addr {
 			addr.do_send(game_to_participant::EndedGame {});
 		}
-		for director in self.directors.lock().unwrap().values() {
+		for director in self.directors.read().unwrap().values() {
 			if let Some(addr) = &director.addr {
 				addr.do_send(game_to_participant::EndedGame {});
 			}
@@ -207,7 +207,7 @@ impl Handler<director_to_game::RegisterAddress> for Game {
 	) -> Self::Result {
 		if msg.user_id == self.id_main_director {
 			self.state_main_director.addr = Some(msg.addr);
-		} else if let Some(mut addr_value) = self.directors.lock().unwrap().get_mut(&msg.user_id) {
+		} else if let Some(mut addr_value) = self.directors.write().unwrap().get_mut(&msg.user_id) {
 			addr_value.addr = Some(msg.addr);
 		}
 	}
@@ -220,11 +220,11 @@ impl Handler<director_to_game::KickParticipant> for Game {
 		msg: director_to_game::KickParticipant,
 		_: &mut Context<Self>,
 	) -> Self::Result {
-		self.consumers.lock().unwrap().remove(&msg.user_id);
-		self.producers.lock().unwrap().remove(&msg.user_id);
-		self.directors.lock().unwrap().remove(&msg.user_id);
-		self.viewers.lock().unwrap().remove(&msg.user_id);
-		for elem in self.directors.lock().unwrap().values() {
+		self.consumers.write().unwrap().remove(&msg.user_id);
+		self.producers.write().unwrap().remove(&msg.user_id);
+		self.directors.write().unwrap().remove(&msg.user_id);
+		self.viewers.write().unwrap().remove(&msg.user_id);
+		for elem in self.directors.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
 				addr.do_send(game_to_director::KickedParticipant {
 					id: msg.user_id.clone(),
@@ -241,7 +241,7 @@ impl Handler<director_to_game::OpenGame> for Game {
 	type Result = ();
 	fn handle(&mut self, msg: director_to_game::OpenGame, _: &mut Context<Self>) {
 		self.is_open = true;
-		for elem in self.directors.lock().unwrap().values() {
+		for elem in self.directors.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
 				addr.do_send(game_to_director::GameOpened {});
 			}
@@ -256,7 +256,7 @@ impl Handler<director_to_game::CloseGame> for Game {
 	type Result = ();
 	fn handle(&mut self, msg: director_to_game::CloseGame, _: &mut Context<Self>) {
 		self.is_open = false;
-		for elem in self.directors.lock().unwrap().values() {
+		for elem in self.directors.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
 				addr.do_send(game_to_director::GameClosed {});
 			}
@@ -277,7 +277,7 @@ impl Handler<participant_to_game::Unresponsive> for Game {
 		if let Some(addr) = &self.state_main_director.addr {
 			addr.do_send(game_to_director::Unresponsive { id: msg.id.clone() });
 		}
-		for elem in self.directors.lock().unwrap().values() {
+		for elem in self.directors.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
 				addr.do_send(game_to_director::Unresponsive { id: msg.id.clone() });
 			}
