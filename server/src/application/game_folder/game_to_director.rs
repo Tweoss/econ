@@ -10,7 +10,7 @@ pub struct Unresponsive {
 #[rtype(result = "()")]
 pub struct NewParticipant {
 	pub id: String,
-	pub participant_type: super::participants::json::ParticipantType,
+	pub participant_type: super::participants::director_folder::director_structs::ParticipantType,
 }
 
 // #[derive(Message)]

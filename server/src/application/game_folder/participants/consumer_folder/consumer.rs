@@ -12,8 +12,9 @@ use crate::application::game_folder::game_to_participant;
 
 pub struct ConsumerState {
 	pub is_connected: bool,
-	pub score: i64,
 	pub is_responsive: bool,
+	pub took_turn: bool,
+	pub score: i64,
 	pub addr: Option<Addr<Consumer>>,
 }
 
@@ -21,8 +22,9 @@ impl ConsumerState {
 	pub fn new() -> ConsumerState {
 		ConsumerState {
 			is_connected: false,
-			score: 0,
+			took_turn: false,
 			is_responsive: true,
+			score: 0,
 			addr: None,
 		}
 	}

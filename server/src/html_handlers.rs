@@ -193,7 +193,9 @@ pub async fn set_cookies(cookie_info: web::Json<CookieInfo>, req: HttpRequest) -
 		// 	.header(http::header::LOCATION, "/viewer/123")
 		// 	.finish()
 	}
+
 }
+
 
 // ! PLAN TO MAKE DIFFERENT HANDLERS
 #[get("/{play_view_direct}/{type}/{gameid:\\d*}/{filename}.{ext}")]

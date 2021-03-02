@@ -1,5 +1,5 @@
 use super::participants::{
-	consumer_folder::consumer::ConsumerState, director_folder::director::DirectorState,
+	consumer_folder::consumer::ConsumerState, director_folder::{director::DirectorState, director_structs},
 	producer_folder::producer::ProducerState, viewer_folder::viewer::ViewerState,
 };
 use actix::prelude::*;
@@ -84,14 +84,14 @@ impl Handler<NewPlayer> for Game {
 				if let Some(addr) = &elem.addr {
 					addr.do_send(game_to_director::NewParticipant {
 						id: msg.user_id.clone(),
-						participant_type: json::ParticipantType::Consumer,
+						participant_type: director_structs::ParticipantType::Consumer,
 					});
 				}
 			}
 			if let Some(addr) = &self.state_main_director.addr {
 				addr.do_send(game_to_director::NewParticipant {
 					id: msg.user_id,
-					participant_type: json::ParticipantType::Consumer,
+					participant_type: director_structs::ParticipantType::Consumer,
 				})
 			}
 			"consumer".to_string()
@@ -104,14 +104,14 @@ impl Handler<NewPlayer> for Game {
 				if let Some(addr) = &elem.addr {
 					addr.do_send(game_to_director::NewParticipant {
 						id: msg.user_id.clone(),
-						participant_type: json::ParticipantType::Producer,
+						participant_type: director_structs::ParticipantType::Producer,
 					});
 				}
 			}
 			if let Some(addr) = &self.state_main_director.addr {
 				addr.do_send(game_to_director::NewParticipant {
 					id: msg.user_id,
-					participant_type: json::ParticipantType::Producer,
+					participant_type: director_structs::ParticipantType::Producer,
 				})
 			}
 			"producer".to_string()
@@ -139,9 +139,15 @@ impl Handler<NewDirector> for Game {
 			if let Some(addr) = &elem.addr {
 				addr.do_send(game_to_director::NewParticipant {
 					id: msg.user_id.clone(),
-					participant_type: json::ParticipantType::Director,
+					participant_type: director_structs::ParticipantType::Director,
 				});
 			}
+		}
+		if let Some(addr) = &self.state_main_director.addr {
+			addr.do_send(game_to_director::NewParticipant {
+				id: msg.user_id,
+				participant_type: director_structs::ParticipantType::Director,
+			});
 		}
 	}
 }

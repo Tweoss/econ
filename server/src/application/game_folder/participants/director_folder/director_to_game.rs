@@ -58,3 +58,10 @@ pub struct OpenGame {
 #[rtype(result="()")]
 pub struct CloseGame {
 }
+
+/// Get Initial Info
+#[derive(Message)]
+#[rtype(result="()")]
+pub struct InitInfo {
+	
+}

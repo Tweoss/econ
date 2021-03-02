@@ -12,7 +12,7 @@ use crate::application::app::AppState;
 use crate::application::game_folder::game::Game;
 
 use crate::application::game_folder::participants::director_folder::director_to_game;
-use crate::application::game_folder::participants::json::{
+use crate::application::game_folder::participants::director_folder::director_structs::{
 	DirectorClientMsg, DirectorClientType, DirectorServerMsg, DirectorServerType,
 };
 use crate::application::game_folder::participants::participant_to_game;
@@ -20,7 +20,7 @@ use crate::application::game_folder::participants::participant_to_game;
 use crate::application::game_folder::game_to_director;
 use crate::application::game_folder::game_to_participant;
 
-use super::super::json::ParticipantType;
+use super::director_structs::ParticipantType;
 
 use serde_cbor::{from_slice, to_vec};
 
@@ -58,6 +58,7 @@ impl Actor for Director {
 			addr: ctx.address(),
 		});
 		self.hb(ctx);
+
 	}
 	fn stopping(&mut self, _ctx: &mut Self::Context) -> Running {
 		println!(
@@ -135,7 +136,6 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Director {
 					}
 					DirectorClientType::Pong => {
 						self.hb = Instant::now();
-						println!("Received Pong");
 					}
 					DirectorClientType::Kick => {
 						self.game_addr.do_send(director_to_game::KickParticipant {user_id: message.kick_target.unwrap()});
