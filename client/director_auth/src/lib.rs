@@ -1,4 +1,5 @@
 #![recursion_limit = "2048"]
+use std::collections::HashMap;
 use std::convert::TryInto;
 use stdweb::web::document;
 use stdweb::web::INonElementParentNode;
@@ -36,53 +37,66 @@ struct Model {
     text: String,        // text in our input box
     task: Option<fetch::FetchTask>,
     client_data: DirectorClientMsg,
-    consumers: Vec<Participant>,
-    producers: Vec<Participant>,
-    directors: Vec<Participant>,
-    viewers: Vec<Participant>,
+    consumers: HashMap<String, Participant>,
+    producers: HashMap<String, Participant>,
+    directors: HashMap<String, Participant>,
+    viewers: HashMap<String, Participant>,
     is_open: String,
     graph_data: Graphs,
     // dragging: bool,
 }
 
 struct Participant {
-    id: String,
     state: PlayerState,
     took_turn: Option<bool>,
 }
 
 impl Participant {
-    fn new(id: String) -> Participant {
+    fn new() -> Participant {
         Participant {
-            id,
             state: PlayerState::Disconnected,
             took_turn: None,
         }
     }
-    fn render(&self) -> Html {
+    fn render(&self, id: String) -> Html {
         match self.state {
             PlayerState::Unresponsive => {
                 html! {
-                    // <p class="kickable unresponsive">{self.id.clone()}</p>
-                    <p class="kickable unresponsive">{self.id.clone()} <i class="fa fa-signal"></i> {if let Some(turn) = self.took_turn {html! {<i class="fa fa-check"></i>}} else {html!{<i class="fa fa-remove"></i>}}}</p>
+                    <p class="kickable unresponsive">{id.clone()} <i class="fa fa-signal"></i> {if let Some(turn) = self.took_turn {html! {<i class="fa fa-check"></i>}} else {html!{<i class="fa fa-remove"></i>}}}</p>
                 }
             }
             PlayerState::Connected => {
                 html! {
-                    // <p class="kickable live">{self.id.clone()}</p>
-                    <p class="kickable live">{self.id.clone()} <i class="fa fa-user"></i> {if let Some(turn) = self.took_turn {html! {<i class="fa fa-check"></i>}} else {html!{<i class="fa fa-remove"></i>}}}</p>
+                    // <p class="kickable live">{id.clone()}</p>
+                    <p class="kickable live">{id.clone()} <i class="fa fa-user"></i> {if let Some(turn) = self.took_turn {html! {<i class="fa fa-check"></i>}} else {html!{<i class="fa fa-remove"></i>}}}</p>
                 }
             }
             PlayerState::Disconnected => {
                 html! {
-                    <p class="kickable">{self.id.clone()} <i class="fa fa-user-o"></i> {if let Some(turn) = self.took_turn {html! {<i class="fa fa-check"></i>}} else {html!{<i class="fa fa-remove"></i>}}}</p>
+                    <p class="kickable">{id.clone()} <i class="fa fa-user-o"></i> {if let Some(turn) = self.took_turn {html! {<i class="fa fa-check"></i>}} else {html!{<i class="fa fa-remove"></i>}}}</p>
                 }
             }
             PlayerState::Kicked => {
                 html! {
-                    <p class="kicked">{self.id.clone()}</p>
+                    <p class="kicked">{id.clone()}</p>
                 }
             }
+        }
+    }
+}
+
+trait RenderableCollection {
+    fn render(&self) -> Html;
+}
+
+impl RenderableCollection for HashMap<String,Participant> {
+    fn render(&self) -> Html {
+        let iter = self.keys().zip(self.values());
+        html! {
+            <>
+                {for self.keys().zip(self.values()).map(|tuple| tuple.1.render(tuple.0.to_string()))}
+
+            </>
         }
     }
 }
@@ -162,8 +176,7 @@ impl Graphs {
     }
     fn producer_move(&mut self, mouse_x: f64, mouse_y: f64) {
         // * extra cost
-        let extra_y: i16 =
-            i16::from(self.supply_shock) - i16::from(self.subsidies);
+        let extra_y: i16 = i16::from(self.supply_shock) - i16::from(self.subsidies);
         // ConsoleService::log(&format!("Mouse_x: {}, mouse_y: {}", mouse_x, mouse_y));
         let t = Graphs::get_closest_point_to_cubic_bezier(
             10,
@@ -281,8 +294,7 @@ enum Msg {
     ToggleOpen,
 }
 
-impl Model {
-}
+impl Model {}
 
 impl Component for Model {
     type Message = Msg;
@@ -298,10 +310,10 @@ impl Component for Model {
                 msg_type: DirectorClientType::OpenGame,
                 kick_target: None,
             },
-            consumers: Vec::new(),
-            producers: Vec::new(),
-            directors: Vec::new(),
-            viewers: Vec::new(),
+            consumers: HashMap::new(),
+            producers: HashMap::new(),
+            directors: HashMap::new(),
+            viewers: HashMap::new(),
             is_open: "Open".to_string(),
             graph_data: Graphs::new(),
         }
@@ -365,32 +377,37 @@ impl Component for Model {
                         return false;
                     }
                     DirectorServerType::NewConsumer => {
-                        self.consumers
-                            .push(Participant::new(s.target.clone().unwrap()));
+                        self.consumers.insert(
+                            s.target.clone().unwrap(),
+                            Participant::new(),
+                        );
                     }
                     DirectorServerType::NewProducer => {
-                        self.producers
-                            .push(Participant::new(s.target.clone().unwrap()));
+                        self.producers.insert(
+                            s.target.clone().unwrap(),
+                            Participant::new(),
+                        );
                     }
                     DirectorServerType::NewDirector => {
-                        self.directors
-                            .push(Participant::new(s.target.clone().unwrap()));
+                        self.directors.insert(
+                            s.target.clone().unwrap(),
+                            Participant::new(),
+                        );
                     }
                     DirectorServerType::NewViewer => {
-                        self.viewers
-                            .push(Participant::new(s.target.clone().unwrap()));
+                        self.viewers.insert(
+                            s.target.clone().unwrap(),
+                            Participant::new(),
+                        );
                     }
                     DirectorServerType::ParticipantKicked => {
                         ConsoleService::log("Received Message to kick: ");
                         ConsoleService::log(&s.target.clone().unwrap());
                         //* remove any references to this id
-                        self.producers
-                            .retain(|x| &x.id != s.target.as_ref().unwrap());
-                        self.consumers
-                            .retain(|x| &x.id != s.target.as_ref().unwrap());
-                        self.directors
-                            .retain(|x| &x.id != s.target.as_ref().unwrap());
-                        self.viewers.retain(|x| &x.id != s.target.as_ref().unwrap());
+                        self.producers.remove(s.target.as_ref().unwrap());
+                        self.consumers.remove(s.target.as_ref().unwrap());
+                        self.directors.remove(s.target.as_ref().unwrap());
+                        self.viewers.remove(s.target.as_ref().unwrap());
                     }
                     DirectorServerType::GameOpened => {
                         self.is_open = "Close".to_owned();
@@ -466,17 +483,10 @@ impl Component for Model {
                                 match element.class_name().as_ref() {
                                     "kickable live" | "kickable unresponsive" | "kickable" => {
                                         // element.set_class_name("kicked");
-                                        let iter = self
-                                            .consumers
-                                            .iter_mut()
-                                            .chain(self.producers.iter_mut())
-                                            .chain(self.directors.iter_mut())
-                                            .chain(self.viewers.iter_mut());
-                                        for participant in iter {
-                                            if participant.id == element.inner_html() {
-                                                participant.state = PlayerState::Kicked;
-                                            }
-                                        }
+                                        self.consumers.remove(&element.inner_html());
+                                        self.producers.remove(&element.inner_html());
+                                        self.directors.remove(&element.inner_html());
+                                        self.viewers.remove(&element.inner_html());
                                         task.send_binary(Ok(to_vec(&DirectorClientMsg {
                                             msg_type: DirectorClientType::Kick,
                                             kick_target: Some(element.inner_html()),
@@ -655,8 +665,7 @@ impl Component for Model {
                             }
                             return true;
                         }
-                    }
-                    else {
+                    } else {
                         self.graph_data.dragging = false;
                     }
                 }
@@ -690,7 +699,9 @@ impl Component for Model {
         let consumertouchstart = self.link.callback(|event| Msg::StartTouch(event, true));
         let producertouchstart = self.link.callback(|event| Msg::StartTouch(event, false));
         let touch_move = self.link.callback(Msg::TouchMove);
-        let handle_click = self.link.callback(|e: MouseEvent| Msg::HandleClick(e.target()));
+        let handle_click = self
+            .link
+            .callback(|e: MouseEvent| Msg::HandleClick(e.target()));
         html! {
             <>
                 <div class="container text-center">
@@ -769,13 +780,13 @@ impl Component for Model {
                             <p>{"Turn: 5"}</p>
                             <div onclick=handle_click id="participants" style="overflow-y: scroll;max-height: 50vh;">
                                 <p class="lead" style="background: var(--dark);">{"Directors"}</p>
-                                    {for self.directors.iter().map(|elem| elem.render())}
-                                <p class="lead" style="background: var(--dark);">{"Viewers"}</p>
-                                    {for self.viewers.iter().map(|elem| elem.render())}
-                                <p class="lead" style="background: var(--dark);">{"Consumers"}</p>
-                                    {for self.consumers.iter().map(|elem| elem.render())}
-                                <p class="lead" style="background: var(--dark);">{"Producers"}</p>
-                                    {for self.producers.iter().map(|elem| elem.render())}
+                                    {self.directors.render()}
+                                    <p class="lead" style="background: var(--dark);">{"Viewers"}</p>
+                                    {self.viewers.render()}
+                                    <p class="lead" style="background: var(--dark);">{"Consumers"}</p>
+                                    {self.consumers.render()}
+                                    <p class="lead" style="background: var(--dark);">{"Producers"}</p>
+                                    {self.producers.render()}
                             </div>
                         </div>
                     </div>
