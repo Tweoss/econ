@@ -48,6 +48,7 @@ struct Model {
 struct Participant {
     id: String,
     state: PlayerState,
+    took_turn: Option<bool>,
 }
 
 impl Participant {
@@ -55,23 +56,26 @@ impl Participant {
         Participant {
             id,
             state: PlayerState::Disconnected,
+            took_turn: None,
         }
     }
     fn render(&self) -> Html {
         match self.state {
             PlayerState::Unresponsive => {
                 html! {
-                    <p class="kickable unresponsive">{self.id.clone()}</p>
+                    // <p class="kickable unresponsive">{self.id.clone()}</p>
+                    <p class="kickable unresponsive">{self.id.clone()} <i class="fa fa-signal"></i> {if let Some(turn) = self.took_turn {html! {<i class="fa fa-check"></i>}} else {html!{<i class="fa fa-remove"></i>}}}</p>
                 }
             }
             PlayerState::Connected => {
                 html! {
-                    <p class="kickable live">{self.id.clone()}</p>
+                    // <p class="kickable live">{self.id.clone()}</p>
+                    <p class="kickable live">{self.id.clone()} <i class="fa fa-user"></i> {if let Some(turn) = self.took_turn {html! {<i class="fa fa-check"></i>}} else {html!{<i class="fa fa-remove"></i>}}}</p>
                 }
             }
             PlayerState::Disconnected => {
                 html! {
-                    <p class="kickable">{self.id.clone()}</p>
+                    <p class="kickable">{self.id.clone()} <i class="fa fa-user-o"></i> {if let Some(turn) = self.took_turn {html! {<i class="fa fa-check"></i>}} else {html!{<i class="fa fa-remove"></i>}}}</p>
                 }
             }
             PlayerState::Kicked => {
@@ -123,35 +127,16 @@ impl Graphs {
         self.trending = trending;
         self.supply_shock = supply_shock;
         self.subsidies = subsidies;
+        self.consumer_move(self.consumer_x, self.consumer_y);
+        self.producer_move(self.producer_x, self.producer_y);
     }
     fn reset_matrix(&mut self) {
         self.matrix = None;
     }
-}
-
-enum Msg {
-    Connect(Vec<String>),                       // connect to websocket server
-    Disconnected,                               // disconnected from server
-    Ignore,                                     // ignore this message
-    Received(Result<DirectorServerMsg, Error>), // data received from server
-    SendReq,
-    PrepWsConnect,
-    FailedToConnect,
-    EndGame,
-    HandleClick(Option<EventTarget>),
-    StartClick(yew::MouseEvent, bool),
-    MouseMove(yew::MouseEvent),
-    StartTouch(yew::TouchEvent, bool),
-    TouchMove(yew::TouchEvent),
-    EndDrag,
-    ToggleOpen,
-}
-
-impl Model {
     fn consumer_move(&mut self, mouse_x: f64, mouse_y: f64) {
-        let extra_y = self.graph_data.trending;
+        let extra_y = self.trending;
         // ConsoleService::log(&format!("Mouse_x: {}, mouse_y: {}", mouse_x, mouse_y));
-        let t = Model::get_closest_point_to_cubic_bezier(
+        let t = Graphs::get_closest_point_to_cubic_bezier(
             10,
             mouse_x,
             mouse_y,
@@ -167,19 +152,20 @@ impl Model {
             80.,
             extra_y.into(),
         );
-        self.graph_data.consumer_x = 3. * f64::powi(1. - t, 2) * t * 40.
+        self.consumer_x = 3. * f64::powi(1. - t, 2) * t * 40.
             + 3. * (1. - t) * f64::powi(t, 2) * 70.
             + f64::powi(t, 3) * 80.;
-        self.graph_data.consumer_y = f64::powi(1. - t, 3) * f64::from(extra_y + 80)
+        self.consumer_y = f64::powi(1. - t, 3) * f64::from(extra_y + 80)
             + 3. * f64::powi(1. - t, 2) * t * f64::from(extra_y + 80)
             + 3. * (1. - t) * f64::powi(t, 2) * f64::from(extra_y + 70)
             + f64::powi(t, 3) * f64::from(extra_y);
     }
     fn producer_move(&mut self, mouse_x: f64, mouse_y: f64) {
+        // * extra cost
         let extra_y: i16 =
-            i16::from(self.graph_data.subsidies) - i16::from(self.graph_data.supply_shock);
+            i16::from(self.supply_shock) - i16::from(self.subsidies);
         // ConsoleService::log(&format!("Mouse_x: {}, mouse_y: {}", mouse_x, mouse_y));
-        let t = Model::get_closest_point_to_cubic_bezier(
+        let t = Graphs::get_closest_point_to_cubic_bezier(
             10,
             mouse_x,
             mouse_y,
@@ -195,10 +181,10 @@ impl Model {
             80.,
             (extra_y + 100).into(),
         );
-        self.graph_data.producer_x = 3. * f64::powi(1. - t, 2) * t * 10.
+        self.producer_x = 3. * f64::powi(1. - t, 2) * t * 10.
             + 3. * (1. - t) * f64::powi(t, 2) * 50.
             + f64::powi(t, 3) * 80.;
-        self.graph_data.producer_y = f64::powi(1. - t, 3) * f64::from(extra_y + 80)
+        self.producer_y = f64::powi(1. - t, 3) * f64::from(extra_y + 80)
             + 3. * f64::powi(1. - t, 2) * t * f64::from(extra_y - 10)
             + 3. * (1. - t) * f64::powi(t, 2) * f64::from(extra_y - 10)
             + f64::powi(t, 3) * f64::from(extra_y + 100);
@@ -227,7 +213,7 @@ impl Model {
         };
         let tick: f64 = (end - start) / f64::from(slices);
         // let (mut x, mut y);
-        let (mut x, mut y) = (0., 0.);
+        let (mut x, mut y);
         let (mut dx, mut dy);
         let mut best: f64 = 0.;
         let mut best_distance: f64 = f64::INFINITY;
@@ -258,7 +244,7 @@ impl Model {
         //     "Best t: {}, best distance: {}, x: {}, y: {}",
         //     best, best_distance, x, y
         // ));
-        Model::get_closest_point_to_cubic_bezier(
+        Graphs::get_closest_point_to_cubic_bezier(
             iterations - 1,
             fx,
             fy,
@@ -275,6 +261,27 @@ impl Model {
             y3,
         )
     }
+}
+
+enum Msg {
+    Connect(Vec<String>),                       // connect to websocket server
+    Disconnected,                               // disconnected from server
+    Ignore,                                     // ignore this message
+    Received(Result<DirectorServerMsg, Error>), // data received from server
+    SendReq,
+    PrepWsConnect,
+    FailedToConnect,
+    EndGame,
+    HandleClick(Option<EventTarget>),
+    StartClick(yew::MouseEvent, bool),
+    MouseMove(yew::MouseEvent),
+    StartTouch(yew::TouchEvent, bool),
+    TouchMove(yew::TouchEvent),
+    EndDrag,
+    ToggleOpen,
+}
+
+impl Model {
 }
 
 impl Component for Model {
@@ -551,9 +558,9 @@ impl Component for Model {
                     let mouse_x = matrix.0 * temp_x + matrix.2 * temp_y + matrix.4;
                     let mouse_y = matrix.1 * temp_x + matrix.3 * temp_y + matrix.5;
                     if is_consumer {
-                        self.consumer_move(mouse_x, mouse_y);
+                        self.graph_data.consumer_move(mouse_x, mouse_y);
                     } else {
-                        self.producer_move(mouse_x, mouse_y);
+                        self.graph_data.producer_move(mouse_x, mouse_y);
                     }
                     self.graph_data.dragging = true;
                     self.graph_data.is_consumer_target = is_consumer;
@@ -572,9 +579,9 @@ impl Component for Model {
                     let mouse_x = matrix.0 * temp_x + matrix.2 * temp_y + matrix.4;
                     let mouse_y = matrix.1 * temp_x + matrix.3 * temp_y + matrix.5;
                     if self.graph_data.is_consumer_target {
-                        self.consumer_move(mouse_x, mouse_y);
+                        self.graph_data.consumer_move(mouse_x, mouse_y);
                     } else {
-                        self.producer_move(mouse_x, mouse_y);
+                        self.graph_data.producer_move(mouse_x, mouse_y);
                     }
                     // }
                     true
@@ -621,9 +628,9 @@ impl Component for Model {
                         let mouse_x = matrix.0 * temp_x + matrix.2 * temp_y + matrix.4;
                         let mouse_y = matrix.1 * temp_x + matrix.3 * temp_y + matrix.5;
                         if is_consumer {
-                            self.consumer_move(mouse_x, mouse_y);
+                            self.graph_data.consumer_move(mouse_x, mouse_y);
                         } else {
-                            self.producer_move(mouse_x, mouse_y);
+                            self.graph_data.producer_move(mouse_x, mouse_y);
                         }
                         self.graph_data.dragging = true;
                         self.graph_data.is_consumer_target = is_consumer;
@@ -642,9 +649,9 @@ impl Component for Model {
                             let mouse_x = matrix.0 * temp_x + matrix.2 * temp_y + matrix.4;
                             let mouse_y = matrix.1 * temp_x + matrix.3 * temp_y + matrix.5;
                             if self.graph_data.is_consumer_target {
-                                self.consumer_move(mouse_x, mouse_y);
+                                self.graph_data.consumer_move(mouse_x, mouse_y);
                             } else {
-                                self.producer_move(mouse_x, mouse_y);
+                                self.graph_data.producer_move(mouse_x, mouse_y);
                             }
                             return true;
                         }
@@ -715,7 +722,7 @@ impl Component for Model {
                                     <svg viewBox="-5 -5 100 100" preserveAspectRatio="xMidYMid meet" fill="white">
                                         <g id="Consumer Group" transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=svg_consumer_down onmousemove=svg_consumer_move onmouseup=end_drag.clone() onmouseleave=end_drag.clone() ontouchstart=consumertouchstart ontouchmove=touch_move.clone()>
                                             <rect width="105" height="105" x="-5" y="-5" fill-opacity="0%"></rect>
-                                            <text x="10" y="-30" style="font: 10px Georgia; " transform="scale(1,-1)">{format!("{:.2},{:.2}",self.graph_data.consumer_x,self.graph_data.consumer_y)}</text>
+                                            <text x="10" y="-30" style="font: 10px Georgia; " transform="scale(1,-1)">{format!("{:.2}, {:.2}",self.graph_data.consumer_x,self.graph_data.consumer_y)}</text>
                                             <path d={
                                                 let temp: i16 = self.graph_data.trending.into();
                                                 format!("M 0 {} C 40 {}, 70 {}, 80 {}", temp+80, temp+80, temp+70, temp)
@@ -737,7 +744,7 @@ impl Component for Model {
                                     <svg viewBox="-5 -5 100 100" preserveAspectRatio="xMidYMid meet" fill="white">
                                         <g id="Producer Group" transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=svg_producer_down onmousemove=svg_producer_move onmouseup=end_drag.clone() onmouseleave=end_drag.clone() ontouchstart=producertouchstart ontouchmove=touch_move>
                                             <rect width="105" height="105" x="-5" y="-5" fill-opacity="0%"></rect>
-                                            <text x="10" y="-70" style="font: 10px Georgia; " transform="scale(1,-1)">{format!("{:.2},{:.2}",self.graph_data.producer_x,self.graph_data.producer_y)}</text>
+                                            <text x="10" y="-70" style="font: 10px Georgia; " transform="scale(1,-1)">{format!("{:.2}, {:.2}",self.graph_data.producer_x,self.graph_data.producer_y)}</text>
                                             <path d={
                                                 let net: i16 = i16::from(self.graph_data.subsidies) - i16::from(self.graph_data.supply_shock);
                                                 format!("M 0 {} C 10 {}, 50 {}, 80 {}", net+80, net-10, net-10, net+100)
