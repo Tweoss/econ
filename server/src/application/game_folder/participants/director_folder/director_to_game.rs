@@ -1,6 +1,5 @@
 use actix::prelude::*;
 use crate::application::game_folder::participants::director_folder::director::Director;
-use crate::application::game_folder::participants::director_folder::director_structs::Info;
 
 #[derive(Message)]
 #[rtype(result="()")]
@@ -58,11 +57,4 @@ pub struct OpenGame {
 #[derive(Message)]
 #[rtype(result="()")]
 pub struct CloseGame {
-}
-
-/// Get Initial Info
-#[derive(Message)]
-#[rtype(result="()")]
-pub struct InitInfo {
-	
 }

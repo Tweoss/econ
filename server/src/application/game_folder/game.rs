@@ -303,7 +303,6 @@ impl Handler<director_to_game::RegisterAddressGetInfo> for Game {
 		} else if let Some(mut addr_value) = self.directors.write().unwrap().get_mut(&msg.user_id) {
 			addr_value.addr = Some(msg.addr.clone());
 		}
-		println!("Giving INFO to director");
 		msg.addr.do_send(game_to_director::Info {info: self.get_director_info()});
 		// MessageResult(self.get_director_info())
 	}

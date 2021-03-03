@@ -24,10 +24,10 @@ use yew::services::ConsoleService;
 
 use serde_cbor::{from_slice, to_vec};
 
-mod json;
-use json::{DirectorClientMsg, DirectorClientType, DirectorServerMsg, DirectorServerType};
+mod structs;
+use structs::{DirectorClientMsg, DirectorClientType, DirectorServerMsg, DirectorServerType};
 
-use json::{Participant, PlayerState};
+use structs::{Participant, PlayerState};
 
 // use serde_json::json;
 // use stdweb::js;
@@ -66,18 +66,18 @@ impl Participant {
         match self.state {
             PlayerState::Unresponsive => {
                 html! {
-                    <p class="kickable unresponsive">{id.clone()} <i class="fa fa-signal"></i> {if let Some(turn) = self.took_turn {html! {<i class="fa fa-check"></i>}} else {html!{<i class="fa fa-remove"></i>}}}</p>
+                    <p class="kickable unresponsive">{id.clone()}{"\u{00a0}"}{"\u{00a0}"} <i class="fa fa-signal"></i> {if let Some(turn) = self.took_turn {html! {<i class="fa fa-check"></i>}} else {html!{<i class="fa fa-remove"></i>}}}</p>
                 }
             }
             PlayerState::Connected => {
                 html! {
                     // <p class="kickable live">{id.clone()}</p>
-                    <p class="kickable live">{id.clone()} <i class="fa fa-user"></i> {if let Some(turn) = self.took_turn {html! {<i class="fa fa-check"></i>}} else {html!{<i class="fa fa-remove"></i>}}}</p>
+                    <p class="kickable live">{id.clone()}{"\u{00a0}"}{"\u{00a0}"} <i class="fa fa-user"></i> {if let Some(turn) = self.took_turn {html! {<i class="fa fa-check"></i>}} else {html!{<i class="fa fa-remove"></i>}}}</p>
                 }
             }
             PlayerState::Disconnected => {
                 html! {
-                    <p class="kickable">{id.clone()} <i class="fa fa-user-o"></i> {if let Some(turn) = self.took_turn {html! {<i class="fa fa-check"></i>}} else {html!{<i class="fa fa-remove"></i>}}}</p>
+                    <p class="kickable">{id.clone()}{"\u{00a0}"}{"\u{00a0}"} <i class="fa fa-user-o"></i> {if let Some(turn) = self.took_turn {html! {<i class="fa fa-check"></i>}} else {html!{<i class="fa fa-remove"></i>}}}</p>
                 }
             }
             PlayerState::Kicked => {

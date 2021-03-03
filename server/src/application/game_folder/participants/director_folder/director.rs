@@ -158,7 +158,6 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Director {
 impl Handler<game_to_director::Info> for Director {
 	type Result = ();
 	fn handle(&mut self, msg: game_to_director::Info, ctx: &mut Self::Context) -> Self::Result {
-		println!("Received Info from game");
 		ctx.binary(to_vec(&DirectorServerMsg {msg_type: DirectorServerType::Info, target: None, info: Some(msg.info)}).unwrap())
 	}
 }
