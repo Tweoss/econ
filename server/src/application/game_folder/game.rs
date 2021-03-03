@@ -2,6 +2,7 @@ use super::participants::{
 	consumer_folder::consumer::ConsumerState, director_folder::{director::DirectorState, director_structs},
 	producer_folder::producer::ProducerState, viewer_folder::viewer::ViewerState,
 };
+// use crate::application::game_folder::participants::director_folder::director_structs;
 use actix::prelude::*;
 
 use crate::application::app::AppState;
@@ -11,7 +12,7 @@ use crate::application::game_folder::game_to_participant;
 use crate::application::game_folder::participants::director_folder::director_to_game;
 use crate::application::game_folder::participants::participant_to_game;
 
-use super::participants::json;
+// use super::participants::json;
 
 use crate::application::game_folder::game_to_app;
 use std::collections::HashMap;
@@ -30,7 +31,6 @@ pub struct Game {
 	state_main_director: DirectorState,
 	is_open: bool,
 	turn: u64,
-	// // * will never be modified
 	app_addr: Addr<AppState>,
 	producer_next: bool,
 	game_id: String,
@@ -63,6 +63,98 @@ impl Game {
 			producer_next: true,
 			game_id,
 		}
+	}
+	fn get_director_info(&self) -> director_structs::Info {
+		let mut consumers = Vec::new();
+		let mut producers = Vec::new();
+		let mut directors = Vec::new();
+		let mut viewers = Vec::new();
+
+		for consumer in self.consumers.read().unwrap().iter() {
+			let state: director_structs::PlayerState;
+			if consumer.1.addr != None {
+				if consumer.1.is_responsive {
+					state = director_structs::PlayerState::Connected;
+				}
+				else {
+					state = director_structs::PlayerState::Unresponsive;
+				}
+			}
+			else {
+				state = director_structs::PlayerState::Disconnected;
+			}
+			consumers.push((consumer.0.clone(), director_structs::Participant {
+				state,
+				took_turn: Some(consumer.1.took_turn)
+			}))
+		}
+
+		for producer in self.producers.read().unwrap().iter() {
+			let state: director_structs::PlayerState;
+			if producer.1.addr != None {
+				if producer.1.is_responsive {
+					state = director_structs::PlayerState::Connected;
+				}
+				else {
+					state = director_structs::PlayerState::Unresponsive;
+				}
+			}
+			else {
+				state = director_structs::PlayerState::Disconnected;
+			}
+			producers.push((producer.0.clone(), director_structs::Participant {
+				state,
+				took_turn: Some(producer.1.took_turn)
+			}))
+		}
+
+		for viewer in self.viewers.read().unwrap().iter() {
+			let state: director_structs::PlayerState;
+			if viewer.1.addr != None {
+				if viewer.1.is_responsive {
+					state = director_structs::PlayerState::Connected;
+				}
+				else {
+					state = director_structs::PlayerState::Unresponsive;
+				}
+			}
+			else {
+				state = director_structs::PlayerState::Disconnected;
+			}
+			viewers.push((viewer.0.clone(), director_structs::Participant {
+				state,
+				took_turn: None,
+			}))
+		}
+
+		for director in self.directors.read().unwrap().iter() {
+			let state: director_structs::PlayerState;
+			if director.1.addr != None {
+				if director.1.is_responsive {
+					state = director_structs::PlayerState::Connected;
+				}
+				else {
+					state = director_structs::PlayerState::Unresponsive;
+				}
+			}
+			else {
+				state = director_structs::PlayerState::Disconnected;
+			}
+			directors.push((director.0.clone(), director_structs::Participant {
+				state,
+				took_turn: None,
+			}))
+		}
+		director_structs::Info {
+			consumers,
+			producers,
+			directors,
+			viewers,
+			is_open: self.is_open,
+			turn: self.turn,
+			game_id: self.game_id.clone(),
+		}
+		
 	}
 }
 
@@ -198,18 +290,22 @@ impl Handler<director_to_game::EndGame> for Game {
 	}
 }
 
-impl Handler<director_to_game::RegisterAddress> for Game {
+impl Handler<director_to_game::RegisterAddressGetInfo> for Game {
+	// type Result = MessageResult<director_structs::Info>;
 	type Result = ();
 	fn handle(
 		&mut self,
-		msg: director_to_game::RegisterAddress,
+		msg: director_to_game::RegisterAddressGetInfo,
 		_: &mut Context<Self>,
 	) -> Self::Result {
 		if msg.user_id == self.id_main_director {
-			self.state_main_director.addr = Some(msg.addr);
+			self.state_main_director.addr = Some(msg.addr.clone());
 		} else if let Some(mut addr_value) = self.directors.write().unwrap().get_mut(&msg.user_id) {
-			addr_value.addr = Some(msg.addr);
+			addr_value.addr = Some(msg.addr.clone());
 		}
+		println!("Giving INFO to director");
+		msg.addr.do_send(game_to_director::Info {info: self.get_director_info()});
+		// MessageResult(self.get_director_info())
 	}
 }
 
@@ -239,7 +335,7 @@ impl Handler<director_to_game::KickParticipant> for Game {
 
 impl Handler<director_to_game::OpenGame> for Game {
 	type Result = ();
-	fn handle(&mut self, msg: director_to_game::OpenGame, _: &mut Context<Self>) {
+	fn handle(&mut self, _msg: director_to_game::OpenGame, _: &mut Context<Self>) {
 		self.is_open = true;
 		for elem in self.directors.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
@@ -254,7 +350,7 @@ impl Handler<director_to_game::OpenGame> for Game {
 
 impl Handler<director_to_game::CloseGame> for Game {
 	type Result = ();
-	fn handle(&mut self, msg: director_to_game::CloseGame, _: &mut Context<Self>) {
+	fn handle(&mut self, _msg: director_to_game::CloseGame, _: &mut Context<Self>) {
 		self.is_open = false;
 		for elem in self.directors.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {

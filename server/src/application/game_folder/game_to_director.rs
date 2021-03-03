@@ -2,6 +2,12 @@ use actix::prelude::*;
 
 #[derive(Message)]
 #[rtype(result = "()")]
+pub struct Info {
+	pub info: crate::application::game_folder::participants::director_folder::director_structs::Info,
+}
+
+#[derive(Message)]
+#[rtype(result = "()")]
 pub struct Unresponsive {
 	pub id: String,
 }

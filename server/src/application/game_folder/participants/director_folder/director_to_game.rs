@@ -1,9 +1,10 @@
 use actix::prelude::*;
 use crate::application::game_folder::participants::director_folder::director::Director;
+use crate::application::game_folder::participants::director_folder::director_structs::Info;
 
 #[derive(Message)]
 #[rtype(result="()")]
-pub struct RegisterAddress {
+pub struct RegisterAddressGetInfo {
 	pub user_id: String,
 	pub addr: Addr<Director>,
 }

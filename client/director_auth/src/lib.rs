@@ -27,13 +27,15 @@ use serde_cbor::{from_slice, to_vec};
 mod json;
 use json::{DirectorClientMsg, DirectorClientType, DirectorServerMsg, DirectorServerType};
 
+use json::{Participant, PlayerState};
+
 // use serde_json::json;
 // use stdweb::js;
 
 struct Model {
     link: ComponentLink<Self>,
     ws: Option<WebSocketTask>,
-    server_data: String, // data received from the server
+    // server_data: String, // data received from the server
     text: String,        // text in our input box
     task: Option<fetch::FetchTask>,
     client_data: DirectorClientMsg,
@@ -43,13 +45,15 @@ struct Model {
     viewers: HashMap<String, Participant>,
     is_open: String,
     graph_data: Graphs,
+    turn: u64,
+    game_id: String,
     // dragging: bool,
 }
 
-struct Participant {
-    state: PlayerState,
-    took_turn: Option<bool>,
-}
+// struct Participant {
+//     state: PlayerState,
+//     took_turn: Option<bool>,
+// }
 
 impl Participant {
     fn new() -> Participant {
@@ -101,12 +105,12 @@ impl RenderableCollection for HashMap<String,Participant> {
     }
 }
 
-enum PlayerState {
-    Unresponsive,
-    Connected,
-    Disconnected,
-    Kicked,
-}
+// enum PlayerState {
+//     Unresponsive,
+//     Connected,
+//     Disconnected,
+//     Kicked,
+// }
 
 // ! Make sure allowed graph values never goes below 0.
 struct Graphs {
@@ -302,7 +306,7 @@ impl Component for Model {
     fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
         Self {
             link,
-            server_data: String::new(),
+            // server_data: String::new(),
             ws: None,
             text: String::new(),
             task: None,
@@ -316,6 +320,8 @@ impl Component for Model {
             viewers: HashMap::new(),
             is_open: "Open".to_string(),
             graph_data: Graphs::new(),
+            game_id: "".to_string(),
+            turn: 0,
         }
     }
 
@@ -365,6 +371,21 @@ impl Component for Model {
             Msg::Ignore => false,
             Msg::Received(Ok(s)) => {
                 match s.msg_type {
+                    DirectorServerType::Info => {
+                        let info = s.info.unwrap();
+                        if info.is_open {
+                            self.is_open = "Open".to_string();
+                        }
+                        else {
+                            self.is_open = "Closed".to_string();
+                        }
+                        self.game_id = info.game_id;
+                        self.turn = info.turn;
+                        self.consumers.extend(info.consumers.into_iter());
+                        self.producers.extend(info.producers.into_iter());
+                        self.directors.extend(info.directors.into_iter());
+                        self.viewers.extend(info.viewers.into_iter());
+                    }
                     DirectorServerType::Ping => {
                         if let Some(ref mut task) = self.ws {
                             ConsoleService::log("Sending Pong");
@@ -378,7 +399,7 @@ impl Component for Model {
                     }
                     DirectorServerType::NewConsumer => {
                         self.consumers.insert(
-                            s.target.clone().unwrap(),
+                            s.target.unwrap(),
                             Participant::new(),
                         );
                     }
@@ -417,14 +438,15 @@ impl Component for Model {
                     }
                     _ => {}
                 }
-                self.server_data.push_str(&format!("{:?}\n", s));
+                // self.server_data.push_str(&format!("{:?}\n", s));
                 true
             }
             Msg::Received(Err(s)) => {
-                self.server_data.push_str(&format!(
-                    "Error when reading data from server: {}\n",
-                    &s.to_string()
-                ));
+                // self.server_data.push_str(&format!(
+                //     "Error when reading data from server: {}\n",
+                //     &s.to_string()
+                // )
+                // );
                 true
             }
             Msg::SendReq => match self.ws {
@@ -776,8 +798,8 @@ impl Component for Model {
                         </div>
                         <div class="col-md-4 text-center" style="padding: 0;min-height: 40vmin;">
                             <h2>{"State"}</h2>
-                            <p>{"Game ID: 123456"}</p>
-                            <p>{"Turn: 5"}</p>
+                            <p>{format!("Game ID: {}", self.game_id)}</p>
+                            <p>{format!("Turn: {}", self.turn)}</p>
                             <div onclick=handle_click id="participants" style="overflow-y: scroll;max-height: 50vh;">
                                 <p class="lead" style="background: var(--dark);">{"Directors"}</p>
                                     {self.directors.render()}

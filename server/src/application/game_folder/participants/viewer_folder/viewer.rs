@@ -10,14 +10,14 @@ use crate::application::game_folder::game_to_participant;
 
 
 pub struct ViewerState {
-	pub is_connected: bool,
+	pub is_responsive: bool,
 	pub addr: Option<Addr<Viewer>>,
 }
 
 impl ViewerState {
 	pub fn new() -> ViewerState {
 		ViewerState {
-			is_connected: false,
+			is_responsive: false,
 			addr: None,
 		}
 	}

@@ -8,7 +8,7 @@ use actix_web_actors::ws;
 
 use actix::prelude::*;
 
-use crate::application::app::AppState;
+// use crate::application::app::AppState;
 use crate::application::game_folder::game::Game;
 
 use crate::application::game_folder::participants::director_folder::director_to_game;
@@ -28,14 +28,14 @@ const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 
 pub struct DirectorState {
-	pub is_connected: bool,
+	pub is_responsive: bool,
 	pub addr: Option<Addr<Director>>,
 }
 
 impl DirectorState {
 	pub fn new() -> DirectorState {
 		DirectorState {
-			is_connected: false,
+			is_responsive: true,
 			addr: None,
 		}
 	}
@@ -53,7 +53,7 @@ impl Actor for Director {
 	type Context = ws::WebsocketContext<Self>;
 	//* giving the game the address
 	fn started(&mut self, ctx: &mut Self::Context) {
-		self.game_addr.do_send(director_to_game::RegisterAddress {
+		self.game_addr.do_send(director_to_game::RegisterAddressGetInfo {
 			user_id: self.uuid.clone(),
 			addr: ctx.address(),
 		});
@@ -97,6 +97,7 @@ impl Director {
 			let response = to_vec(&DirectorServerMsg {
 				msg_type: DirectorServerType::Ping,
 				target: None,
+				info: None,
 			})
 			.unwrap();
 			ctx.binary(response);
@@ -154,6 +155,14 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Director {
 	}
 }
 
+impl Handler<game_to_director::Info> for Director {
+	type Result = ();
+	fn handle(&mut self, msg: game_to_director::Info, ctx: &mut Self::Context) -> Self::Result {
+		println!("Received Info from game");
+		ctx.binary(to_vec(&DirectorServerMsg {msg_type: DirectorServerType::Info, target: None, info: Some(msg.info)}).unwrap())
+	}
+}
+
 impl Handler<game_to_director::Unresponsive> for Director {
 	type Result = ();
 	fn handle(
@@ -169,16 +178,16 @@ impl Handler<game_to_director::NewParticipant> for Director {
 	fn handle(&mut self, msg: game_to_director::NewParticipant, ctx: &mut Self::Context) -> Self::Result {
 		match msg.participant_type  {
 			ParticipantType::Director => {
-				ctx.binary(to_vec(&DirectorServerMsg {msg_type: DirectorServerType::NewDirector, target: Some(msg.id)}).unwrap())
+				ctx.binary(to_vec(&DirectorServerMsg {msg_type: DirectorServerType::NewDirector, target: Some(msg.id), info: None}).unwrap())
 			},
 			ParticipantType::Producer => {
-				ctx.binary(to_vec(&DirectorServerMsg {msg_type: DirectorServerType::NewProducer, target: Some(msg.id)}).unwrap())
+				ctx.binary(to_vec(&DirectorServerMsg {msg_type: DirectorServerType::NewProducer, target: Some(msg.id), info: None}).unwrap())
 			},
 			ParticipantType::Consumer => {
-				ctx.binary(to_vec(&DirectorServerMsg {msg_type: DirectorServerType::NewConsumer, target: Some(msg.id)}).unwrap())
+				ctx.binary(to_vec(&DirectorServerMsg {msg_type: DirectorServerType::NewConsumer, target: Some(msg.id), info: None}).unwrap())
 			},
 			ParticipantType::Viewer => {
-				ctx.binary(to_vec(&DirectorServerMsg {msg_type: DirectorServerType::NewViewer, target: Some(msg.id)}).unwrap())
+				ctx.binary(to_vec(&DirectorServerMsg {msg_type: DirectorServerType::NewViewer, target: Some(msg.id), info: None}).unwrap())
 			},
 		}
 	}
@@ -187,21 +196,21 @@ impl Handler<game_to_director::NewParticipant> for Director {
 impl Handler<game_to_director::KickedParticipant> for Director {
 	type Result = ();
 	fn handle(&mut self, msg: game_to_director::KickedParticipant, ctx: &mut Self::Context) -> Self::Result {
-		ctx.binary(to_vec(&DirectorServerMsg {msg_type: DirectorServerType::ParticipantKicked, target: Some(msg.id)}).unwrap());
+		ctx.binary(to_vec(&DirectorServerMsg {msg_type: DirectorServerType::ParticipantKicked, target: Some(msg.id), info: None}).unwrap());
 	}
 }
 
 impl Handler<game_to_director::GameOpened> for Director {
 	type Result = ();
 	fn handle(&mut self, msg: game_to_director::GameOpened, ctx: &mut Self::Context) -> Self::Result {
-		ctx.binary(to_vec(&DirectorServerMsg {msg_type: DirectorServerType::GameOpened, target: None}).unwrap());
+		ctx.binary(to_vec(&DirectorServerMsg {msg_type: DirectorServerType::GameOpened, target: None, info: None}).unwrap());
 	}
 }
 
 impl Handler<game_to_director::GameClosed> for Director {
 	type Result = ();
 	fn handle(&mut self, msg: game_to_director::GameClosed, ctx: &mut Self::Context) -> Self::Result {
-		ctx.binary(to_vec(&DirectorServerMsg {msg_type: DirectorServerType::GameClosed, target: None}).unwrap());
+		ctx.binary(to_vec(&DirectorServerMsg {msg_type: DirectorServerType::GameClosed, target: None, info: None}).unwrap());
 	}
 }
 

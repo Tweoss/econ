@@ -9,7 +9,6 @@ use crate::application::game_folder::game::Game;
 use crate::application::game_folder::game_to_participant;
 
 pub struct ProducerState {
-	pub is_connected: bool,
 	pub is_responsive: bool,
 	pub took_turn: bool,
 	pub score: i64,
@@ -21,7 +20,6 @@ pub struct ProducerState {
 impl ProducerState {
 	pub fn new() -> ProducerState {
 		ProducerState {
-			is_connected: false,
 			is_responsive: true,
 			took_turn: false,
 			score: 0,
