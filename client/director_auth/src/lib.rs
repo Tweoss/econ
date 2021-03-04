@@ -361,11 +361,12 @@ impl Component for Model {
                 match s.msg_type {
                     DirectorServerType::Info => {
                         let info = s.info.unwrap();
+                        // ConsoleService::log(&format!("{:?}", info));
                         if info.is_open {
-                            self.is_open = "Open".to_string();
+                            self.is_open = "Close".to_string();
                         }
                         else {
-                            self.is_open = "Closed".to_string();
+                            self.is_open = "Open".to_string();
                         }
                         self.game_id = info.game_id;
                         self.turn = info.turn;
@@ -725,18 +726,26 @@ impl Component for Model {
                             <div class="row">
                                 <div class="col" style="min-height: 30vmin;">
                                     <h2>{"Events"}</h2>
-                                    <div class="btn-group-vertical btn-group-lg" role="group"><button class="btn btn-primary border rounded" type="button">{"Supply Shock"}</button><button class="btn btn-primary border rounded" type="button">{"Subsidies"}</button><button class="btn btn-primary border rounded" type="button">{"Trending"}</button></div>
+                                    <div class="btn-group-vertical btn-group-lg" role="group">
+                                        <button class="btn btn-primary border rounded" type="button">{format!("Supply Shock: {}", self.graph_data.supply_shock)}</button>
+                                        <button class="btn btn-primary border rounded" type="button">{format!("Subsidies: {}", self.graph_data.subsidies)}</button>
+                                        <button class="btn btn-primary border rounded" type="button">{format!("Trending: {}", self.graph_data.trending)}</button>
+                                    </div>
                                 </div>
                             </div>
                             <div class="row">
                                 <div class="col" style="min-height: 15vmin;">
-                                    <h2>{"Control Flow"}</h2><button class="btn btn-lg btn-warning border rounded" type="button">{"Force Next Turn"}</button>
+                                    <h2>{"Control Flow"}</h2>
+                                    <button class="btn btn-lg btn-warning border rounded" type="button">{"Force Next Turn"}</button>
                                 </div>
                             </div>
                             <div class="row">
                                 <div class="col" style="min-height: 40vmin;">
                                     <h2>{"Danger"}</h2>
-                                    <div class="btn-group-vertical btn-group-lg" role="group"><button onclick=open_close class="btn btn-primary border rounded" type="button">{&self.is_open}</button><button class="btn btn-danger border rounded" type="button">{"End Game"}</button></div>
+                                        <div class="btn-group-vertical btn-group-lg" role="group">
+                                        <button onclick=open_close class="btn btn-primary border rounded" type="button">{&self.is_open}</button>
+                                        <button class="btn btn-danger border rounded" type="button">{"End Game"}</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>

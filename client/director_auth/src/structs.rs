@@ -48,7 +48,7 @@ pub enum DirectorClientType {
 	Pong,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Info {
 	pub consumers: Vec<(String, Participant)>,
 	pub producers: Vec<(String, Participant)>,
@@ -62,13 +62,13 @@ pub struct Info {
 	pub game_id: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Participant {
 	pub state: PlayerState,
 	pub took_turn: Option<bool>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub enum PlayerState {
     Unresponsive,
     Connected,
