@@ -17,8 +17,7 @@ pub struct DirectorServerMsg {
 }
 
 #[derive(Debug, Serialize, PartialEq)]
-
-#[allow(dead_code)] 
+#[allow(dead_code)]
 pub enum DirectorServerType {
 	Info,
 	UnresponsivePlayer,
@@ -57,6 +56,9 @@ pub struct Info {
 	pub viewers: Vec<(String, Participant)>,
 	pub is_open: bool,
 	pub turn: u64,
+	pub trending: u8,
+	pub supply_shock: u8,
+	pub subsidies: u8,
 	pub game_id: String,
 }
 
@@ -68,8 +70,8 @@ pub struct Participant {
 
 #[derive(Debug, Serialize)]
 pub enum PlayerState {
-    Unresponsive,
-    Connected,
-    Disconnected,
-    Kicked,
+	Unresponsive,
+	Connected,
+	Disconnected,
+	Kicked,
 }

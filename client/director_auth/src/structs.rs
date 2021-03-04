@@ -56,6 +56,9 @@ pub struct Info {
 	pub viewers: Vec<(String, Participant)>,
 	pub is_open: bool,
 	pub turn: u64,
+	pub trending: u8,
+	pub supply_shock: u8,
+	pub subsidies: u8,
 	pub game_id: String,
 }
 

@@ -47,13 +47,7 @@ struct Model {
     graph_data: Graphs,
     turn: u64,
     game_id: String,
-    // dragging: bool,
 }
-
-// struct Participant {
-//     state: PlayerState,
-//     took_turn: Option<bool>,
-// }
 
 impl Participant {
     fn new() -> Participant {
@@ -104,13 +98,6 @@ impl RenderableCollection for HashMap<String,Participant> {
         }
     }
 }
-
-// enum PlayerState {
-//     Unresponsive,
-//     Connected,
-//     Disconnected,
-//     Kicked,
-// }
 
 // ! Make sure allowed graph values never goes below 0.
 struct Graphs {
@@ -180,7 +167,8 @@ impl Graphs {
     }
     fn producer_move(&mut self, mouse_x: f64, mouse_y: f64) {
         // * extra cost
-        let extra_y: i16 = i16::from(self.supply_shock) - i16::from(self.subsidies);
+        let extra_y: i16 = i16::from(self.subsidies) - i16::from(self.supply_shock);
+        // let extra_y: i16 = -(i16::from(self.supply_shock) - i16::from(self.subsidies));
         // ConsoleService::log(&format!("Mouse_x: {}, mouse_y: {}", mouse_x, mouse_y));
         let t = Graphs::get_closest_point_to_cubic_bezier(
             10,
@@ -381,6 +369,10 @@ impl Component for Model {
                         }
                         self.game_id = info.game_id;
                         self.turn = info.turn;
+                        // self.graph_data.trending = info.trending;
+                        // self.graph_data.supply_shock = info.supply_shock;
+                        // self.graph_data.subsidies = info.subsidies;
+                        self.graph_data.data(info.trending, info.supply_shock, info.subsidies);
                         self.consumers.extend(info.consumers.into_iter());
                         self.producers.extend(info.producers.into_iter());
                         self.directors.extend(info.directors.into_iter());
