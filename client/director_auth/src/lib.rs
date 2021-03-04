@@ -706,14 +706,13 @@ impl Component for Model {
         // let sendreq = self.link.callback(|_| Msg::SendReq);
         // let endgame = self.link.callback(|_| Msg::EndGame);
         let open_close = self.link.callback(|_| Msg::ToggleOpen);
-        let svg_consumer_down = self.link.callback(|event| Msg::StartClick(event, true));
-        let svg_consumer_move = self.link.callback(Msg::MouseMove);
-        let svg_producer_down = self.link.callback(|event| Msg::StartClick(event, false));
-        let svg_producer_move = self.link.callback(Msg::MouseMove);
-        let end_drag = self.link.callback(|_| Msg::EndDrag);
-        let consumertouchstart = self.link.callback(|event| Msg::StartTouch(event, true));
-        let producertouchstart = self.link.callback(|event| Msg::StartTouch(event, false));
+        let producer_click_down = self.link.callback(|event| Msg::StartClick(event, false));
+        let consumer_click_down = self.link.callback(|event| Msg::StartClick(event, true));
+        let click_move = self.link.callback(Msg::MouseMove);
+        let consumer_touch_start = self.link.callback(|event| Msg::StartTouch(event, true));
+        let producer_touch_start = self.link.callback(|event| Msg::StartTouch(event, false));
         let touch_move = self.link.callback(Msg::TouchMove);
+        let end_drag = self.link.callback(|_| Msg::EndDrag);
         let handle_click = self
             .link
             .callback(|e: MouseEvent| Msg::HandleClick(e.target()));
@@ -754,7 +753,7 @@ impl Component for Model {
                                 <h2>{"Graphs"}</h2>
                                 <div class="d-xl-flex flex-fill justify-content-xl-center align-items-xl-center" style="width: 100%">
                                     <svg viewBox="-5 -5 100 100" preserveAspectRatio="xMidYMid meet" fill="white">
-                                        <g id="Consumer Group" transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=svg_consumer_down onmousemove=svg_consumer_move onmouseup=end_drag.clone() onmouseleave=end_drag.clone() ontouchstart=consumertouchstart ontouchmove=touch_move.clone()>
+                                        <g id="Consumer Group" transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=consumer_click_down onmousemove=click_move.clone() onmouseup=end_drag.clone() onmouseleave=end_drag.clone() ontouchstart=consumer_touch_start ontouchmove=touch_move.clone()>
                                             <rect width="105" height="105" x="-5" y="-5" fill-opacity="0%"></rect>
                                             <text x="10" y="-30" style="font: 10px Georgia; " transform="scale(1,-1)">{format!("{:.2}, {:.2}",self.graph_data.consumer_x,self.graph_data.consumer_y)}</text>
                                             <path d={
@@ -776,7 +775,7 @@ impl Component for Model {
                                 </div>
                                 <div class="d-xl-flex flex-fill justify-content-xl-center align-items-xl-center" style="width: 100%;">
                                     <svg viewBox="-5 -5 100 100" preserveAspectRatio="xMidYMid meet" fill="white">
-                                        <g id="Producer Group" transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=svg_producer_down onmousemove=svg_producer_move onmouseup=end_drag.clone() onmouseleave=end_drag.clone() ontouchstart=producertouchstart ontouchmove=touch_move>
+                                        <g id="Producer Group" transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=producer_click_down onmousemove=click_move onmouseup=end_drag.clone() onmouseleave=end_drag.clone() ontouchstart=producer_touch_start ontouchmove=touch_move>
                                             <rect width="105" height="105" x="-5" y="-5" fill-opacity="0%"></rect>
                                             <text x="10" y="-70" style="font: 10px Georgia; " transform="scale(1,-1)">{format!("{:.2}, {:.2}",self.graph_data.producer_x,self.graph_data.producer_y)}</text>
                                             <path d={
