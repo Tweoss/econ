@@ -12,8 +12,9 @@ pub enum ParticipantType {
 pub struct DirectorServerMsg {
 	pub msg_type: DirectorServerType,
 	// If the action requires a target
-	pub target: Option<String>,
-	pub info: Option<Info>,
+	pub extra_fields: Option<ServerExtraFields>,
+	// pub target: Option<String>,
+	// pub info: Option<Info>,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
@@ -30,13 +31,15 @@ pub enum DirectorServerType {
 	NewConsumer,
 	NewProducer,
 	NewViewer,
+	NewOffsets,
 	Ignore,
 }
 
 #[derive(Debug, Serialize)]
 pub struct DirectorClientMsg {
 	pub msg_type: DirectorClientType,
-	pub kick_target: Option<String>,
+	// pub kick_target: Option<String>,
+	pub extra_fields: Option<ClientExtraFields>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -45,6 +48,7 @@ pub enum DirectorClientType {
 	CloseGame,
 	EndGame,
 	Kick,
+	NewOffsets,
 	Pong,
 }
 
@@ -60,6 +64,27 @@ pub struct Info {
 	pub supply_shock: u8,
 	pub subsidies: u8,
 	pub game_id: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct ServerExtraFields {
+	pub target: Option<String>,
+	pub info: Option<Info>,
+	pub offsets: Option<Offsets>
+}
+
+
+#[derive(Debug, Serialize, Default)]
+pub struct ClientExtraFields {
+	pub target: Option<String>,
+	pub offsets: Option<Offsets>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct Offsets {
+	pub trending: u8,
+	pub supply_shock: u8,
+	pub subsidies: u8,
 }
 
 #[derive(Debug, Deserialize, Clone)]

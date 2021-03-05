@@ -1,14 +1,4 @@
 */target/**
 server/pswd.txt
 server/lib/x86_64-linux-gnu/**
-server/lib64/ld-linux-x86-64.so.2
-server/libc6_2.24-11+deb9u4_amd64/control.tar.gz
-server/libc6_2.24-11+deb9u4_amd64/data.tar.xz
-server/libc6_2.24-11+deb9u4_amd64/debian-binary
-server/libssl-dev_1.1.0f-3+deb9u1_amd64/control.tar.gz
-server/libssl-dev_1.1.0f-3+deb9u1_amd64/data.tar.xz
-server/libssl-dev_1.1.0f-3+deb9u1_amd64/debian-binary
-server/libssl1.1_1.1.0f-3+deb9u2_amd64/control.tar.gz
-server/libssl1.1_1.1.0f-3+deb9u2_amd64/data.tar.xz
-server/libssl1.1_1.1.0f-3+deb9u2_amd64/debian-binary
 client/404/target/**

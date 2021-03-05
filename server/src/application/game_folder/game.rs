@@ -43,9 +43,12 @@ impl Actor for Game {
 	type Context = Context<Self>;
 	fn stopping(&mut self, _: &mut Self::Context) -> Running {
 		println!(
-			"Stopping a game actor with main director being: {}",
-			self.id_main_director
+			"Stopping a game actor with main director being: {} and id: {}",
+			self.id_main_director,
+			self.game_id
 		);
+		let date = chrono::Local::now();
+    	println!("Date and time: {}", date.format("%Y-%m-%d][%H:%M:%S"));
 		Running::Stop
 	}
 }
@@ -367,6 +370,33 @@ impl Handler<director_to_game::CloseGame> for Game {
 		}
 		if let Some(addr) = &self.state_main_director.addr {
 			addr.do_send(game_to_director::GameClosed {});
+		}
+	}
+}
+
+impl Handler<director_to_game::SetOffsets> for Game {
+	type Result=();
+	fn handle(&mut self, msg: director_to_game::SetOffsets, _: &mut Context<Self>) {
+		self.subsidies = msg.subsidies;
+		self.trending = msg.trending;
+		self.supply_shock = msg.supply_shock;
+		for elem in self.directors.read().unwrap().values() {
+			if let Some(addr) = &elem.addr {
+				addr.do_send(game_to_participant::NewOffsets {subsidies: msg.subsidies, trending: msg.trending, supply_shock: msg.supply_shock});
+			}
+		}
+		// for elem in self.consumers.read().unwrap().values() {
+		// 	if let Some(addr) = &elem.addr {
+		// 		addr.do_send(game_to_participant::NewOffsets {subsidies: msg.subsidies, trending: msg.trending, supply_shock: msg.supply_shock});
+		// 	}
+		// }
+		// for elem in self.producers.read().unwrap().values() {
+		// 	if let Some(addr) = &elem.addr {
+		// 		addr.do_send(game_to_participant::NewOffsets {subsidies: msg.subsidies, trending: msg.trending, supply_shock: msg.supply_shock});
+		// 	}
+		// }
+		if let Some(addr) = &self.state_main_director.addr {
+			addr.do_send(game_to_participant::NewOffsets {subsidies: msg.subsidies, trending: msg.trending, supply_shock: msg.supply_shock});
 		}
 	}
 }

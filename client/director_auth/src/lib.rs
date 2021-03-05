@@ -25,7 +25,10 @@ use yew::services::ConsoleService;
 use serde_cbor::{from_slice, to_vec};
 
 mod structs;
-use structs::{DirectorClientMsg, DirectorClientType, DirectorServerMsg, DirectorServerType};
+use structs::{
+    ClientExtraFields, DirectorClientMsg, DirectorClientType, DirectorServerMsg,
+    DirectorServerType, Offsets,
+};
 
 use structs::{Participant, PlayerState};
 
@@ -36,9 +39,9 @@ struct Model {
     link: ComponentLink<Self>,
     ws: Option<WebSocketTask>,
     // server_data: String, // data received from the server
-    text: String,        // text in our input box
+    text: String, // text in our input box
     task: Option<fetch::FetchTask>,
-    client_data: DirectorClientMsg,
+    // client_data: DirectorClientMsg,
     consumers: HashMap<String, Participant>,
     producers: HashMap<String, Participant>,
     directors: HashMap<String, Participant>,
@@ -57,21 +60,27 @@ impl Participant {
         }
     }
     fn render(&self, id: String) -> Html {
+        let icon = match self.took_turn {
+            Some(true) => html! {<i class="fa fa-check"></i>},
+            Some(false) => html! {<i class="fa fa-remove"></i>},
+            None => html! {<></>},
+        };
         match self.state {
             PlayerState::Unresponsive => {
                 html! {
-                    <p class="kickable unresponsive">{id.clone()}{"\u{00a0}"}{"\u{00a0}"} <i class="fa fa-signal"></i> {if let Some(turn) = self.took_turn {html! {<i class="fa fa-check"></i>}} else {html!{<i class="fa fa-remove"></i>}}}</p>
+                    <p class="kickable unresponsive" id={id.clone()}>{id.clone()}{"\u{00a0}"}{"\u{00a0}"} <i class="fa fa-signal"></i> {
+                        icon
+                    }</p>
                 }
             }
             PlayerState::Connected => {
                 html! {
-                    // <p class="kickable live">{id.clone()}</p>
-                    <p class="kickable live">{id.clone()}{"\u{00a0}"}{"\u{00a0}"} <i class="fa fa-user"></i> {if let Some(turn) = self.took_turn {html! {<i class="fa fa-check"></i>}} else {html!{<i class="fa fa-remove"></i>}}}</p>
+                    <p class="kickable live" id={id.clone()}>{id.clone()}{"\u{00a0}"}{"\u{00a0}"} <i class="fa fa-user"></i> {icon}</p>
                 }
             }
             PlayerState::Disconnected => {
                 html! {
-                    <p class="kickable">{id.clone()}{"\u{00a0}"}{"\u{00a0}"} <i class="fa fa-user-o"></i> {if let Some(turn) = self.took_turn {html! {<i class="fa fa-check"></i>}} else {html!{<i class="fa fa-remove"></i>}}}</p>
+                    <p class="kickable" id={id.clone()}>{id.clone()}{"\u{00a0}"}{"\u{00a0}"} <i class="fa fa-user-o"></i> {icon}</p>
                 }
             }
             PlayerState::Kicked => {
@@ -87,7 +96,7 @@ trait RenderableCollection {
     fn render(&self) -> Html;
 }
 
-impl RenderableCollection for HashMap<String,Participant> {
+impl RenderableCollection for HashMap<String, Participant> {
     fn render(&self) -> Html {
         let iter = self.keys().zip(self.values());
         html! {
@@ -167,7 +176,7 @@ impl Graphs {
     }
     fn producer_move(&mut self, mouse_x: f64, mouse_y: f64) {
         // * extra cost
-        let extra_y: i16 = i16::from(self.subsidies) - i16::from(self.supply_shock);
+        let extra_y: i16 = i16::from(self.supply_shock) - i16::from(self.subsidies);
         // let extra_y: i16 = -(i16::from(self.supply_shock) - i16::from(self.subsidies));
         // ConsoleService::log(&format!("Mouse_x: {}, mouse_y: {}", mouse_x, mouse_y));
         let t = Graphs::get_closest_point_to_cubic_bezier(
@@ -277,13 +286,14 @@ enum Msg {
     PrepWsConnect,
     FailedToConnect,
     EndGame,
-    HandleClick(Option<EventTarget>),
+    HandleKick(Option<EventTarget>),
     StartClick(yew::MouseEvent, bool),
     MouseMove(yew::MouseEvent),
     StartTouch(yew::TouchEvent, bool),
     TouchMove(yew::TouchEvent),
     EndDrag,
     ToggleOpen,
+    AdjustOffset(u8),
 }
 
 impl Model {}
@@ -298,10 +308,11 @@ impl Component for Model {
             ws: None,
             text: String::new(),
             task: None,
-            client_data: DirectorClientMsg {
-                msg_type: DirectorClientType::OpenGame,
-                kick_target: None,
-            },
+            // client_data: DirectorClientMsg {
+            //     msg_type: DirectorClientType::OpenGame,
+
+            //     // kick_target: None,
+            // },
             consumers: HashMap::new(),
             producers: HashMap::new(),
             directors: HashMap::new(),
@@ -360,20 +371,17 @@ impl Component for Model {
             Msg::Received(Ok(s)) => {
                 match s.msg_type {
                     DirectorServerType::Info => {
-                        let info = s.info.unwrap();
+                        let info = s.extra_fields.unwrap().info.unwrap();
                         // ConsoleService::log(&format!("{:?}", info));
                         if info.is_open {
                             self.is_open = "Close".to_string();
-                        }
-                        else {
+                        } else {
                             self.is_open = "Open".to_string();
                         }
                         self.game_id = info.game_id;
                         self.turn = info.turn;
-                        // self.graph_data.trending = info.trending;
-                        // self.graph_data.supply_shock = info.supply_shock;
-                        // self.graph_data.subsidies = info.subsidies;
-                        self.graph_data.data(info.trending, info.supply_shock, info.subsidies);
+                        self.graph_data
+                            .data(info.trending, info.supply_shock, info.subsidies);
                         self.consumers.extend(info.consumers.into_iter());
                         self.producers.extend(info.producers.into_iter());
                         self.directors.extend(info.directors.into_iter());
@@ -384,44 +392,37 @@ impl Component for Model {
                             ConsoleService::log("Sending Pong");
                             task.send_binary(Ok(to_vec(&DirectorClientMsg {
                                 msg_type: DirectorClientType::Pong,
-                                kick_target: None,
+                                extra_fields: None,
                             })
                             .unwrap()));
                         }
                         return false;
                     }
                     DirectorServerType::NewConsumer => {
-                        self.consumers.insert(
-                            s.target.unwrap(),
-                            Participant::new(),
-                        );
+                        self.consumers
+                            .insert(s.extra_fields.unwrap().target.unwrap(), Participant::new());
                     }
                     DirectorServerType::NewProducer => {
-                        self.producers.insert(
-                            s.target.clone().unwrap(),
-                            Participant::new(),
-                        );
+                        self.producers
+                            .insert(s.extra_fields.unwrap().target.unwrap(), Participant::new());
                     }
                     DirectorServerType::NewDirector => {
-                        self.directors.insert(
-                            s.target.clone().unwrap(),
-                            Participant::new(),
-                        );
+                        self.directors
+                            .insert(s.extra_fields.unwrap().target.unwrap(), Participant::new());
                     }
                     DirectorServerType::NewViewer => {
-                        self.viewers.insert(
-                            s.target.clone().unwrap(),
-                            Participant::new(),
-                        );
+                        self.viewers
+                            .insert(s.extra_fields.unwrap().target.unwrap(), Participant::new());
                     }
                     DirectorServerType::ParticipantKicked => {
+                        let target = s.extra_fields.unwrap().target;
                         ConsoleService::log("Received Message to kick: ");
-                        ConsoleService::log(&s.target.clone().unwrap());
+                        ConsoleService::log(&target.clone().unwrap());
                         //* remove any references to this id
-                        self.producers.remove(s.target.as_ref().unwrap());
-                        self.consumers.remove(s.target.as_ref().unwrap());
-                        self.directors.remove(s.target.as_ref().unwrap());
-                        self.viewers.remove(s.target.as_ref().unwrap());
+                        self.producers.remove(target.as_ref().unwrap());
+                        self.consumers.remove(target.as_ref().unwrap());
+                        self.directors.remove(target.as_ref().unwrap());
+                        self.viewers.remove(target.as_ref().unwrap());
                     }
                     DirectorServerType::GameOpened => {
                         self.is_open = "Close".to_owned();
@@ -429,23 +430,27 @@ impl Component for Model {
                     DirectorServerType::GameClosed => {
                         self.is_open = "Open".to_owned();
                     }
+                    DirectorServerType::NewOffsets => {
+                        let offsets = s.extra_fields.unwrap().offsets.unwrap();
+                        self.graph_data.data(
+                            offsets.trending,
+                            offsets.supply_shock,
+                            offsets.subsidies,
+                        );
+                    }
                     _ => {}
                 }
-                // self.server_data.push_str(&format!("{:?}\n", s));
                 true
             }
-            Msg::Received(Err(s)) => {
-                // self.server_data.push_str(&format!(
-                //     "Error when reading data from server: {}\n",
-                //     &s.to_string()
-                // )
-                // );
+            Msg::Received(Err(_)) => {
+                ConsoleService::log("Error reading information from WebSocket");
                 true
             }
             Msg::SendReq => match self.ws {
-                Some(ref mut task) => {
-                    task.send_binary(Ok(to_vec(&self.client_data).unwrap()));
-                    true
+                Some(ref mut _task) => {
+                    // task.send_binary(Ok(to_vec(&self.client_data).unwrap()));
+                    // true
+                    false
                 }
                 None => false,
             },
@@ -483,28 +488,33 @@ impl Component for Model {
                 Some(ref mut task) => {
                     task.send_binary(Ok(to_vec(&DirectorClientMsg {
                         msg_type: DirectorClientType::EndGame,
-                        kick_target: None,
+                        extra_fields: None,
                     })
                     .unwrap()));
                     true
                 }
                 None => false,
             },
-            Msg::HandleClick(possible_target) => {
+            Msg::HandleKick(possible_target) => {
                 match self.ws {
                     Some(ref mut task) => {
                         if let Some(target) = possible_target {
                             if let Some(element) = target.dyn_ref::<HtmlParagraphElement>() {
+                                let extra_fields = ClientExtraFields {
+                                    target: Some(element.id()),
+                                    ..Default::default()
+                                };
                                 match element.class_name().as_ref() {
                                     "kickable live" | "kickable unresponsive" | "kickable" => {
                                         // element.set_class_name("kicked");
-                                        self.consumers.remove(&element.inner_html());
-                                        self.producers.remove(&element.inner_html());
-                                        self.directors.remove(&element.inner_html());
-                                        self.viewers.remove(&element.inner_html());
+                                        // self.consumers.remove(&element.id());
+                                        // self.producers.remove(&element.id());
+                                        // self.directors.remove(&element.id());
+                                        // self.viewers.remove(&element.id());
+                                        element.set_class_name("kicked");
                                         task.send_binary(Ok(to_vec(&DirectorClientMsg {
                                             msg_type: DirectorClientType::Kick,
-                                            kick_target: Some(element.inner_html()),
+                                            extra_fields: Some(extra_fields),
                                         })
                                         .unwrap()));
                                         return true;
@@ -536,10 +546,6 @@ impl Component for Model {
                     }
                     None => return false,
                 }
-                // &web_sys::EventTarget) -> String {
-                // if let Some(input) = target.dyn_ref::<web_sys::HtmlInputElement>() {
-                // return input.value();
-                // possible_target.is_prototype_of(&HtmlParagraphElement { obj:  });
                 false
             }
             Msg::ToggleOpen => {
@@ -549,7 +555,7 @@ impl Component for Model {
                         .expect("No websocket open")
                         .send_binary(Ok(to_vec(&DirectorClientMsg {
                             msg_type: DirectorClientType::OpenGame,
-                            kick_target: None,
+                            extra_fields: None,
                         })
                         .unwrap()));
                 } else {
@@ -558,7 +564,7 @@ impl Component for Model {
                         .expect("No websocket open")
                         .send_binary(Ok(to_vec(&DirectorClientMsg {
                             msg_type: DirectorClientType::CloseGame,
-                            kick_target: None,
+                            extra_fields: None,
                         })
                         .unwrap()));
                 }
@@ -594,11 +600,7 @@ impl Component for Model {
             }
             Msg::MouseMove(event) => {
                 if self.graph_data.dragging {
-                    // if let Some(target) = event.current_target() {
-                    // let element: SvggElement = target.dyn_ref::<SvggElement>().unwrap().clone();
-                    let matrix =
-                            // element.get_screen_ctm().unwrap().inverse().unwrap();
-                            self.graph_data.matrix.unwrap();
+                    let matrix = self.graph_data.matrix.unwrap();
                     let temp_x: f64 = event.client_x().into();
                     let temp_y: f64 = event.client_y().into();
                     let mouse_x = matrix.0 * temp_x + matrix.2 * temp_y + matrix.4;
@@ -608,7 +610,6 @@ impl Component for Model {
                     } else {
                         self.graph_data.producer_move(mouse_x, mouse_y);
                     }
-                    // }
                     true
                 } else {
                     false
@@ -686,6 +687,48 @@ impl Component for Model {
                 }
                 false
             }
+            Msg::AdjustOffset(target) => {
+                let mut offsets = Offsets {
+                    subsidies: self.graph_data.subsidies,
+                    trending: self.graph_data.trending,
+                    supply_shock: self.graph_data.supply_shock,
+                };
+                match target {
+                    1 => {
+                        if self.graph_data.supply_shock == 0 {
+                            offsets.supply_shock = 10;
+                        } else {
+                            offsets.supply_shock = 0;
+                        }
+                    }
+                    2 => {
+                        if self.graph_data.subsidies == 0 {
+                            offsets.subsidies = 10;
+                        } else {
+                            offsets.subsidies = 0;
+                        }
+                    }
+                    3 => {
+                        if self.graph_data.trending == 0 {
+                            offsets.trending = 10;
+                        } else {
+                            offsets.trending = 0;
+                        }
+                    }
+                    _ => (),
+                }
+                if let Some(ref mut task) = self.ws {
+                    task.send_binary(Ok(to_vec(&DirectorClientMsg {
+                        msg_type: DirectorClientType::NewOffsets,
+                        extra_fields: Some(ClientExtraFields {
+                            target: None,
+                            offsets: Some(offsets),
+                        }),
+                    })
+                    .unwrap()));
+                }
+                false
+            }
         }
     }
 
@@ -715,7 +758,8 @@ impl Component for Model {
         let end_drag = self.link.callback(|_| Msg::EndDrag);
         let handle_click = self
             .link
-            .callback(|e: MouseEvent| Msg::HandleClick(e.target()));
+            .callback(|e: MouseEvent| Msg::HandleKick(e.target()));
+        // let handle_events = self.link.callback()
         html! {
             <>
                 <div class="container text-center">
@@ -726,9 +770,9 @@ impl Component for Model {
                                 <div class="col" style="min-height: 30vmin;">
                                     <h2>{"Events"}</h2>
                                     <div class="btn-group-vertical btn-group-lg" role="group">
-                                        <button class="btn btn-primary border rounded" type="button">{format!("Supply Shock: {}", self.graph_data.supply_shock)}</button>
-                                        <button class="btn btn-primary border rounded" type="button">{format!("Subsidies: {}", self.graph_data.subsidies)}</button>
-                                        <button class="btn btn-primary border rounded" type="button">{format!("Trending: {}", self.graph_data.trending)}</button>
+                                        <button onclick={self.link.callback(|_| Msg::AdjustOffset(1))} class="btn btn-primary border rounded" type="button">{format!("Supply Shock: {}", self.graph_data.supply_shock)}</button>
+                                        <button onclick={self.link.callback(|_| Msg::AdjustOffset(2))} class="btn btn-primary border rounded" type="button">{format!("Subsidies: {}", self.graph_data.subsidies)}</button>
+                                        <button onclick={self.link.callback(|_| Msg::AdjustOffset(3))} class="btn btn-primary border rounded" type="button">{format!("Trending: {}", self.graph_data.trending)}</button>
                                     </div>
                                 </div>
                             </div>
@@ -779,7 +823,7 @@ impl Component for Model {
                                             <rect width="105" height="105" x="-5" y="-5" fill-opacity="0%"></rect>
                                             <text x="10" y="-70" style="font: 10px Georgia; " transform="scale(1,-1)">{format!("{:.2}, {:.2}",self.graph_data.producer_x,self.graph_data.producer_y)}</text>
                                             <path d={
-                                                let net: i16 = i16::from(self.graph_data.subsidies) - i16::from(self.graph_data.supply_shock);
+                                                let net: i16 = i16::from(self.graph_data.supply_shock) - i16::from(self.graph_data.subsidies);
                                                 format!("M 0 {} C 10 {}, 50 {}, 80 {}", net+80, net-10, net-10, net+100)
                                             } stroke="white" stroke-width="1" fill="transparent"/>
                                             <polygon points="0,95 -5,90 -1,90 -1,-1 90,-1 90,-5 95,0 90,5 90,1 1,1 1,90 5,90" fill="#1F6DDE" />

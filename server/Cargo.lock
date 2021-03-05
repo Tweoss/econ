@@ -343,6 +343,7 @@ dependencies = [
  "actix-web",
  "actix-web-actors",
  "anyhow",
+ "chrono",
  "env_logger",
  "sentry",
  "sentry-actix",

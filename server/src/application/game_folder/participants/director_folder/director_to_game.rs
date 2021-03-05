@@ -58,3 +58,12 @@ pub struct OpenGame {
 #[rtype(result="()")]
 pub struct CloseGame {
 }
+
+/// Set the Subsidies, Trending, Supply Shock
+#[derive(Message)]
+#[rtype(result="()")]
+pub struct SetOffsets {
+	pub trending: u8,
+	pub subsidies: u8,
+	pub supply_shock: u8,
+}
