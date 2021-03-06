@@ -1,11 +1,7 @@
 #![recursion_limit = "2048"]
 use std::collections::HashMap;
-use std::convert::TryInto;
-use stdweb::web::document;
-use stdweb::web::INonElementParentNode;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-use web_sys::Element;
 use web_sys::EventTarget;
 use web_sys::{HtmlParagraphElement, SvggElement};
 // use wasm_bindgen::{JsCast};
@@ -15,7 +11,6 @@ use yew::prelude::*;
 use anyhow::Error;
 
 use http::{Request, Response};
-use yew::format::Json;
 use yew::html::ComponentLink;
 // use yew::prelude::*;
 use yew::services::fetch;
@@ -50,6 +45,7 @@ struct Model {
     graph_data: Graphs,
     turn: u64,
     game_id: String,
+    personal_id: String,
 }
 
 impl Participant {
@@ -98,7 +94,6 @@ trait RenderableCollection {
 
 impl RenderableCollection for HashMap<String, Participant> {
     fn render(&self) -> Html {
-        let iter = self.keys().zip(self.values());
         html! {
             <>
                 {for self.keys().zip(self.values()).map(|tuple| tuple.1.render(tuple.0.to_string()))}
@@ -320,6 +315,7 @@ impl Component for Model {
             is_open: "Open".to_string(),
             graph_data: Graphs::new(),
             game_id: "".to_string(),
+            personal_id: "".to_string(),
             turn: 0,
         }
     }
@@ -345,9 +341,8 @@ impl Component for Model {
                     let window = web_sys::window;
                     let host: String = window().unwrap().location().host().unwrap();
                     let url = format!("ws://{}/ws/{}/{}/{}", host, v[0], v[1], v[2]);
-                    // let url = format!("ws://127.0.0.1:8080/ws/{}/{}/{}", v[0], v[1], v[2]);
-                    // let url = format!("wss://web.valour.vision/ws/{}/{}/{}", v[0], v[1], v[2]);
-                    // let task = match WebSocketService::connect("wss://web.valour.vision/ws", cbout, cbnot)
+                    // let url = format!("wss://{}/ws/{}/{}/{}", host, v[0], v[1], v[2]);
+                    self.personal_id = v[2].to_owned();
                     let task = match WebSocketService::connect_binary(&url, cbout, cbnot) {
                         Err(e) => {
                             ConsoleService::error(e);
@@ -496,14 +491,15 @@ impl Component for Model {
                 None => false,
             },
             Msg::HandleKick(possible_target) => {
-                match self.ws {
-                    Some(ref mut task) => {
-                        if let Some(target) = possible_target {
-                            if let Some(element) = target.dyn_ref::<HtmlParagraphElement>() {
+                if let Some(ref mut task) = self.ws {
+                    if let Some(target) = possible_target {
+                        if let Some(element) = target.dyn_ref::<HtmlParagraphElement>() {
+                            if element.id() != self.personal_id {
                                 let extra_fields = ClientExtraFields {
                                     target: Some(element.id()),
                                     ..Default::default()
                                 };
+
                                 match element.class_name().as_ref() {
                                     "kickable live" | "kickable unresponsive" | "kickable" => {
                                         // element.set_class_name("kicked");
@@ -544,29 +540,31 @@ impl Component for Model {
                             }
                         }
                     }
-                    None => return false,
                 }
                 false
             }
             Msg::ToggleOpen => {
-                if self.is_open == "Open" {
-                    self.ws
-                        .as_mut()
-                        .expect("No websocket open")
-                        .send_binary(Ok(to_vec(&DirectorClientMsg {
-                            msg_type: DirectorClientType::OpenGame,
-                            extra_fields: None,
-                        })
-                        .unwrap()));
-                } else {
-                    self.ws
-                        .as_mut()
-                        .expect("No websocket open")
-                        .send_binary(Ok(to_vec(&DirectorClientMsg {
-                            msg_type: DirectorClientType::CloseGame,
-                            extra_fields: None,
-                        })
-                        .unwrap()));
+                if let Some(ref mut task) = self.ws {
+                    if self.is_open == "Open" {
+                        task
+                            // self.ws
+                            //     .as_mut()
+                            .send_binary(Ok(to_vec(&DirectorClientMsg {
+                                msg_type: DirectorClientType::OpenGame,
+                                extra_fields: None,
+                            })
+                            .unwrap()));
+                    } else {
+                        task
+                            // self.ws
+                            //     .as_mut()
+                            //     .expect("No websocket open")
+                            .send_binary(Ok(to_vec(&DirectorClientMsg {
+                                msg_type: DirectorClientType::CloseGame,
+                                extra_fields: None,
+                            })
+                            .unwrap()));
+                    }
                 }
                 false
             }
@@ -787,7 +785,7 @@ impl Component for Model {
                                     <h2>{"Danger"}</h2>
                                         <div class="btn-group-vertical btn-group-lg" role="group">
                                         <button onclick=open_close class="btn btn-primary border rounded" type="button">{&self.is_open}</button>
-                                        <button class="btn btn-danger border rounded" type="button">{"End Game"}</button>
+                                        <button class="btn btn-danger border rounded" type="button" data-toggle="modal" data-target="#confirm-modal">{"End Game"}</button>
                                     </div>
                                 </div>
                             </div>
@@ -859,6 +857,22 @@ impl Component for Model {
                     <footer>
                         <p>{"Built by Francis Chua"}</p>
                     </footer>
+                    <div class="modal fade" role="dialog" tabindex="-1" id="confirm-modal">
+                        <div class="modal-dialog" role="document">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h4 class="modal-title">{"Confirm End Game"}</h4><button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">{"×"}</span></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>{"Are you sure you want to end this game for all participants?"}</p>
+                                </div>
+                                <div class="modal-footer"><
+                                    button class="btn btn-light" type="button" data-dismiss="modal">{"No"}</button>
+                                    <button onclick=self.link.callback(|_| Msg::EndGame) class="btn btn-danger" type="button" data-dismiss="modal">{"Yes"}</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </>
         }

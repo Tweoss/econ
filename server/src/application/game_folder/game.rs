@@ -48,7 +48,7 @@ impl Actor for Game {
 			self.game_id
 		);
 		let date = chrono::Local::now();
-    	println!("Date and time: {}", date.format("%Y-%m-%d][%H:%M:%S"));
+    	println!("Date and time: {}", date.format("[%Y-%m-%d][%H:%M:%S]"));
 		Running::Stop
 	}
 }

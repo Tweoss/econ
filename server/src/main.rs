@@ -36,6 +36,7 @@ async fn main() -> std::io::Result<()> {
 
 	std::env::set_var("RUST_LOG", "actix_web=debug");
 	env_logger::init();
+	println!("Starting server.");
 	let app_addr = AppState::new().start();
 	HttpServer::new(move || {
 		let path: String = "../client/".to_owned();
