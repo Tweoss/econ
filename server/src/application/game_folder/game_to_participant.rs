@@ -7,7 +7,7 @@ pub struct EndedGame {
 
 #[derive(Message)]
 #[rtype(result="()")]
-pub struct NextTurn {}
+pub struct TurnAdvanced {}
 
 #[derive(Message)]
 #[rtype(result="()")]

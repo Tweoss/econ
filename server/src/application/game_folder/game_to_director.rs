@@ -10,6 +10,21 @@ pub struct Info {
 #[rtype(result = "()")]
 pub struct Unresponsive {
 	pub id: String,
+	pub participant_type: String,
+}
+
+#[derive(Message)]
+#[rtype(result = "()")]
+pub struct Disconnected {
+	pub id: String,
+	pub participant_type: String,
+}
+
+#[derive(Message)]
+#[rtype(result = "()")]
+pub struct Connected {
+	pub id: String,
+	pub participant_type: String,
 }
 
 #[derive(Message)]

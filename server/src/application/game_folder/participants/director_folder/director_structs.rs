@@ -22,11 +22,15 @@ pub struct DirectorServerMsg {
 pub enum DirectorServerType {
 	Info,
 	UnresponsivePlayer,
+	DisconnectedPlayer,
+	ConnectedPlayer,
 	GameOpened,
 	GameClosed,
 	GameEnded,
+	TurnAdvanced,
 	ParticipantKicked,
 	Ping,
+	ServerKicked,
 	NewDirector,
 	NewConsumer,
 	NewProducer,
@@ -50,6 +54,7 @@ pub enum DirectorClientType {
 	Kick,
 	NewOffsets,
 	Pong,
+	NextTurn,
 }
 
 #[derive(Debug, Serialize)]
@@ -77,7 +82,8 @@ pub struct Offsets {
 pub struct ServerExtraField {
 	pub target: Option<String>,
 	pub info: Option<Info>,
-	pub offsets: Option<Offsets>
+	pub offsets: Option<Offsets>,
+	pub participant_type: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

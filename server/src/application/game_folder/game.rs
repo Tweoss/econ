@@ -316,7 +316,14 @@ impl Handler<director_to_game::RegisterAddressGetInfo> for Game {
 			addr_value.addr = Some(msg.addr.clone());
 		}
 		msg.addr.do_send(game_to_director::Info {info: self.get_director_info()});
-		// MessageResult(self.get_director_info())
+		if let Some(addr) = &self.state_main_director.addr {
+			addr.do_send(game_to_director::Connected { id: msg.user_id.clone(), participant_type: "director".to_string() });
+		}
+		for elem in self.directors.read().unwrap().values() {
+			if let Some(addr) = &elem.addr {
+				addr.do_send(game_to_director::Connected { id: msg.user_id.clone(), participant_type: "director".to_string() });
+			}
+		}
 	}
 }
 
@@ -401,6 +408,21 @@ impl Handler<director_to_game::SetOffsets> for Game {
 	}
 }
 
+impl Handler<director_to_game::ForceTurn> for Game {
+	type Result = ();
+	fn handle(&mut self, _: director_to_game::ForceTurn, _: &mut Context<Self>) -> Self::Result {
+		self.turn += 1;
+		for elem in self.directors.read().unwrap().values() {
+			if let Some(addr) = &elem.addr {
+				addr.do_send(game_to_participant::TurnAdvanced {});
+			}
+		}
+		if let Some(addr) = &self.state_main_director.addr {
+			addr.do_send(game_to_participant::TurnAdvanced {});
+		}
+	}
+}
+
 impl Handler<participant_to_game::Unresponsive> for Game {
 	type Result = ();
 	fn handle(
@@ -408,12 +430,66 @@ impl Handler<participant_to_game::Unresponsive> for Game {
 		msg: participant_to_game::Unresponsive,
 		_: &mut Context<Self>,
 	) -> Self::Result {
+		println!("UNRESPONSIVE DIRECTOR: {}", &msg.id);
 		if let Some(addr) = &self.state_main_director.addr {
-			addr.do_send(game_to_director::Unresponsive { id: msg.id.clone() });
+			addr.do_send(game_to_director::Unresponsive { id: msg.id.clone(), participant_type: msg.participant_type.clone() });
 		}
 		for elem in self.directors.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
-				addr.do_send(game_to_director::Unresponsive { id: msg.id.clone() });
+				addr.do_send(game_to_director::Unresponsive { id: msg.id.clone(), participant_type: msg.participant_type.clone() });
+			}
+		}
+	}
+}
+
+impl Handler<participant_to_game::Responsive> for Game {
+	type Result = ();
+	fn handle(
+		&mut self,
+		msg: participant_to_game::Responsive,
+		_: &mut Context<Self>,
+	) -> Self::Result {
+		println!("Responsive again");
+		if let Some(addr) = &self.state_main_director.addr {
+			addr.do_send(game_to_director::Connected { id: msg.id.clone(), participant_type: msg.participant_type.clone() });
+		}
+		for elem in self.directors.read().unwrap().values() {
+			if let Some(addr) = &elem.addr {
+				addr.do_send(game_to_director::Connected { id: msg.id.clone(), participant_type: msg.participant_type.clone() });
+			}
+		}
+	}
+}
+
+impl Handler<participant_to_game::Disconnected> for Game {
+	type Result = ();
+	fn handle(&mut self, msg: participant_to_game::Disconnected, _: &mut Context<Self>) -> Self::Result {
+		match msg.participant_type.as_str() {
+			"director" => {
+				if msg.id == self.id_main_director {
+					self.state_main_director.addr = None;
+				}
+				else {
+					self.directors.write().unwrap().get_mut(&msg.id).unwrap().addr = None;
+				}
+			}
+			"consumer" => {
+				self.consumers.write().unwrap().get_mut(&msg.id).unwrap().addr = None;
+			}
+			"producer" => {
+				self.producers.write().unwrap().get_mut(&msg.id).unwrap().addr = None;
+			}
+			"viewer" => {
+				self.viewers.write().unwrap().get_mut(&msg.id).unwrap().addr = None;
+			}
+			_ => ()
+		}
+		if let Some(addr) = &self.state_main_director.addr {
+			addr.do_send(game_to_director::Disconnected { id: msg.id.clone(), participant_type: msg.participant_type.clone() });
+		}
+		for elem in self.directors.read().unwrap().values() {
+			if let Some(addr) = &elem.addr {
+				addr.do_send(game_to_director::Disconnected { id: msg.id.clone(), participant_type: msg.participant_type.clone() });
 			}
 		}
 	}

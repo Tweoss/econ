@@ -67,3 +67,9 @@ pub struct SetOffsets {
 	pub subsidies: u8,
 	pub supply_shock: u8,
 }
+
+/// Force the next turn 
+#[derive(Message)]
+#[rtype(result="()")]
+pub struct ForceTurn {}
+

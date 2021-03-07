@@ -12,7 +12,8 @@ use actix::prelude::*;
 use crate::application::game_folder::game::Game;
 
 use crate::application::game_folder::participants::director_folder::director_structs::{
-	self, DirectorClientMsg, DirectorClientType, DirectorServerMsg, DirectorServerType, ServerExtraField,
+	self, DirectorClientMsg, DirectorClientType, DirectorServerMsg, DirectorServerType,
+	ServerExtraField,
 };
 use crate::application::game_folder::participants::director_folder::director_to_game;
 use crate::application::game_folder::participants::participant_to_game;
@@ -24,8 +25,9 @@ use super::director_structs::ParticipantType;
 
 use serde_cbor::{from_slice, to_vec};
 
-const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
-const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
+const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(10);
+const CLIENT_TIMEOUT: Duration = Duration::from_secs(11);
+const CLIENT_TERMINATE: Duration = Duration::from_secs(30);
 
 pub struct DirectorState {
 	pub is_responsive: bool,
@@ -47,6 +49,7 @@ pub struct Director {
 	pub game_id: String,
 	pub game_addr: Addr<Game>,
 	hb: Instant,
+	is_unresponsive: bool,
 }
 
 impl Actor for Director {
@@ -60,11 +63,16 @@ impl Actor for Director {
 			});
 		self.hb(ctx);
 	}
-	fn stopping(&mut self, _ctx: &mut Self::Context) -> Running {
+	fn stopping(&mut self, ctx: &mut Self::Context) -> Running {
 		println!(
 			"Stopping a director actor: {} and {}",
 			self.game_id, self.uuid
 		);
+		self.game_addr.do_send(participant_to_game::Disconnected {
+			id: self.uuid.clone(),
+			participant_type: "director".to_owned(),
+		});
+		ctx.terminate();
 		Running::Stop
 	}
 }
@@ -82,6 +90,7 @@ impl Director {
 			game_addr,
 			// app_addr: addr,
 			hb: Instant::now(),
+			is_unresponsive: false,
 		}
 	}
 	fn hb(&self, ctx: &mut ws::WebsocketContext<Self>) {
@@ -92,17 +101,40 @@ impl Director {
 				// notify game
 				act.game_addr.do_send(participant_to_game::Unresponsive {
 					id: act.uuid.clone(),
+					participant_type: "director".to_owned(),
 				});
+				if Instant::now().duration_since(act.hb) > CLIENT_TERMINATE {
+					ctx.binary(
+						to_vec(&DirectorServerMsg {
+							msg_type: DirectorServerType::ServerKicked,
+							extra_fields: None,
+						})
+						.unwrap(),
+					);
+					act.game_addr.do_send(participant_to_game::Disconnected {
+						id: act.uuid.clone(),
+						participant_type: "director".to_owned(),
+					});
+					ctx.stop();
+				}
+				act.is_unresponsive = true;
 			}
-			let response = to_vec(&DirectorServerMsg {
+			let ping = to_vec(&DirectorServerMsg {
 				msg_type: DirectorServerType::Ping,
 				extra_fields: None,
 				// target: None,
 				// info: None,
 			})
 			.unwrap();
-			ctx.binary(response);
+			ctx.binary(ping);
 		});
+	}
+	fn reset_hb(&mut self) {
+		self.hb = Instant::now();
+		if self.is_unresponsive {
+			self.game_addr.do_send(participant_to_game::Responsive {id: self.uuid.clone(), participant_type: "director".to_string()});
+			self.is_unresponsive = false;
+		}
 	}
 }
 
@@ -137,7 +169,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Director {
 						self.game_addr.do_send(director_to_game::CloseGame {});
 					}
 					DirectorClientType::Pong => {
-						self.hb = Instant::now();
+						// self.hb = Instant::now();
 					}
 					DirectorClientType::Kick => {
 						self.game_addr.do_send(director_to_game::KickParticipant {
@@ -152,14 +184,12 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Director {
 							trending: offsets.trending,
 						})
 					}
-					_ => (),
+					DirectorClientType::NextTurn => {
+						self.game_addr.do_send(director_to_game::ForceTurn {});
+					} // _ => (),
 				}
-				// let response = to_vec(&DirectorServerMsg {
-				// 	msg_type: DirectorServerType::Ignore,
-				// 	target: None,
-				// })
-				// .unwrap();
-				// ctx.binary(response);
+				self.reset_hb();
+				// self.hb = Instant::now();
 			}
 			_ => (),
 		}
@@ -188,8 +218,64 @@ impl Handler<game_to_director::Unresponsive> for Director {
 	fn handle(
 		&mut self,
 		msg: game_to_director::Unresponsive,
-		_: &mut Self::Context,
+		ctx: &mut Self::Context,
 	) -> Self::Result {
+		let fields = ServerExtraField {
+			target: Some(msg.id),
+			participant_type: Some(msg.participant_type),
+			..Default::default()
+		};
+		ctx.binary(
+			to_vec(&DirectorServerMsg {
+				msg_type: DirectorServerType::UnresponsivePlayer,
+				extra_fields: Some(fields),
+			})
+			.unwrap(),
+		);
+	}
+}
+
+impl Handler<game_to_director::Disconnected> for Director {
+	type Result = ();
+	fn handle(
+		&mut self,
+		msg: game_to_director::Disconnected,
+		ctx: &mut Self::Context,
+	) -> Self::Result {
+		let fields = ServerExtraField {
+			target: Some(msg.id),
+			participant_type: Some(msg.participant_type),
+			..Default::default()
+		};
+		ctx.binary(
+			to_vec(&DirectorServerMsg {
+				msg_type: DirectorServerType::DisconnectedPlayer,
+				extra_fields: Some(fields),
+			})
+			.unwrap(),
+		);
+	}
+}
+
+impl Handler<game_to_director::Connected> for Director {
+	type Result = ();
+	fn handle(
+		&mut self,
+		msg: game_to_director::Connected,
+		ctx: &mut Self::Context,
+	) -> Self::Result {
+		let fields = ServerExtraField {
+			target: Some(msg.id),
+			participant_type: Some(msg.participant_type),
+			..Default::default()
+		};
+		ctx.binary(
+			to_vec(&DirectorServerMsg {
+				msg_type: DirectorServerType::ConnectedPlayer,
+				extra_fields: Some(fields),
+			})
+			.unwrap(),
+		);
 	}
 }
 
@@ -320,6 +406,19 @@ impl Handler<game_to_participant::NewOffsets> for Director {
 			to_vec(&DirectorServerMsg {
 				msg_type: DirectorServerType::NewOffsets,
 				extra_fields: Some(fields),
+			})
+			.unwrap(),
+		);
+	}
+}
+
+impl Handler<game_to_participant::TurnAdvanced> for Director {
+	type Result = ();
+	fn handle(&mut self, _: game_to_participant::TurnAdvanced, ctx: &mut Self::Context) {
+		ctx.binary(
+			to_vec(&DirectorServerMsg {
+				msg_type: DirectorServerType::TurnAdvanced,
+				extra_fields: None,
 			})
 			.unwrap(),
 		);

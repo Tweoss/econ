@@ -88,17 +88,23 @@ impl Participant {
     }
 }
 
-trait RenderableCollection {
+trait ParticipantCollection {
     fn render(&self) -> Html;
+    fn update_status(&mut self, id: &str, status: PlayerState);
 }
 
-impl RenderableCollection for HashMap<String, Participant> {
+impl ParticipantCollection for HashMap<String, Participant> {
     fn render(&self) -> Html {
         html! {
             <>
                 {for self.keys().zip(self.values()).map(|tuple| tuple.1.render(tuple.0.to_string()))}
 
             </>
+        }
+    }
+    fn update_status(&mut self, id: &str, status: PlayerState) {
+        if let Some(participant) = self.get_mut(id) {
+            participant.state = status;
         }
     }
 }
@@ -289,6 +295,7 @@ enum Msg {
     EndDrag,
     ToggleOpen,
     AdjustOffset(u8),
+    NextTurn
 }
 
 impl Model {}
@@ -433,6 +440,47 @@ impl Component for Model {
                             offsets.subsidies,
                         );
                     }
+                    DirectorServerType::TurnAdvanced => {
+                        self.turn += 1;
+                    }
+                    DirectorServerType::DisconnectedPlayer => {
+                        // ConsoleService::log("Disconnected Player");
+                        let target = s.extra_fields.clone().unwrap().target.unwrap();
+                        match s.extra_fields.unwrap().participant_type.unwrap().as_str() {
+                            "consumer" => self.consumers.update_status(&target, PlayerState::Disconnected),
+                            "producer" => self.producers.update_status(&target, PlayerState::Disconnected),
+                            "director" => self.directors.update_status(&target, PlayerState::Disconnected),
+                            "viewer" => self.viewers.update_status(&target, PlayerState::Disconnected),
+                            // "producer" => self.producers.get_mut(&target).unwrap().state = PlayerState::Disconnected,
+                            // "director" => self.directors.get_mut(&target).unwrap().state = PlayerState::Disconnected,
+                            // "viewer" => self.viewers.get_mut(&target).unwrap().state = PlayerState::Disconnected,
+                            _ => ()
+                        }
+                    }
+                    DirectorServerType::UnresponsivePlayer => {
+                        // ConsoleService::log("Unresponsive Player");
+                        let target = s.extra_fields.clone().unwrap().target.unwrap();
+                        match s.extra_fields.unwrap().participant_type.unwrap().as_str() {
+                            "consumer" => self.consumers.update_status(&target, PlayerState::Unresponsive),
+                            "producer" => self.producers.update_status(&target, PlayerState::Unresponsive),
+                            "director" => self.directors.update_status(&target, PlayerState::Unresponsive),
+                            "viewer" => self.viewers.update_status(&target, PlayerState::Unresponsive),
+                            _ => ()
+                        }
+                    }
+                    DirectorServerType::ConnectedPlayer => {
+                        let target = s.extra_fields.clone().unwrap().target.unwrap();
+                        match s.extra_fields.unwrap().participant_type.unwrap().as_str() {
+                            "consumer" => self.consumers.update_status(&target, PlayerState::Connected),
+                            "producer" => self.producers.update_status(&target, PlayerState::Connected),
+                            "director" => self.directors.update_status(&target, PlayerState::Connected),
+                            "viewer" => self.viewers.update_status(&target, PlayerState::Connected),
+                            _ => ()
+                        }
+                    }
+                    DirectorServerType::ServerKicked => {
+                        self.ws = None;
+                    }
                     _ => {}
                 }
                 true
@@ -502,11 +550,6 @@ impl Component for Model {
 
                                 match element.class_name().as_ref() {
                                     "kickable live" | "kickable unresponsive" | "kickable" => {
-                                        // element.set_class_name("kicked");
-                                        // self.consumers.remove(&element.id());
-                                        // self.producers.remove(&element.id());
-                                        // self.directors.remove(&element.id());
-                                        // self.viewers.remove(&element.id());
                                         element.set_class_name("kicked");
                                         task.send_binary(Ok(to_vec(&DirectorClientMsg {
                                             msg_type: DirectorClientType::Kick,
@@ -515,26 +558,6 @@ impl Component for Model {
                                         .unwrap()));
                                         return true;
                                     }
-                                    // "kickable unresponsive" => {
-                                    //     element.set_class_name("kicked");
-                                    //     task.send_binary(Ok(to_vec(&DirectorClientMsg {
-                                    //         msg_type: DirectorClientType::Kick,
-                                    //         kick_target: Some(element.inner_html()),
-                                    //     })
-                                    //     .unwrap()));
-                                    //     return true;
-                                    // }
-                                    // => {
-                                    //     element.set_class_name("kicked");
-                                    //     ConsoleService::log(&element.inner_html());
-                                    //     ConsoleService::log("Gonna kick: ");
-                                    //     task.send_binary(Ok(to_vec(&DirectorClientMsg {
-                                    //         msg_type: DirectorClientType::Kick,
-                                    //         kick_target: Some(element.inner_html()),
-                                    //     })
-                                    //     .unwrap()));
-                                    // return true;
-                                    // }
                                     _ => {}
                                 }
                             }
@@ -727,6 +750,16 @@ impl Component for Model {
                 }
                 false
             }
+            Msg::NextTurn => {
+                if let Some(ref mut task) = self.ws {
+                    task.send_binary(Ok(to_vec(&DirectorClientMsg {
+                        msg_type: DirectorClientType::NextTurn,
+                        extra_fields: None,
+                    })
+                    .unwrap()));
+                }
+                false
+            }
         }
     }
 
@@ -777,7 +810,7 @@ impl Component for Model {
                             <div class="row">
                                 <div class="col" style="min-height: 15vmin;">
                                     <h2>{"Control Flow"}</h2>
-                                    <button class="btn btn-lg btn-warning border rounded" type="button">{"Force Next Turn"}</button>
+                                    <button onclick={self.link.callback(|_| Msg::NextTurn)} class="btn btn-lg btn-warning border rounded" type="button">{"Force Next Turn"}</button>
                                 </div>
                             </div>
                             <div class="row">
