@@ -283,7 +283,6 @@ enum Msg {
     Disconnected,                               // disconnected from server
     Ignore,                                     // ignore this message
     Received(Result<DirectorServerMsg, Error>), // data received from server
-    SendReq,
     PrepWsConnect,
     FailedToConnect,
     EndGame,
@@ -295,7 +294,7 @@ enum Msg {
     EndDrag,
     ToggleOpen,
     AdjustOffset(u8),
-    NextTurn
+    NextTurn,
 }
 
 impl Model {}
@@ -306,15 +305,9 @@ impl Component for Model {
     fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
         Self {
             link,
-            // server_data: String::new(),
             ws: None,
             text: String::new(),
             task: None,
-            // client_data: DirectorClientMsg {
-            //     msg_type: DirectorClientType::OpenGame,
-
-            //     // kick_target: None,
-            // },
             consumers: HashMap::new(),
             producers: HashMap::new(),
             directors: HashMap::new(),
@@ -357,9 +350,6 @@ impl Component for Model {
                         }
                         Ok(f) => Some(f),
                     };
-                    // let task = WebSocketService::connect("ws://127.0.0.1:8080/ws/", cbout, cbnot).unwrap();
-                    // let task = self.wss.connect("ws://127.0.0.1:8080/ws/", cbout, cbnot.into());
-                    // self.ws = Some(task);
                     self.ws = task;
                 }
                 true
@@ -374,7 +364,6 @@ impl Component for Model {
                 match s.msg_type {
                     DirectorServerType::Info => {
                         let info = s.extra_fields.unwrap().info.unwrap();
-                        // ConsoleService::log(&format!("{:?}", info));
                         if info.is_open {
                             self.is_open = "Close".to_string();
                         } else {
@@ -444,38 +433,55 @@ impl Component for Model {
                         self.turn += 1;
                     }
                     DirectorServerType::DisconnectedPlayer => {
-                        // ConsoleService::log("Disconnected Player");
                         let target = s.extra_fields.clone().unwrap().target.unwrap();
                         match s.extra_fields.unwrap().participant_type.unwrap().as_str() {
-                            "consumer" => self.consumers.update_status(&target, PlayerState::Disconnected),
-                            "producer" => self.producers.update_status(&target, PlayerState::Disconnected),
-                            "director" => self.directors.update_status(&target, PlayerState::Disconnected),
-                            "viewer" => self.viewers.update_status(&target, PlayerState::Disconnected),
-                            // "producer" => self.producers.get_mut(&target).unwrap().state = PlayerState::Disconnected,
-                            // "director" => self.directors.get_mut(&target).unwrap().state = PlayerState::Disconnected,
-                            // "viewer" => self.viewers.get_mut(&target).unwrap().state = PlayerState::Disconnected,
-                            _ => ()
+                            "consumer" => self
+                                .consumers
+                                .update_status(&target, PlayerState::Disconnected),
+                            "producer" => self
+                                .producers
+                                .update_status(&target, PlayerState::Disconnected),
+                            "director" => self
+                                .directors
+                                .update_status(&target, PlayerState::Disconnected),
+                            "viewer" => self
+                                .viewers
+                                .update_status(&target, PlayerState::Disconnected),
+                            _ => (),
                         }
                     }
                     DirectorServerType::UnresponsivePlayer => {
-                        // ConsoleService::log("Unresponsive Player");
                         let target = s.extra_fields.clone().unwrap().target.unwrap();
                         match s.extra_fields.unwrap().participant_type.unwrap().as_str() {
-                            "consumer" => self.consumers.update_status(&target, PlayerState::Unresponsive),
-                            "producer" => self.producers.update_status(&target, PlayerState::Unresponsive),
-                            "director" => self.directors.update_status(&target, PlayerState::Unresponsive),
-                            "viewer" => self.viewers.update_status(&target, PlayerState::Unresponsive),
-                            _ => ()
+                            "consumer" => self
+                                .consumers
+                                .update_status(&target, PlayerState::Unresponsive),
+                            "producer" => self
+                                .producers
+                                .update_status(&target, PlayerState::Unresponsive),
+                            "director" => self
+                                .directors
+                                .update_status(&target, PlayerState::Unresponsive),
+                            "viewer" => self
+                                .viewers
+                                .update_status(&target, PlayerState::Unresponsive),
+                            _ => (),
                         }
                     }
                     DirectorServerType::ConnectedPlayer => {
                         let target = s.extra_fields.clone().unwrap().target.unwrap();
                         match s.extra_fields.unwrap().participant_type.unwrap().as_str() {
-                            "consumer" => self.consumers.update_status(&target, PlayerState::Connected),
-                            "producer" => self.producers.update_status(&target, PlayerState::Connected),
-                            "director" => self.directors.update_status(&target, PlayerState::Connected),
+                            "consumer" => self
+                                .consumers
+                                .update_status(&target, PlayerState::Connected),
+                            "producer" => self
+                                .producers
+                                .update_status(&target, PlayerState::Connected),
+                            "director" => self
+                                .directors
+                                .update_status(&target, PlayerState::Connected),
                             "viewer" => self.viewers.update_status(&target, PlayerState::Connected),
-                            _ => ()
+                            _ => (),
                         }
                     }
                     DirectorServerType::ServerKicked => {
@@ -489,24 +495,12 @@ impl Component for Model {
                 ConsoleService::log("Error reading information from WebSocket");
                 true
             }
-            Msg::SendReq => match self.ws {
-                Some(ref mut _task) => {
-                    // task.send_binary(Ok(to_vec(&self.client_data).unwrap()));
-                    // true
-                    false
-                }
-                None => false,
-            },
             Msg::PrepWsConnect => {
-                let post_request = Request::post("/wsprep")
-                    // let post_request = Request::post("https://web.valour.vision/cookies")
-                    .body(yew::format::Nothing)
-                    .unwrap();
+                let post_request = Request::post("/wsprep").body(yew::format::Nothing).unwrap();
                 let callback = self
                     .link
                     .callback(|response: Response<Result<String, Error>>| {
                         if response.status().is_success() {
-                            // response.
                             ConsoleService::log("Sent Request and Received Response with code: ");
                             ConsoleService::log(response.status().as_str());
                             let mut cookie_values: Vec<String> = Vec::new();
@@ -527,17 +521,18 @@ impl Component for Model {
                 self.text.push_str("Failed to reach /wsprep");
                 true
             }
-            Msg::EndGame => match self.ws {
-                Some(ref mut task) => {
+            Msg::EndGame => {
+                if let Some(ref mut task) = self.ws {
                     task.send_binary(Ok(to_vec(&DirectorClientMsg {
                         msg_type: DirectorClientType::EndGame,
                         extra_fields: None,
                     })
                     .unwrap()));
                     true
+                } else {
+                    false
                 }
-                None => false,
-            },
+            }
             Msg::HandleKick(possible_target) => {
                 if let Some(ref mut task) = self.ws {
                     if let Some(target) = possible_target {
@@ -569,24 +564,17 @@ impl Component for Model {
             Msg::ToggleOpen => {
                 if let Some(ref mut task) = self.ws {
                     if self.is_open == "Open" {
-                        task
-                            // self.ws
-                            //     .as_mut()
-                            .send_binary(Ok(to_vec(&DirectorClientMsg {
-                                msg_type: DirectorClientType::OpenGame,
-                                extra_fields: None,
-                            })
-                            .unwrap()));
+                        task.send_binary(Ok(to_vec(&DirectorClientMsg {
+                            msg_type: DirectorClientType::OpenGame,
+                            extra_fields: None,
+                        })
+                        .unwrap()));
                     } else {
-                        task
-                            // self.ws
-                            //     .as_mut()
-                            //     .expect("No websocket open")
-                            .send_binary(Ok(to_vec(&DirectorClientMsg {
-                                msg_type: DirectorClientType::CloseGame,
-                                extra_fields: None,
-                            })
-                            .unwrap()));
+                        task.send_binary(Ok(to_vec(&DirectorClientMsg {
+                            msg_type: DirectorClientType::CloseGame,
+                            extra_fields: None,
+                        })
+                        .unwrap()));
                     }
                 }
                 false
@@ -774,11 +762,6 @@ impl Component for Model {
     }
 
     fn view(&self) -> Html {
-        // let onbuttonconnect = self.link.callback(|_| Msg::PrepWsConnect);
-        // let onbuttonsend = self.link.callback(|_| Msg::SendText);
-        // let inputtext = self.link.callback(|e: InputData| Msg::TextInput(e.value));
-        // let sendreq = self.link.callback(|_| Msg::SendReq);
-        // let endgame = self.link.callback(|_| Msg::EndGame);
         let open_close = self.link.callback(|_| Msg::ToggleOpen);
         let producer_click_down = self.link.callback(|event| Msg::StartClick(event, false));
         let consumer_click_down = self.link.callback(|event| Msg::StartClick(event, true));
@@ -790,7 +773,6 @@ impl Component for Model {
         let handle_click = self
             .link
             .callback(|e: MouseEvent| Msg::HandleKick(e.target()));
-        // let handle_events = self.link.callback()
         html! {
             <>
                 <div class="container text-center">
