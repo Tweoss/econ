@@ -4,11 +4,17 @@ trending = input('trending = ');
 y_p = supply_shock-subsidies;
 y_c = trending;
 
-p_x = [0,10,50,80];
+c_x = [0,40,65,80];
+c_y = [80,80,70,0];
+
+p_x = [0,10,45,80];
 p_y = [80,-10,-10,100];
 
-c_x = [0,40,70,80];
-c_y = [80,80,70,0];
+% c_x = [0,40,70,80];
+% c_y = [80,80,70,0];
+
+% p_x = [0,10,50,80];
+% p_y = [80,-10,-10,100];
 
 function value = calc_pos(t,a,b,c,d)
     value = (1-t)^3 * a  + 3*(1-t)^2*t * b + 3*(1-t)*t^2 * c + t^3 * d;
@@ -45,8 +51,9 @@ y = calc_pos(t(1),p_y(1),p_y(2),p_y(3),p_y(4));
 
 disp(['t_p = ', num2str(t(1))])
 disp(['t_c = ', num2str(t(2))])
-disp(['x = ', num2str(3*(1-t(1))^2*t(1)*10 + 3*(1-t(1))*t(1)^2*50 + t(1)^3*80)])
-disp(['y = ', num2str((1-t(1))^3*(80+y_p) + 3*(1-t(1))^2*t(1)*(-10+y_p) + 3*(1-t(1))*t(1)^2*(-10+y_p) + t(1)^3*(100+y_p))])
+disp(['x = ', num2str(calc_pos(t(1),p_x(1),p_x(2),p_x(3),p_x(4)))])
+disp(['y = ', num2str(calc_pos(t(1),p_y(1),p_y(2),p_y(3),p_y(4)+y_p))])
+% disp(['y = ', num2str((1-t(1))^3*(80+y_p) + 3*(1-t(1))^2*t(1)*(-10+y_p) + 3*(1-t(1))*t(1)^2*(-10+y_p) + t(1)^3*(100+y_p))])
 disp(['err = ', num2str(ferr)])
 disp(['equilibrium producer_surplus = ', num2str(producer_surplus(t(1), p_x(1),p_x(2),p_x(3),p_x(4),p_y(1),p_y(2),p_y(3),p_y(4),y_p,x,y))])
 disp(['equilibrium consumer_surplus = ', num2str(consumer_surplus(t(2), c_x(1),c_x(2),c_x(3),c_x(4),c_y(1),c_y(2),c_y(3),c_y(4),y_c,x,y))])

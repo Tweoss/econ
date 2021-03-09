@@ -162,18 +162,18 @@ impl Graphs {
             (extra_y + 80).into(),
             40.,
             (extra_y + 80).into(),
-            70.,
+            65.,
             (extra_y + 70).into(),
             80.,
             extra_y.into(),
         );
         self.consumer_x = 3. * f64::powi(1. - t, 2) * t * 40.
-            + 3. * (1. - t) * f64::powi(t, 2) * 70.
+            + 3. * (1. - t) * f64::powi(t, 2) * 65.
             + f64::powi(t, 3) * 80.;
-        self.consumer_y = f64::powi(1. - t, 3) * f64::from(extra_y + 80)
-            + 3. * f64::powi(1. - t, 2) * t * f64::from(extra_y + 80)
-            + 3. * (1. - t) * f64::powi(t, 2) * f64::from(extra_y + 70)
-            + f64::powi(t, 3) * f64::from(extra_y);
+        self.consumer_y = f64::powi(1. - t, 3) * 80.
+            + 3. * f64::powi(1. - t, 2) * t * 80.
+            + 3. * (1. - t) * f64::powi(t, 2) * 70.
+            + f64::powi(t, 3) + f64::from(extra_y);
     }
     fn producer_move(&mut self, mouse_x: f64, mouse_y: f64) {
         // * extra cost
@@ -191,18 +191,23 @@ impl Graphs {
             (extra_y + 80).into(),
             10.,
             (extra_y - 10).into(),
-            50.,
+            45.,
             (extra_y - 10).into(),
             80.,
             (extra_y + 100).into(),
         );
         self.producer_x = 3. * f64::powi(1. - t, 2) * t * 10.
-            + 3. * (1. - t) * f64::powi(t, 2) * 50.
+            + 3. * (1. - t) * f64::powi(t, 2) * 45.
             + f64::powi(t, 3) * 80.;
-        self.producer_y = f64::powi(1. - t, 3) * f64::from(extra_y + 80)
-            + 3. * f64::powi(1. - t, 2) * t * f64::from(extra_y - 10)
-            + 3. * (1. - t) * f64::powi(t, 2) * f64::from(extra_y - 10)
-            + f64::powi(t, 3) * f64::from(extra_y + 100);
+        self.producer_y = f64::powi(1. - t, 3) * 80.
+            + 3. * f64::powi(1. - t, 2) * t * -10.
+            + 3. * (1. - t) * f64::powi(t, 2) * -10.
+            + f64::powi(t, 3) * 100.
+            + f64::from(extra_y)
+        // self.producer_y = f64::powi(1. - t, 3) * f64::from(extra_y + 80)
+        //     + 3. * f64::powi(1. - t, 2) * t * f64::from(extra_y - 10)
+        //     + 3. * (1. - t) * f64::powi(t, 2) * f64::from(extra_y - 10)
+        //     + f64::powi(t, 3) * f64::from(extra_y + 100);
     }
     // * Takes in number of iterations, the point to be projected, the start and end bounds on the guess, the resolution (slices), and the control points
     // * Returns the t value of the minimum
@@ -773,6 +778,13 @@ impl Component for Model {
         let handle_click = self
             .link
             .callback(|e: MouseEvent| Msg::HandleKick(e.target()));
+            "M 0 80 C 10 -10, 45 -10 80 100";
+            // p_x = [0,10,50,80];
+            // p_y = [80,-10,-10,100];
+            "M 0 80 C 40 80, 65 70, 80 0";
+            // c_x = [0,40,70,80];
+            // c_y = [80,80,70,0];
+
         html! {
             <>
                 <div class="container text-center">
@@ -813,9 +825,10 @@ impl Component for Model {
                                         <g id="Consumer Group" transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=consumer_click_down onmousemove=click_move.clone() onmouseup=end_drag.clone() onmouseleave=end_drag.clone() ontouchstart=consumer_touch_start ontouchmove=touch_move.clone()>
                                             <rect width="105" height="105" x="-5" y="-5" fill-opacity="0%"></rect>
                                             <text x="10" y="-30" style="font: 10px Georgia; " transform="scale(1,-1)">{format!("{:.2}, {:.2}",self.graph_data.consumer_x,self.graph_data.consumer_y)}</text>
+                                            <path d="M 0 80 C 40 80, 65 70, 80 0" stroke="#6495ED" stroke-width="1" stroke-opacity="60%" fill-opacity="0%" stroke-dasharray="4" />
                                             <path d={
                                                 let temp: i16 = self.graph_data.trending.into();
-                                                format!("M 0 {} C 40 {}, 70 {}, 80 {}", temp+80, temp+80, temp+70, temp)
+                                                format!("M 0 {} C 40 {}, 65 {}, 80 {}", temp+80, temp+80, temp+70, temp)
                                             }  stroke="white" stroke-width="1" fill="transparent"/>
                                             <polygon points="0,95 -5,90 -1,90 -1,-1 90,-1 90,-5 95,0 90,5 90,1 1,1 1,90 5,90" fill="#1F6DDE" />
                                             <line x1="25" x2="25" y1="2" y2="-2" stroke="white" stroke-width="1"/>
@@ -835,9 +848,10 @@ impl Component for Model {
                                         <g id="Producer Group" transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=producer_click_down onmousemove=click_move onmouseup=end_drag.clone() onmouseleave=end_drag.clone() ontouchstart=producer_touch_start ontouchmove=touch_move>
                                             <rect width="105" height="105" x="-5" y="-5" fill-opacity="0%"></rect>
                                             <text x="10" y="-70" style="font: 10px Georgia; " transform="scale(1,-1)">{format!("{:.2}, {:.2}",self.graph_data.producer_x,self.graph_data.producer_y)}</text>
+                                            <path d="M 0 80 C 10 -10, 45 -10, 80 100" stroke="#6495ED" stroke-width="1" stroke-opacity="60%" fill-opacity="0%" stroke-dasharray="4" />
                                             <path d={
                                                 let net: i16 = i16::from(self.graph_data.supply_shock) - i16::from(self.graph_data.subsidies);
-                                                format!("M 0 {} C 10 {}, 50 {}, 80 {}", net+80, net-10, net-10, net+100)
+                                                format!("M 0 {} C 10 {}, 45 {}, 80 {}", net+80, net-10, net-10, net+100)
                                             } stroke="white" stroke-width="1" fill="transparent"/>
                                             <polygon points="0,95 -5,90 -1,90 -1,-1 90,-1 90,-5 95,0 90,5 90,1 1,1 1,90 5,90" fill="#1F6DDE" />
                                             <line x1="25" x2="25" y1="2" y2="-2" stroke="white" stroke-width="1"/>

@@ -91,7 +91,6 @@ impl Component for Model {
 							ConsoleService::log(response.status().as_str());
 							if response.body().as_ref().unwrap() == "Success" {
 								js! {
-									console.log("HI");
 									document.getElementById("link").click();
 								}
 							}
