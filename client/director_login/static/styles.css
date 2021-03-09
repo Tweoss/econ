@@ -1,0 +1,39 @@
+.input {
+    text-align: center;
+    font-size: 5vw;
+}
+
+.container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    /* background-color: red; */
+    flex-direction: column;
+}
+
+.enter {
+    font-size: 4vw;
+    width: 25vw;
+    display: inline-block;
+    border: none;
+    background-color: #9c50e3;
+}
+
+.message {
+    font-size: 2.5vw;
+    color: #e70909;
+}
+
+.link {
+    visibility: hidden;
+}
+
+body {
+    height: 100%;
+}
+
+html {
+    height: 100%;
+    background-color: blueviolet;
+}
