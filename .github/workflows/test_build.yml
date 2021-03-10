@@ -16,7 +16,7 @@ jobs:
 
     steps:
     - name: change directory
-      run: cd server
+      run: cd $HOME/server
     - uses: actions/checkout@v2
     - name: Build
       run: cargo build --verbose
