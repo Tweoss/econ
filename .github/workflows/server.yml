@@ -31,11 +31,11 @@ jobs:
     - name: ls
       run: ls
     - name: Modify files
-      run: cd server && ./prep_deploy.sh
+      run: cd server/src && ./prep_deploy.sh
     - name: Change Directory
       run: cd server && cargo build --target=x86_64-unknown-linux-gnu --release
     - name: Undo modifications
-      run: cd server && ./end_deploy.sh
+      run: cd server/src && ./end_deploy.sh
     - name: show status
       run: git status
     - name: add the changes
