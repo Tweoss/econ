@@ -342,10 +342,15 @@ impl Component for Model {
                     }
                 });
                 if self.ws.is_none() {
-                    // ! SWITCH THIS REPL
                     let window = web_sys::window;
                     let host: String = window().unwrap().location().host().unwrap();
-                    let url = format!("ws://{}/ws/{}/{}/{}", host, v[0], v[1], v[2]);
+                    let protocol: String = window().unwrap().location().protocol().unwrap();
+                    // let url = format!("ws://{}/ws/{}/{}/{}", host, v[0], v[1], v[2]);
+                    let url = match protocol.as_str() {
+                        "http:" => {format!("ws://{}/ws/{}/{}/{}", host, v[0], v[1], v[2])}
+                        "https:" => {format!("wss://{}/ws/{}/{}/{}", host, v[0], v[1], v[2])}
+                        &_ => return false,
+                    };
                     // let url = format!("wss://{}/ws/{}/{}/{}", host, v[0], v[1], v[2]);
                     self.personal_id = v[2].to_owned();
                     let task = match WebSocketService::connect_binary(&url, cbout, cbnot) {
@@ -778,12 +783,6 @@ impl Component for Model {
         let handle_click = self
             .link
             .callback(|e: MouseEvent| Msg::HandleKick(e.target()));
-            "M 0 80 C 10 -10, 45 -10 80 100";
-            // p_x = [0,10,50,80];
-            // p_y = [80,-10,-10,100];
-            "M 0 80 C 40 80, 65 70, 80 0";
-            // c_x = [0,40,70,80];
-            // c_y = [80,80,70,0];
 
         html! {
             <>
