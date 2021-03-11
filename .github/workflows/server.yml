@@ -45,4 +45,4 @@ jobs:
     - name: set up auth
       run: git remote set-url --push origin https://tweoss:$GITHUB_TOKEN@github.com/tweoss/econ
     - name: push
-      run: git push origin
+      run: git push -f origin
