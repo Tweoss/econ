@@ -10,6 +10,8 @@ use crate::handle_to_app;
 
 use serde::Deserialize;
 
+const DEPLOY_OR_STATIC: &str = "static";
+
 #[derive(Deserialize)]
 pub struct CookieInfo {
 	username: String,
@@ -29,6 +31,11 @@ pub async fn set_cookies(cookie_info: web::Json<CookieInfo>, req: HttpRequest) -
 		"Username: {:?}, Viewtype: {:?}, GameID: {:?}",
 		username, viewtype, game_id
 	);
+	if !game_id.chars().any(|c| c.is_ascii_digit()) {
+		return HttpResponse::Ok()
+		.content_type("plain/text")
+		.body("Invalid Game ID")
+	}
 	let addr = req.app_data::<web::Data<actix::Addr<AppState>>>().unwrap();
 
 	//* make sure isnt main director
@@ -140,11 +147,6 @@ pub async fn set_cookies(cookie_info: web::Json<CookieInfo>, req: HttpRequest) -
 						.cookie(game_id_cookie)
 						.content_type("plain/text")
 						.body("Success")
-				// } else {
-				// 	HttpResponse::build(http::StatusCode::OK)
-				// 		.cookie(id_cookie)
-				// 		.finish()
-				// }
 				} else {
 					HttpResponse::Ok()
 						.content_type("plain/text")
@@ -189,9 +191,6 @@ pub async fn set_cookies(cookie_info: web::Json<CookieInfo>, req: HttpRequest) -
 		HttpResponse::Ok()
 			.content_type("plain/text")
 			.body("No Game with that ID Found")
-		// HttpResponse::Found()
-		// 	.header(http::header::LOCATION, "/viewer/123")
-		// 	.finish()
 	}
 
 }
@@ -199,7 +198,6 @@ pub async fn set_cookies(cookie_info: web::Json<CookieInfo>, req: HttpRequest) -
 
 // ! PLAN TO MAKE DIFFERENT HANDLERS
 #[get("/{play_view_direct}/{type}/{gameid:\\d*}/{filename}.{ext}")]
-// type for authenticated directors or viewers are director and viewer respectively
 async fn get_html(req: HttpRequest) -> impl Responder {
 	// http://localhost:8080/play/producer/gameid/index.html
 	println!("Received request for Files");
@@ -226,12 +224,10 @@ async fn get_html(req: HttpRequest) -> impl Responder {
 				"producer" => prepath + "producer/",
 				"consumer" => prepath + "consumer/",
 				"director" => prepath + "director_auth/",
-				// Ok(NamedFile::open(
-				// 	(prepath + filename + "." + ext).parse::<PathBuf>().unwrap(),
-				// ));
-				_ => return Ok(NamedFile::open("../client/404/static/index.html")),
+				_ => return Ok(NamedFile::open(format!("../client/404/{}/index.html", DEPLOY_OR_STATIC))),
 			};
-			prepath += "static/";
+			prepath += DEPLOY_OR_STATIC;
+			prepath += "/";
 			let full_path = (*prepath).to_owned() + filename + "." + ext;
 			match ext {
 				"html" | "js" | "css" | "wasm" => {
@@ -247,14 +243,6 @@ async fn get_html(req: HttpRequest) -> impl Responder {
 	}
 
 	Err(actix_web::error::ErrorUnauthorized("Game does not exist."))
-	// println!(
-	// 	"{prepath}\n{file}\n{ext}",
-	// 	prepath = prepath,
-	// 	file = filename,
-	// 	ext = ext
-	// );
-	// let prepath: PathBuf = "../client/producer/".parse().unwrap();
-	// Ok(NamedFile::open(path)?)
 }
 
 pub async fn redirect(req: HttpRequest) -> impl Responder {
@@ -262,8 +250,6 @@ pub async fn redirect(req: HttpRequest) -> impl Responder {
 		if let Some(viewtype) = req.cookie("viewtype") {
 			match viewtype.value() {
 				"director" => {
-					// return HttpResponse::build(http::StatusCode::OK)
-					// 	.body("HI")
 					return HttpResponse::build(http::StatusCode::FOUND)
 						.header(
 							http::header::LOCATION,
@@ -318,11 +304,12 @@ async fn assets(req: HttpRequest) -> impl Responder {
 		"director" => prepath + "director_auth/",
 		_ => {
 			let ree: actix_files::NamedFile =
-				NamedFile::open("../client/404/static/index.html").unwrap();
+				NamedFile::open(format!("../client/404/{}/index.html", DEPLOY_OR_STATIC)).unwrap();
 			return ree;
 		}
 	};
-	prepath += "static/assets/";
+	prepath += DEPLOY_OR_STATIC;
+	prepath += "/assets/";
 	prepath += path;
 	NamedFile::open(prepath).unwrap()
 }
