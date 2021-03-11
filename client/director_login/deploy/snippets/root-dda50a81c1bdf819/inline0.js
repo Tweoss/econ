@@ -1,1 +1,0 @@
-export function __cargo_web_snippet_3655e248d09b61ffdb7123133716b409f91338ef(Module) { document.getElementById("link").click(); }

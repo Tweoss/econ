@@ -1,1 +1,0 @@
-export function __cargo_web_snippet_25e05f84b525fe8113c8c9e7180721962783adde(Module) { document.getElementById("password").addEventListener("keyup",function(event){if(event.keyCode===13){event.preventDefault();document.getElementById("enter").click();}}); }
