@@ -74,12 +74,12 @@ pub async fn set_cookies(cookie_info: web::Json<CookieInfo>, req: HttpRequest) -
 	let mut viewtype_cookie = cookie::Cookie::build("viewtype", "")
 		.same_site(cookie::SameSite::Strict)
 		// .secure(true)
-		.max_age(time::Duration::hours(2)) // 2 hrs
+		.max_age(time::Duration::hours(2))
 		.finish();
 	let name_cookie = cookie::Cookie::build("username", username.clone())
 		.same_site(cookie::SameSite::Strict)
 		// .secure(true)
-		.max_age(time::Duration::hours(2)) // 2 hrs
+		.max_age(time::Duration::hours(2))
 		.finish();
 	let game_id_cookie = cookie::Cookie::build("game_id", game_id.clone())
 		.same_site(cookie::SameSite::Strict)
