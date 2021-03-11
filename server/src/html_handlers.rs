@@ -11,7 +11,7 @@ use crate::handle_to_app;
 use serde::Deserialize;
 
 
-// Dummy commit
+// Dummy 
 const DEPLOY_OR_STATIC: &str = "static";
 
 #[derive(Deserialize)]
