@@ -1,0 +1,2 @@
+cargo:rustc-env=TYPENUM_BUILD_CONSTS=/home/runner/work/econ/econ/server/target/x86_64-unknown-linux-gnu/release/build/typenum-4d09cb47eb045a90/out/consts.rs
+cargo:rustc-env=TYPENUM_BUILD_OP=/home/runner/work/econ/econ/server/target/x86_64-unknown-linux-gnu/release/build/typenum-4d09cb47eb045a90/out/op.rs
