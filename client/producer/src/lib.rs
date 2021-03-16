@@ -1,0 +1,739 @@
+#![recursion_limit = "2048"]
+use std::collections::HashMap;
+use wasm_bindgen::prelude::*;
+use wasm_bindgen::JsCast;
+use web_sys::SvggElement;
+use yew::prelude::*;
+
+use anyhow::Error;
+
+use http::{Request, Response};
+use yew::html::ComponentLink;
+use yew::services::fetch;
+use yew::services::websocket::{WebSocketService, WebSocketStatus, WebSocketTask};
+use yew::services::ConsoleService;
+
+use serde_cbor::{from_slice, to_vec};
+
+mod structs;
+use structs::{
+    ClientExtraFields, ProducerClientMsg, ProducerClientType, ProducerServerMsg,
+    ProducerServerType, /* Offsets,*/
+};
+
+use structs::Participant;
+
+struct Model {
+    link: ComponentLink<Self>,
+    ws: Option<WebSocketTask>,
+    // server_data: String, // data received from the server
+    text: String, // text in our input box
+    fetch_task: Option<fetch::FetchTask>,
+    // client_data: DirectorClientMsg,
+    producers: HashMap<String, Participant>,
+    graph_data: Graphs,
+    turn: u64,
+    game_id: String,
+    quantity: f64,
+    price: f64,
+    // personal_id: String,
+}
+
+// impl Participant {
+//     fn new(produced: f64, price: f64, remaining: f64) -> Participant {
+//         Participant {
+//             produced,
+//             price,
+//             remaining,
+//     }
+//     fn render(&self, id: String) -> Html {
+//         let icon = match self.took_turn {
+//             Some(true) => html! {<i class="fa fa-check"></i>},
+//             Some(false) => html! {<i class="fa fa-remove"></i>},
+//             None => html! {<></>},
+//         };
+//         match self.state {
+//             PlayerState::Unresponsive => {
+//                 html! {
+//                     <p class="kickable unresponsive" id={id.clone()}>{id.clone()}{"\u{00a0}"}{"\u{00a0}"} <i class="fa fa-signal"></i> {
+//                         icon
+//                     }</p>
+//                 }
+//             }
+//             PlayerState::Connected => {
+//                 html! {
+//                     <p class="kickable live" id={id.clone()}>{id.clone()}{"\u{00a0}"}{"\u{00a0}"} <i class="fa fa-user"></i> {icon}</p>
+//                 }
+//             }
+//             PlayerState::Disconnected => {
+//                 html! {
+//                     <p class="kickable" id={id.clone()}>{id.clone()}{"\u{00a0}"}{"\u{00a0}"} <i class="fa fa-user-o"></i> {icon}</p>
+//                 }
+//             }
+//             PlayerState::Kicked => {
+//                 html! {
+//                     <p class="kicked">{id.clone()}</p>
+//                 }
+//             }
+//         }
+//     }
+// }
+
+// trait ParticipantCollection {
+//     fn render(&self) -> Html;
+//     fn update_status(&mut self, id: &str, status: PlayerState);
+// }
+
+// impl ParticipantCollection for HashMap<String, Participant> {
+//     fn render(&self) -> Html {
+//         html! {
+//             <>
+//                 {for self.keys().zip(self.values()).map(|tuple| tuple.1.render(tuple.0.to_string()))}
+
+//             </>
+//         }
+//     }
+//     fn update_status(&mut self, id: &str, status: PlayerState) {
+//         if let Some(participant) = self.get_mut(id) {
+//             participant.state = status;
+//         }
+//     }
+// }
+
+// ! Make sure allowed graph values never goes below 0.
+struct Graphs {
+    producer_x: f64,
+    producer_y: f64,
+    supply_shock: u8,
+    subsidies: u8,
+    matrix: Option<(f64, f64, f64, f64, f64, f64)>,
+    dragging: bool,
+}
+
+impl Graphs {
+    fn new() -> Graphs {
+        Graphs {
+            producer_x: 32.50,
+            producer_y: 15.00,
+            supply_shock: 0,
+            subsidies: 0,
+            matrix: None,
+            dragging: false,
+        }
+    }
+    fn data(&mut self, supply_shock: u8, subsidies: u8) {
+        self.supply_shock = supply_shock;
+        self.subsidies = subsidies;
+        self.producer_move(self.producer_x, self.producer_y);
+    }
+    fn reset_matrix(&mut self) {
+        self.matrix = None;
+    }
+    fn producer_move(&mut self, mouse_x: f64, mouse_y: f64) {
+        // * extra cost
+        let extra_y: i16 = i16::from(self.supply_shock) - i16::from(self.subsidies);
+        // let extra_y: i16 = -(i16::from(self.supply_shock) - i16::from(self.subsidies));
+        // ConsoleService::log(&format!("Mouse_x: {}, mouse_y: {}", mouse_x, mouse_y));
+        let t = Graphs::get_closest_point_to_cubic_bezier(
+            10,
+            mouse_x,
+            mouse_y,
+            0.,
+            1.,
+            20,
+            0.,
+            (extra_y + 80).into(),
+            10.,
+            (extra_y - 10).into(),
+            45.,
+            (extra_y - 10).into(),
+            80.,
+            (extra_y + 100).into(),
+        );
+        self.producer_x = 3. * f64::powi(1. - t, 2) * t * 10.
+            + 3. * (1. - t) * f64::powi(t, 2) * 45.
+            + f64::powi(t, 3) * 80.;
+        self.producer_y = f64::powi(1. - t, 3) * 80.
+            + 3. * f64::powi(1. - t, 2) * t * -10.
+            + 3. * (1. - t) * f64::powi(t, 2) * -10.
+            + f64::powi(t, 3) * 100.
+            + f64::from(extra_y)
+        // self.producer_y = f64::powi(1. - t, 3) * f64::from(extra_y + 80)
+        //     + 3. * f64::powi(1. - t, 2) * t * f64::from(extra_y - 10)
+        //     + 3. * (1. - t) * f64::powi(t, 2) * f64::from(extra_y - 10)
+        //     + f64::powi(t, 3) * f64::from(extra_y + 100);
+    }
+    // * Takes in number of iterations, the point to be projected, the start and end bounds on the guess, the resolution (slices), and the control points
+    // * Returns the t value of the minimum
+    #[allow(clippy::too_many_arguments)]
+    fn get_closest_point_to_cubic_bezier(
+        iterations: u32,
+        fx: f64,
+        fy: f64,
+        start: f64,
+        end: f64,
+        slices: u32,
+        x0: f64,
+        y0: f64,
+        x1: f64,
+        y1: f64,
+        x2: f64,
+        y2: f64,
+        x3: f64,
+        y3: f64,
+    ) -> f64 {
+        if iterations == 0 {
+            return (start + end) / 2.;
+        };
+        let tick: f64 = (end - start) / f64::from(slices);
+        let (mut x, mut y);
+        let (mut dx, mut dy);
+        let mut best: f64 = 0.;
+        let mut best_distance: f64 = f64::INFINITY;
+        let mut current_distance: f64;
+        let mut t: f64 = start;
+        while t <= end {
+            //B(t) = (1-t)**3 p0 + 3(1 - t)**2 t P1 + 3(1-t)t**2 P2 + t**3 P3
+            x = (1. - t) * (1. - t) * (1. - t) * x0
+                + 3. * (1. - t) * (1. - t) * t * x1
+                + 3. * (1. - t) * t * t * x2
+                + t * t * t * x3;
+            y = (1. - t) * (1. - t) * (1. - t) * y0
+                + 3. * (1. - t) * (1. - t) * t * y1
+                + 3. * (1. - t) * t * t * y2
+                + t * t * t * y3;
+            dx = x - fx;
+            dy = y - fy;
+            dx = f64::powi(dx, 2);
+            dy = f64::powi(dy, 2);
+            current_distance = dx + dy;
+            if current_distance < best_distance {
+                best_distance = current_distance;
+                best = t;
+            }
+            t += tick;
+        }
+        // ConsoleService::log(&format!(
+        //     "Best t: {}, best distance: {}, x: {}, y: {}",
+        //     best, best_distance, x, y
+        // ));
+        Graphs::get_closest_point_to_cubic_bezier(
+            iterations - 1,
+            fx,
+            fy,
+            f64::max(best - tick, 0.),
+            f64::min(best + tick, 1.),
+            slices,
+            x0,
+            y0,
+            x1,
+            y1,
+            x2,
+            y2,
+            x3,
+            y3,
+        )
+    }
+}
+
+enum Msg {
+    Connect(Vec<String>),                       // connect to websocket server
+    Disconnected,                               // disconnected from server
+    Ignore,                                     // ignore this message
+    Received(Result<ProducerServerMsg, Error>), // data received from server
+    PrepWsConnect,
+    // EndGame,
+    // HandleKick(Option<EventTarget>),
+    StartClick(yew::MouseEvent),
+    MouseMove(yew::MouseEvent),
+    StartTouch(yew::TouchEvent),
+    TouchMove(yew::TouchEvent),
+    EndDrag,
+    Quantity(yew::InputEvent),
+    Price(yew::InputEvent),
+    Submit,
+    // ToggleOpen,
+    // AdjustOffset(u8),
+    // NextTurn,
+}
+
+impl Model {}
+
+impl Component for Model {
+    type Message = Msg;
+    type Properties = ();
+    fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
+        Self {
+            link,
+            ws: None,
+            text: String::new(),
+            fetch_task: None,
+            producers: HashMap::new(),
+            graph_data: Graphs::new(),
+            game_id: "".to_string(),
+            turn: 0,
+            price: 0.,
+            quantity: 0.,
+        }
+    }
+
+    fn update(&mut self, msg: Self::Message) -> ShouldRender {
+        match msg {
+            Msg::Connect(v) => {
+                ConsoleService::log("Connecting");
+                let cbout = self.link.callback(|data: Result<Vec<u8>, anyhow::Error>| {
+                    Msg::Received(Ok(from_slice::<ProducerServerMsg>(&data.unwrap()).unwrap()))
+                });
+                let cbnot = self.link.batch_callback(|input| {
+                    ConsoleService::log(&format!("Notification: {:?}", input));
+                    match input {
+                        WebSocketStatus::Closed | WebSocketStatus::Error => {
+                            std::vec![Msg::Disconnected]
+                        }
+                        _ => std::vec![Msg::Ignore],
+                    }
+                });
+                if self.ws.is_none() {
+                    let window = web_sys::window;
+                    let host: String = window().unwrap().location().host().unwrap();
+                    let protocol: String = window().unwrap().location().protocol().unwrap();
+                    let url = match protocol.as_str() {
+                        "http:" => {
+                            format!("ws://{}/ws/{}/{}/{}", host, v[0], v[1], v[2])
+                        }
+                        "https:" => {
+                            format!("wss://{}/ws/{}/{}/{}", host, v[0], v[1], v[2])
+                        }
+                        &_ => return false,
+                    };
+                    let task = match WebSocketService::connect_binary(&url, cbout, cbnot) {
+                        Err(e) => {
+                            ConsoleService::error(e);
+                            None
+                        }
+                        Ok(f) => Some(f),
+                    };
+                    self.ws = task;
+                }
+                true
+            }
+            Msg::Disconnected => {
+                self.ws = None;
+                ConsoleService::log("Disconnected");
+                true
+            }
+            Msg::Ignore => false,
+            Msg::Received(Ok(s)) => {
+                match s.msg_type {
+                    // ProducerServerType::Info => {
+                    //     let info = s.extra_fields.unwrap().info.unwrap();
+                    //     if info.is_open {
+                    //         self.is_open = "Close".to_string();
+                    //     } else {
+                    //         self.is_open = "Open".to_string();
+                    //     }
+                    //     self.game_id = info.game_id;
+                    //     self.turn = info.turn;
+                    //     self.graph_data
+                    //         .data(info.trending, info.supply_shock, info.subsidies);
+                    //     self.consumers.extend(info.consumers.into_iter());
+                    //     self.producers.extend(info.producers.into_iter());
+                    //     self.directors.extend(info.directors.into_iter());
+                    //     self.viewers.extend(info.viewers.into_iter());
+                    // }
+                    // DirectorServerType::Ping => {
+                    //     if let Some(ref mut task) = self.ws {
+                    //         ConsoleService::log("Sending Pong");
+                    //         task.send_binary(Ok(to_vec(&DirectorClientMsg {
+                    //             msg_type: DirectorClientType::Pong,
+                    //             extra_fields: None,
+                    //         })
+                    //         .unwrap()));
+                    //     }
+                    //     return false;
+                    // }
+                    // DirectorServerType::NewConsumer => {
+                    //     self.consumers
+                    //         .insert(s.extra_fields.unwrap().target.unwrap(), Participant::new());
+                    // }
+                    // DirectorServerType::NewProducer => {
+                    //     self.producers
+                    //         .insert(s.extra_fields.unwrap().target.unwrap(), Participant::new());
+                    // }
+                    // DirectorServerType::NewDirector => {
+                    //     self.directors
+                    //         .insert(s.extra_fields.unwrap().target.unwrap(), Participant::new());
+                    // }
+                    // DirectorServerType::NewViewer => {
+                    //     self.viewers
+                    //         .insert(s.extra_fields.unwrap().target.unwrap(), Participant::new());
+                    // }
+                    // DirectorServerType::ParticipantKicked => {
+                    //     let target = s.extra_fields.unwrap().target;
+                    //     ConsoleService::log("Received Message to kick: ");
+                    //     ConsoleService::log(&target.clone().unwrap());
+                    //     //* remove any references to this id
+                    //     self.producers.remove(target.as_ref().unwrap());
+                    //     self.consumers.remove(target.as_ref().unwrap());
+                    //     self.directors.remove(target.as_ref().unwrap());
+                    //     self.viewers.remove(target.as_ref().unwrap());
+                    // }
+                    // DirectorServerType::GameOpened => {
+                    //     self.is_open = "Close".to_owned();
+                    // }
+                    // DirectorServerType::GameClosed => {
+                    //     self.is_open = "Open".to_owned();
+                    // }
+                    // DirectorServerType::NewOffsets => {
+                    //     let offsets = s.extra_fields.unwrap().offsets.unwrap();
+                    //     self.graph_data.data(
+                    //         offsets.trending,
+                    //         offsets.supply_shock,
+                    //         offsets.subsidies,
+                    //     );
+                    // }
+                    // DirectorServerType::TurnAdvanced => {
+                    //     self.turn += 1;
+                    // }
+                    // DirectorServerType::DisconnectedPlayer => {
+                    //     let target = s.extra_fields.clone().unwrap().target.unwrap();
+                    //     match s.extra_fields.unwrap().participant_type.unwrap().as_str() {
+                    //         "consumer" => self
+                    //             .consumers
+                    //             .update_status(&target, PlayerState::Disconnected),
+                    //         "producer" => self
+                    //             .producers
+                    //             .update_status(&target, PlayerState::Disconnected),
+                    //         "director" => self
+                    //             .directors
+                    //             .update_status(&target, PlayerState::Disconnected),
+                    //         "viewer" => self
+                    //             .viewers
+                    //             .update_status(&target, PlayerState::Disconnected),
+                    //         _ => (),
+                    //     }
+                    // }
+                    // DirectorServerType::UnresponsivePlayer => {
+                    //     let target = s.extra_fields.clone().unwrap().target.unwrap();
+                    //     match s.extra_fields.unwrap().participant_type.unwrap().as_str() {
+                    //         "consumer" => self
+                    //             .consumers
+                    //             .update_status(&target, PlayerState::Unresponsive),
+                    //         "producer" => self
+                    //             .producers
+                    //             .update_status(&target, PlayerState::Unresponsive),
+                    //         "director" => self
+                    //             .directors
+                    //             .update_status(&target, PlayerState::Unresponsive),
+                    //         "viewer" => self
+                    //             .viewers
+                    //             .update_status(&target, PlayerState::Unresponsive),
+                    //         _ => (),
+                    //     }
+                    // }
+                    // DirectorServerType::ConnectedPlayer => {
+                    //     let target = s.extra_fields.clone().unwrap().target.unwrap();
+                    //     match s.extra_fields.unwrap().participant_type.unwrap().as_str() {
+                    //         "consumer" => self
+                    //             .consumers
+                    //             .update_status(&target, PlayerState::Connected),
+                    //         "producer" => self
+                    //             .producers
+                    //             .update_status(&target, PlayerState::Connected),
+                    //         "director" => self
+                    //             .directors
+                    //             .update_status(&target, PlayerState::Connected),
+                    //         "viewer" => self.viewers.update_status(&target, PlayerState::Connected),
+                    //         _ => (),
+                    //     }
+                    // }
+                    // DirectorServerType::ServerKicked => {
+                    //     self.ws = None;
+                    // }
+                    _ => {}
+                }
+                true
+            }
+            Msg::Received(Err(_)) => {
+                ConsoleService::log("Error reading information from WebSocket");
+                true
+            }
+            Msg::PrepWsConnect => {
+                let post_request = Request::post("/wsprep").body(yew::format::Nothing).unwrap();
+                let callback = self
+                    .link
+                    .callback(|response: Response<Result<String, Error>>| {
+                        if response.status().is_success() {
+                            ConsoleService::log("Sent Request and Received Response with code: ");
+                            ConsoleService::log(response.status().as_str());
+                            let mut cookie_values: Vec<String> = Vec::new();
+                            for cookie_value in response.body().as_ref().unwrap().split('\n') {
+                                cookie_values.push(cookie_value.to_owned());
+                            }
+                            Msg::Connect(cookie_values)
+                        } else {
+                            ConsoleService::log("Failed to Send Websocket Open Request");
+                            Msg::Ignore
+                        }
+                    });
+                let fetch_task = fetch::FetchService::fetch(post_request, callback).unwrap();
+                self.fetch_task = Some(fetch_task);
+                false
+            }
+            Msg::StartClick(event) => {
+                if let Some(target) = event.current_target() {
+                    let element: SvggElement = target.dyn_ref::<SvggElement>().unwrap().clone();
+                    let matrix: web_sys::SvgMatrix =
+                        element.get_screen_ctm().unwrap().inverse().unwrap();
+                    self.graph_data.matrix = Some((
+                        matrix.a().into(),
+                        matrix.b().into(),
+                        matrix.c().into(),
+                        matrix.d().into(),
+                        matrix.e().into(),
+                        matrix.f().into(),
+                    ));
+                    let matrix = self.graph_data.matrix.unwrap();
+                    let temp_x: f64 = event.client_x().into();
+                    let temp_y: f64 = event.client_y().into();
+                    let mouse_x = matrix.0 * temp_x + matrix.2 * temp_y + matrix.4;
+                    let mouse_y = matrix.1 * temp_x + matrix.3 * temp_y + matrix.5;
+                    self.graph_data.producer_move(mouse_x, mouse_y);
+                    self.graph_data.dragging = true;
+                }
+                true
+            }
+            Msg::MouseMove(event) => {
+                if self.graph_data.dragging {
+                    let matrix = self.graph_data.matrix.unwrap();
+                    let temp_x: f64 = event.client_x().into();
+                    let temp_y: f64 = event.client_y().into();
+                    let mouse_x = matrix.0 * temp_x + matrix.2 * temp_y + matrix.4;
+                    let mouse_y = matrix.1 * temp_x + matrix.3 * temp_y + matrix.5;
+                    self.graph_data.producer_move(mouse_x, mouse_y);
+                    true
+                } else {
+                    false
+                }
+            }
+            Msg::EndDrag => {
+                self.graph_data.dragging = false;
+                self.graph_data.reset_matrix();
+                false
+            }
+            Msg::StartTouch(event) => {
+                let list = event.changed_touches();
+                if list.length() == 1 {
+                    if let Some(touch) = list.get(0) {
+                        let window = web_sys::window().unwrap();
+                        let document = window.document().unwrap();
+                        let temp_x: f64 = touch.client_x().into();
+                        let temp_y: f64 = touch.client_y().into();
+                        let string = "Producer Group";
+                        let element: SvggElement = document
+                            .get_element_by_id(string)
+                            .unwrap()
+                            .dyn_ref::<web_sys::SvggElement>()
+                            .unwrap()
+                            .clone();
+                        let matrix: web_sys::SvgMatrix =
+                            element.get_screen_ctm().unwrap().inverse().unwrap();
+                        self.graph_data.matrix = Some((
+                            matrix.a().into(),
+                            matrix.b().into(),
+                            matrix.c().into(),
+                            matrix.d().into(),
+                            matrix.e().into(),
+                            matrix.f().into(),
+                        ));
+                        let matrix = self.graph_data.matrix.unwrap();
+                        let mouse_x = matrix.0 * temp_x + matrix.2 * temp_y + matrix.4;
+                        let mouse_y = matrix.1 * temp_x + matrix.3 * temp_y + matrix.5;
+                        self.graph_data.producer_move(mouse_x, mouse_y);
+                        self.graph_data.dragging = true;
+                    }
+                }
+                true
+            }
+            Msg::TouchMove(event) => {
+                if self.graph_data.dragging {
+                    let list = event.touches();
+                    if list.length() == 1 {
+                        if let Some(touch) = list.get(0) {
+                            let temp_x: f64 = touch.client_x().into();
+                            let temp_y: f64 = touch.client_y().into();
+                            let matrix = self.graph_data.matrix.unwrap();
+                            let mouse_x = matrix.0 * temp_x + matrix.2 * temp_y + matrix.4;
+                            let mouse_y = matrix.1 * temp_x + matrix.3 * temp_y + matrix.5;
+                            self.graph_data.producer_move(mouse_x, mouse_y);
+                            return true;
+                        }
+                    } else {
+                        self.graph_data.dragging = false;
+                    }
+                }
+                false
+            }
+            Msg::Quantity(event) => {
+                self.quantity = event.as_f64().unwrap();
+                ConsoleService::log(&event.as_f64().unwrap().to_string());
+                false
+            }
+            Msg::Price(event) => {
+                self.price = event.as_f64().unwrap();
+                false
+            }
+            Msg::Submit => {
+                false
+            }
+        }
+    }
+
+    fn change(&mut self, _props: Self::Properties) -> ShouldRender {
+        false
+    }
+
+    fn rendered(&mut self, first_render: bool) {
+        if first_render {
+            self.link.send_message(Msg::PrepWsConnect);
+        }
+    }
+
+    fn view(&self) -> Html {
+        let producer_click_down = self.link.callback(|event| Msg::StartClick(event));
+        let consumer_click_down = self.link.callback(|event| Msg::StartClick(event));
+        let click_move = self.link.callback(Msg::MouseMove);
+        let consumer_touch_start = self.link.callback(|event| Msg::StartTouch(event));
+        let producer_touch_start = self.link.callback(|event| Msg::StartTouch(event));
+        let touch_move = self.link.callback(Msg::TouchMove);
+        let end_drag = self.link.callback(|_: yew::MouseEvent| Msg::EndDrag);
+        let change_quantity = self.link.callback(Msg::Quantity);
+        let change_price = self.link.callback(Msg::Price);
+
+        html! {
+            <>
+                // <div class="container text-center">
+                // <h1> {"Director Controls"}</h1>
+                //     <div class="row" style="margin-right: 0;margin-left: 0;">
+                //         <div class="col-md-4 text-center" style="padding: 0;min-height: 40vmin;">
+                //             <div class="row">
+                //                 <div class="col" style="min-height: 30vmin;">
+                //                     <h2>{"Events"}</h2>
+                //                     <div class="btn-group-vertical btn-group-lg" role="group">
+                //                         <button onclick={self.link.callback(|_| Msg::AdjustOffset(1))} class="btn btn-primary border rounded" type="button">{format!("Supply Shock: {}", self.graph_data.supply_shock)}</button>
+                //                         <button onclick={self.link.callback(|_| Msg::AdjustOffset(2))} class="btn btn-primary border rounded" type="button">{format!("Subsidies: {}", self.graph_data.subsidies)}</button>
+                //                         <button onclick={self.link.callback(|_| Msg::AdjustOffset(3))} class="btn btn-primary border rounded" type="button">{format!("Trending: {}", self.graph_data.trending)}</button>
+                //                     </div>
+                //                 </div>
+                //             </div>
+                //             <div class="row">
+                //                 <div class="col" style="min-height: 15vmin;">
+                //                     <h2>{"Control Flow"}</h2>
+                //                     <button onclick={self.link.callback(|_| Msg::NextTurn)} class="btn btn-lg btn-warning border rounded" type="button">{"Force Next Turn"}</button>
+                //                 </div>
+                //             </div>
+                //             <div class="row">
+                //                 <div class="col" style="min-height: 40vmin;">
+                //                     <h2>{"Danger"}</h2>
+                //                         <div class="btn-group-vertical btn-group-lg" role="group">
+                //                         <button onclick=open_close class="btn btn-primary border rounded" type="button">{&self.is_open}</button>
+                //                         <button class="btn btn-danger border rounded" type="button" data-toggle="modal" data-target="#confirm-modal">{"End Game"}</button>
+                //                     </div>
+                //                 </div>
+                //             </div>
+                //         </div>
+                //         <div class="col-md-4 text-center" style="padding: 0;min-height: 40vmin;">
+                //             <div class="d-flex flex-column" style="height: 100%;width: 100%;">
+                //                 <h2>{"Graphs"}</h2>
+                //                 <div class="d-xl-flex flex-fill justify-content-xl-center align-items-xl-center" style="width: 100%">
+                //                     <svg viewBox="-5 -5 100 100" preserveAspectRatio="xMidYMid meet" fill="white">
+                //                         <g id="Consumer Group" transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=consumer_click_down onmousemove=click_move.clone() onmouseup=end_drag.clone() onmouseleave=end_drag.clone() ontouchstart=consumer_touch_start ontouchmove=touch_move.clone()>
+                //                             <rect width="105" height="105" x="-5" y="-5" fill-opacity="0%"></rect>
+                //                             <text x="10" y="-30" style="font: 10px Georgia; " transform="scale(1,-1)">{format!("{:.2}, {:.2}",self.graph_data.consumer_x,self.graph_data.consumer_y)}</text>
+                //                             <path d="M 0 80 C 40 80, 65 70, 80 0" stroke="#6495ED" stroke-width="1" stroke-opacity="60%" fill-opacity="0%" stroke-dasharray="4" />
+                //                             <path d={
+                //                                 let temp: i16 = self.graph_data.trending.into();
+                //                                 format!("M 0 {} C 40 {}, 65 {}, 80 {}", temp+80, temp+80, temp+70, temp)
+                //                             }  stroke="white" stroke-width="1" fill="transparent"/>
+                //                             <polygon points="0,95 -5,90 -1,90 -1,-1 90,-1 90,-5 95,0 90,5 90,1 1,1 1,90 5,90" fill="#1F6DDE" />
+                //                             <line x1="25" x2="25" y1="2" y2="-2" stroke="white" stroke-width="1"/>
+                //                             <line x1="50" x2="50" y1="3" y2="-3" stroke="white" stroke-width="1"/>
+                //                             <text y="-5" x="47" style="font: 5px Georgia; " transform="scale(1,-1)">{"50"}</text>
+                //                             <line x1="75" x2="75" y1="2" y2="-2" stroke="white" stroke-width="1"/>
+                //                             <line y1="25" y2="25" x1="2" x2="-2" stroke="white" stroke-width="1"/>
+                //                             <line y1="50" y2="50" x1="3" x2="-3" stroke="white" stroke-width="1"/>
+                //                             <text x="5" y="-49" style="font: 5px Georgia; " transform="scale(1,-1)">{"50"}</text>
+                //                             <line y1="75" y2="75" x1="2" x2="-2" stroke="white" stroke-width="1"/>
+                //                             <circle cx={format!("{:.2}",self.graph_data.consumer_x)} cy={format!("{:.2}",self.graph_data.consumer_y)} r="3" stroke="white" fill="#F34547" stroke-width="0.2"/>
+                //                         </g>
+                //                     </svg>
+                //                 </div>
+                //                 <div class="d-xl-flex flex-fill justify-content-xl-center align-items-xl-center" style="width: 100%;">
+                //                     <svg viewBox="-5 -5 100 100" preserveAspectRatio="xMidYMid meet" fill="white">
+                //                         <g id="Producer Group" transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=producer_click_down onmousemove=click_move onmouseup=end_drag.clone() onmouseleave=end_drag.clone() ontouchstart=producer_touch_start ontouchmove=touch_move>
+                //                             <rect width="105" height="105" x="-5" y="-5" fill-opacity="0%"></rect>
+                //                             <text x="10" y="-70" style="font: 10px Georgia; " transform="scale(1,-1)">{format!("{:.2}, {:.2}",self.graph_data.producer_x,self.graph_data.producer_y)}</text>
+                //                             <path d="M 0 80 C 10 -10, 45 -10, 80 100" stroke="#6495ED" stroke-width="1" stroke-opacity="60%" fill-opacity="0%" stroke-dasharray="4" />
+                //                             <path d={
+                //                                 let net: i16 = i16::from(self.graph_data.supply_shock) - i16::from(self.graph_data.subsidies);
+                //                                 format!("M 0 {} C 10 {}, 45 {}, 80 {}", net+80, net-10, net-10, net+100)
+                //                             } stroke="white" stroke-width="1" fill="transparent"/>
+                //                             <polygon points="0,95 -5,90 -1,90 -1,-1 90,-1 90,-5 95,0 90,5 90,1 1,1 1,90 5,90" fill="#1F6DDE" />
+                //                             <line x1="25" x2="25" y1="2" y2="-2" stroke="white" stroke-width="1"/>
+                //                             <line x1="50" x2="50" y1="3" y2="-3" stroke="white" stroke-width="1"/>
+                //                             <text y="-5" x="47" style="font: 5px Georgia; " transform="scale(1,-1)">{"50"}</text>
+                //                             <line x1="75" x2="75" y1="2" y2="-2" stroke="white" stroke-width="1"/>
+                //                             <line y1="25" y2="25" x1="2" x2="-2" stroke="white" stroke-width="1"/>
+                //                             <line y1="50" y2="50" x1="3" x2="-3" stroke="white" stroke-width="1"/>
+                //                             <line y1="75" y2="75" x1="2" x2="-2" stroke="white" stroke-width="1"/>
+                //                             <circle cx={format!("{:.2}",self.graph_data.producer_x)} cy={format!("{:.2}",self.graph_data.producer_y)} r="3" stroke="white" fill="#F34547" stroke-width="0.2"/>
+                //                         </g>
+                //                     </svg>
+                //                 </div>
+                //             </div>
+                //         </div>
+                //         <div class="col-md-4 text-center" style="padding: 0;min-height: 40vmin;">
+                //             <h2>{"State"}</h2>
+                //             <p>{format!("Game ID: {}", self.game_id)}</p>
+                //             <p>{format!("Turn: {}", self.turn)}</p>
+                //             <div onclick=handle_click id="participants" style="overflow-y: scroll;max-height: 50vh;">
+                //                 <p class="lead" style="background: var(--dark);">{"Directors"}</p>
+                //                     {self.directors.render()}
+                //                     <p class="lead" style="background: var(--dark);">{"Viewers"}</p>
+                //                     {self.viewers.render()}
+                //                     <p class="lead" style="background: var(--dark);">{"Consumers"}</p>
+                //                     {self.consumers.render()}
+                //                     <p class="lead" style="background: var(--dark);">{"Producers"}</p>
+                //                     {self.producers.render()}
+                //             </div>
+                //         </div>
+                //     </div>
+                //     <footer>
+                //         <p>{"Built by Francis Chua"}</p>
+                //     </footer>
+                //     <div class="modal fade" role="dialog" tabindex="-1" id="confirm-modal">
+                //         <div class="modal-dialog" role="document">
+                //             <div class="modal-content">
+                //                 <div class="modal-header">
+                //                     <h4 class="modal-title">{"Confirm End Game"}</h4><button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">{"×"}</span></button>
+                //                 </div>
+                //                 <div class="modal-body">
+                //                     <p>{"Are you sure you want to end this game for all participants?"}</p>
+                //                 </div>
+                //                 <div class="modal-footer"><
+                //                     button class="btn btn-light" type="button" data-dismiss="modal">{"No"}</button>
+                //                     <button onclick=self.link.callback(|_| Msg::EndGame) class="btn btn-danger" type="button" data-dismiss="modal">{"Yes"}</button>
+                //                 </div>
+                //             </div>
+                //         </div>
+                //     </div>
+                // </div>
+            </>
+        }
+    }
+}
+
+#[wasm_bindgen(start)]
+pub fn run_app() {
+    App::<Model>::new().mount_to_body();
+}
