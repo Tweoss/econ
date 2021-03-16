@@ -36,69 +36,43 @@ struct Model {
     game_id: String,
     quantity: f64,
     price: f64,
+    score: f64,
+    balance: f64,
     // personal_id: String,
 }
 
-// impl Participant {
-//     fn new(produced: f64, price: f64, remaining: f64) -> Participant {
-//         Participant {
-//             produced,
-//             price,
-//             remaining,
-//     }
-//     fn render(&self, id: String) -> Html {
-//         let icon = match self.took_turn {
-//             Some(true) => html! {<i class="fa fa-check"></i>},
-//             Some(false) => html! {<i class="fa fa-remove"></i>},
-//             None => html! {<></>},
-//         };
-//         match self.state {
-//             PlayerState::Unresponsive => {
-//                 html! {
-//                     <p class="kickable unresponsive" id={id.clone()}>{id.clone()}{"\u{00a0}"}{"\u{00a0}"} <i class="fa fa-signal"></i> {
-//                         icon
-//                     }</p>
-//                 }
-//             }
-//             PlayerState::Connected => {
-//                 html! {
-//                     <p class="kickable live" id={id.clone()}>{id.clone()}{"\u{00a0}"}{"\u{00a0}"} <i class="fa fa-user"></i> {icon}</p>
-//                 }
-//             }
-//             PlayerState::Disconnected => {
-//                 html! {
-//                     <p class="kickable" id={id.clone()}>{id.clone()}{"\u{00a0}"}{"\u{00a0}"} <i class="fa fa-user-o"></i> {icon}</p>
-//                 }
-//             }
-//             PlayerState::Kicked => {
-//                 html! {
-//                     <p class="kicked">{id.clone()}</p>
-//                 }
-//             }
-//         }
-//     }
-// }
+impl Participant {
+    fn new(produced: f64, price: f64, remaining: f64) -> Participant {
+        Participant {
+            produced,
+            price,
+            remaining,
+        }
+    }
+    fn render(&self, id: String) -> Html {
+        html! {
+            <div class="seller">
+                <p class="d-flex flex-grow-1 id" style="margin-bottom: 0px;">{&id}<br/></p>
+                <p class="text-center d-xl-flex flex-grow-1 quantity" style="margin-bottom: 0px;">{format!("${:.2}",self.price)}</p>
+                <p class="text-center d-xl-flex flex-grow-1 quantity" style="margin-bottom: 0px;">{format!("{}/{}",self.remaining,self.produced)}</p>
+            </div>
+        }
+    }
+}
 
-// trait ParticipantCollection {
-//     fn render(&self) -> Html;
-//     fn update_status(&mut self, id: &str, status: PlayerState);
-// }
+trait ParticipantCollection {
+    fn render(&self) -> Html;
+}
 
-// impl ParticipantCollection for HashMap<String, Participant> {
-//     fn render(&self) -> Html {
-//         html! {
-//             <>
-//                 {for self.keys().zip(self.values()).map(|tuple| tuple.1.render(tuple.0.to_string()))}
-
-//             </>
-//         }
-//     }
-//     fn update_status(&mut self, id: &str, status: PlayerState) {
-//         if let Some(participant) = self.get_mut(id) {
-//             participant.state = status;
-//         }
-//     }
-// }
+impl ParticipantCollection for HashMap<String, Participant> {
+    fn render(&self) -> Html {
+        html! {
+            <>
+                {for self.keys().zip(self.values()).map(|tuple| tuple.1.render(tuple.0.to_string()))}
+            </>
+        }
+    }
+}
 
 // ! Make sure allowed graph values never goes below 0.
 struct Graphs {
@@ -273,6 +247,8 @@ impl Component for Model {
             game_id: "".to_string(),
             turn: 0,
             price: 0.,
+            balance: 0.,
+            score: 0.,
             quantity: 0.,
         }
     }
@@ -341,17 +317,17 @@ impl Component for Model {
                     //     self.directors.extend(info.directors.into_iter());
                     //     self.viewers.extend(info.viewers.into_iter());
                     // }
-                    // DirectorServerType::Ping => {
-                    //     if let Some(ref mut task) = self.ws {
-                    //         ConsoleService::log("Sending Pong");
-                    //         task.send_binary(Ok(to_vec(&DirectorClientMsg {
-                    //             msg_type: DirectorClientType::Pong,
-                    //             extra_fields: None,
-                    //         })
-                    //         .unwrap()));
-                    //     }
-                    //     return false;
-                    // }
+                    ProducerServerType::Ping => {
+                        if let Some(ref mut task) = self.ws {
+                            ConsoleService::log("Sending Pong");
+                            task.send_binary(Ok(to_vec(&ProducerClientMsg {
+                                msg_type: ProducerClientType::Pong,
+                                choice: None,
+                            })
+                            .unwrap()));
+                        }
+                        return false;
+                    }
                     // DirectorServerType::NewConsumer => {
                     //     self.consumers
                     //         .insert(s.extra_fields.unwrap().target.unwrap(), Participant::new());
@@ -612,6 +588,83 @@ impl Component for Model {
 
         html! {
             <>
+                <div class="container text-center">
+                    <h1>{"Producer"}</h1>
+                    <div class="row" style="margin-right: 0;margin-left: 0;">
+                        <div class="col-md-6 text-center" style="padding: 0;min-height: 40vmin;">
+                            <div class="d-flex flex-column" style="height: 100%;width: 100%;">
+                                <h2>{"Graphs"}</h2>
+                                <div class="d-xl-flex flex-fill justify-content-xl-center align-items-xl-center" style="width: 100%;">
+                                    <svg viewBox="-5 -5 100 100" preserveAspectRatio="xMidYMid meet" fill="white" >
+                                        <g id="Producer Group" transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=producer_click_down onmousemove=click_move onmouseup=end_drag.clone() onmouseleave=end_drag.clone() ontouchstart=producer_touch_start ontouchmove=touch_move>
+                                        // <g transform="scale(1,-1) translate(0,-90)" style="cursor:cell">
+                                            <rect width="105" height="105" x="-5" y="-5" fill-opacity="0%"></rect>
+                                            <text x="10" y="-70" style="font: 10px Georgia; " transform="scale(1,-1)">{format!("{:.2}, {:.2}",self.graph_data.producer_x,self.graph_data.producer_y)}</text>
+                                            // <text x="10" y="-70" style="font: 10px Georgia; " transform="scale(1,-1)">32.50, 15.00</text>
+            
+                                            // <path d="M 0 80 C 10 -10, 50 -10, 80 100" stroke="white" stroke-width="1" fill="transparent"/>
+                                            <path d="M 0 80 C 10 -10, 45 -10, 80 100" stroke="#6495ED" stroke-width="1" stroke-opacity="60%" fill-opacity="0%" stroke-dasharray="4" />
+                                            <path d={
+                                                let net: i16 = i16::from(self.graph_data.supply_shock) - i16::from(self.graph_data.subsidies);
+                                                format!("M 0 {} C 10 {}, 45 {}, 80 {}", net+80, net-10, net-10, net+100)
+                                            } stroke="white" stroke-width="1" fill="transparent"/>
+                                            <polygon points="0,95 -5,90 -1,90 -1,-1 90,-1 90,-5 95,0 90,5 90,1 1,1 1,90 5,90" fill="#1F6DDE" />
+            
+                                            <line x1="25" x2="25" y1="2" y2="-2" stroke="white" stroke-width="1"/>
+                                            <line x1="50" x2="50" y1="3" y2="-3" stroke="white" stroke-width="1"/>
+                                            <text y="-5" x="47" style="font: 5px Georgia; " transform="scale(1,-1)">{"50"}</text>
+                                            <line x1="75" x2="75" y1="2" y2="-2" stroke="white" stroke-width="1"/>
+                                            
+                                            <line y1="25" y2="25" x1="2" x2="-2" stroke="white" stroke-width="1"/>
+                                            <line y1="50" y2="50" x1="3" x2="-3" stroke="white" stroke-width="1"/>
+                                            <line y1="75" y2="75" x1="2" x2="-2" stroke="white" stroke-width="1"/>
+                                            
+                                            // <circle cx="32.5" cy="15" r="3" stroke="white" fill="#F34547" stroke-width="0.2"/>
+                                            <circle cx={format!("{:.2}",self.graph_data.producer_x)} cy={format!("{:.2}",self.graph_data.producer_y)} r="3" stroke="white" fill="#F34547" stroke-width="0.2"/>
+                                        </g>
+                                    </svg>
+                                </div>
+                                <div class="d-flex">
+                                    <p class="text-center text-light mb-auto text-info" style="width: 50%;">{format!("Balance: {}", self.balance)}</p>
+                                    <p class="text-center text-light mb-auto text-info" style="width: 50%;">{format!("Score: {}", self.score)}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 text-center d-flex flex-column" style="padding: 0;min-height: 40vmin;">
+                            <h2>{"Marketplace"}</h2>
+                            <p>{format!("Game ID: {}", self.game_id)}</p>
+                            <p>{format!("Turn: {}", self.turn)}</p>
+                            <div class="d-flex flex-column flex-grow-1 marketplace">
+                                <h4>{"Previous Turn"}</h4>
+                                <div class="flex-grow-1 flex-shrink-1 sellers">
+                                    {self.producers.render()}
+                                    // <div class="seller">
+                                    //     <p class="d-flex flex-grow-1 id" style="margin-bottom: 0px;">78b6a858-2d25-489a-8e76-7a69d9e70903<br></p>
+                                    //     <p class="text-center d-xl-flex flex-grow-1 quantity" style="margin-bottom: 0px;">$30</p>
+                                    //     <p class="text-center d-xl-flex flex-grow-1 quantity" style="margin-bottom: 0px;">85/87</p>
+                                    // </div>
+                                    // <div class="seller">
+                                    //     <p class="d-flex flex-grow-1 id" style="margin-bottom: 0px;">78b6a858-2d25-489a-8e76-7a69d9e70903<br></p>
+                                    //     <p class="text-center d-xl-flex flex-grow-1 quantity" style="margin-bottom: 0px;">$30</p>
+                                    //     <p class="text-center d-xl-flex flex-grow-1 quantity" style="margin-bottom: 0px;">85/87</p>
+                                    // </div>
+                                    // <div class="seller">
+                                    //     <p class="d-flex flex-grow-1 id" style="margin-bottom: 0px;">78b6a858-2d25-489a-8e76-7a69d9e70903<br></p>
+                                    //     <p class="text-center d-xl-flex flex-grow-1 quantity" style="margin-bottom: 0px;">$30</p>
+                                    //     <p class="text-center d-xl-flex flex-grow-1 quantity" style="margin-bottom: 0px;">85/87</p>
+                                    // </div>
+                                </div>
+                            </div>
+                            <form>
+                                <div class="form-group" style="width: 50%;"><label style="width: 40%;">{"Quantity"}</label><input class="form-control" type="number" style="width: 60%;background: var(--secondary);color: var(--white);text-align: center;" placeholder="0" min="0"/></div>
+                                <div class="form-group"><label for="Quantity" style="width: 40%;">{"Price"}</label><input class="form-control" type="number" style="width: 60%;color: var(--white);background: var(--secondary);text-align: center;" placeholder="0" min="0"/></div>
+                            </form><button class="btn btn-danger disabled btn-block flex-grow-0 flex-shrink-1" type="submit" disabled=false>{"Submit and End Turn"}</button>
+                        </div>
+                    </div>
+                    <footer>
+                        <p>{"Built by Francis Chua"}</p>
+                    </footer>
+                </div>
                 // <div class="container text-center">
                 // <h1> {"Director Controls"}</h1>
                 //     <div class="row" style="margin-right: 0;margin-left: 0;">
