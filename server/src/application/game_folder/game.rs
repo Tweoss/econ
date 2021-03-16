@@ -1,6 +1,6 @@
 use super::participants::{
 	consumer_folder::consumer::ConsumerState, director_folder::{director::DirectorState, director_structs},
-	producer_folder::producer::ProducerState, viewer_folder::viewer::ViewerState,
+	producer_folder::{producer::ProducerState, producer_structs}, viewer_folder::viewer::ViewerState,
 };
 // use crate::application::game_folder::participants::director_folder::director_structs;
 use actix::prelude::*;
@@ -8,8 +8,10 @@ use actix::prelude::*;
 use crate::application::app::AppState;
 use crate::application::app_to_game::*;
 use crate::application::game_folder::game_to_director;
+use crate::application::game_folder::game_to_producer;
 use crate::application::game_folder::game_to_participant;
 use crate::application::game_folder::participants::director_folder::director_to_game;
+use crate::application::game_folder::participants::producer_folder::producer_to_game;
 use crate::application::game_folder::participants::participant_to_game;
 
 // use super::participants::json;
@@ -27,6 +29,7 @@ pub struct Game {
 	producers: RwLock<HashMap<String, ProducerState>>,
 	directors: RwLock<HashMap<String, DirectorState>>,
 	viewers: RwLock<HashMap<String, ViewerState>>,
+	past_turn: RwLock<HashMap<String, producer_structs::Participant>>,
 	id_main_director: String,
 	state_main_director: DirectorState,
 	is_open: bool,
@@ -61,6 +64,7 @@ impl Game {
 			consumers: RwLock::new(HashMap::new()),
 			directors: RwLock::new(HashMap::new()),
 			viewers: RwLock::new(HashMap::new()),
+			past_turn: RwLock::new(HashMap::new()),
 			id_main_director,
 			state_main_director: DirectorState::new(),
 			is_open: false,
@@ -167,6 +171,28 @@ impl Game {
 			game_id: self.game_id.clone(),
 		}
 		
+	}
+	fn get_producer_info(&self, id: String) -> producer_structs::Info {
+		let mut producers = Vec::new();
+		for producer in self.past_turn.read().unwrap().iter() {
+			producers.push((producer.0.clone(), producer.1.clone()));
+		}
+		// let score = self.producers.read().unwrap().get(&id).unwrap().score;
+		let turn = self.turn;
+		let game_id = self.game_id.clone();
+		let supply_shock = self.supply_shock;
+		let subsidies = self.subsidies;
+		let producer = self.producers.read().unwrap();
+		let balance = producer.get(&id).unwrap().balance; let score = producer.get(&id).unwrap().score;
+		producer_structs::Info {
+			producers,
+			turn,
+			game_id,
+			supply_shock,
+			subsidies,
+			balance,
+			score,
+		}
 	}
 }
 
@@ -423,6 +449,29 @@ impl Handler<director_to_game::ForceTurn> for Game {
 	}
 }
 
+impl Handler<producer_to_game::RegisterAddressGetInfo> for Game {
+	// type Result = MessageResult<director_structs::Info>;
+	type Result = ();
+	fn handle(
+		&mut self,
+		msg: producer_to_game::RegisterAddressGetInfo,
+		_: &mut Context<Self>,
+	) -> Self::Result {
+		if let Some(mut addr_value) = self.producers.write().unwrap().get_mut(&msg.user_id) {
+			addr_value.addr = Some(msg.addr.clone());
+		}
+		msg.addr.do_send(game_to_producer::Info {info: self.get_producer_info(msg.user_id.clone())});
+		if let Some(addr) = &self.state_main_director.addr {
+			addr.do_send(game_to_director::Connected { id: msg.user_id.clone(), participant_type: "producer".to_string() });
+		}
+		for elem in self.directors.read().unwrap().values() {
+			if let Some(addr) = &elem.addr {
+				addr.do_send(game_to_director::Connected { id: msg.user_id.clone(), participant_type: "producer".to_string() });
+			}
+		}
+	}
+}
+
 impl Handler<participant_to_game::Unresponsive> for Game {
 	type Result = ();
 	fn handle(
@@ -430,7 +479,7 @@ impl Handler<participant_to_game::Unresponsive> for Game {
 		msg: participant_to_game::Unresponsive,
 		_: &mut Context<Self>,
 	) -> Self::Result {
-		println!("UNRESPONSIVE DIRECTOR: {}", &msg.id);
+		println!("Unresponsive {}: {}", &msg.participant_type, &msg.id);
 		if let Some(addr) = &self.state_main_director.addr {
 			addr.do_send(game_to_director::Unresponsive { id: msg.id.clone(), participant_type: msg.participant_type.clone() });
 		}

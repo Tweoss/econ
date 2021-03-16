@@ -12,7 +12,7 @@ pub enum ParticipantType {
 pub struct DirectorServerMsg {
 	pub msg_type: DirectorServerType,
 	// If the action requires a target
-	pub extra_fields: Option<ServerExtraField>,
+	pub extra_fields: Option<ServerExtraFields>,
 	// pub target: Option<String>,
 	// pub info: Option<Info>,
 }
@@ -79,7 +79,7 @@ pub struct Offsets {
 }
 
 #[derive(Debug, Serialize, Default)]
-pub struct ServerExtraField {
+pub struct ServerExtraFields {
 	pub target: Option<String>,
 	pub info: Option<Info>,
 	pub offsets: Option<Offsets>,

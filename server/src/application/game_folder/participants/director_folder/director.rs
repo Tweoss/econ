@@ -1,6 +1,6 @@
 use actix::Running;
 use actix::{Actor, ActorContext, Addr, AsyncContext};
-use std::time::Duration;
+// use std::time::Duration;
 use std::time::Instant;
 // use std::sync::Mutex;
 use actix::StreamHandler;
@@ -13,7 +13,7 @@ use crate::application::game_folder::game::Game;
 
 use crate::application::game_folder::participants::director_folder::director_structs::{
 	self, DirectorClientMsg, DirectorClientType, DirectorServerMsg, DirectorServerType,
-	ServerExtraField,
+	ServerExtraFields,
 };
 use crate::application::game_folder::participants::director_folder::director_to_game;
 use crate::application::game_folder::participants::participant_to_game;
@@ -25,9 +25,7 @@ use super::director_structs::ParticipantType;
 
 use serde_cbor::{from_slice, to_vec};
 
-const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(10);
-const CLIENT_TIMEOUT: Duration = Duration::from_secs(11);
-const CLIENT_TERMINATE: Duration = Duration::from_secs(30);
+use crate::application::game_folder::participants::json::{CLIENT_TERMINATE, CLIENT_TIMEOUT, HEARTBEAT_INTERVAL};
 
 pub struct DirectorState {
 	pub is_responsive: bool,
@@ -147,46 +145,51 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Director {
 				ctx.text(text);
 			}
 			Ok(ws::Message::Binary(bin)) => {
-				let message: DirectorClientMsg =
-					from_slice::<DirectorClientMsg>(&bin.to_vec()).unwrap();
-				println!("{:?}", message);
-				match message.msg_type {
-					DirectorClientType::EndGame => {
-						self.game_addr.do_send(director_to_game::EndGame {});
-						// self.app_addr.do_send(director_to_app::EndGame {
-						// 	game_id: self.game_id.clone(),
-						// });
-						// ctx.close(Some(actix_web_actors::ws::CloseReason::from(
-						// 	actix_web_actors::ws::CloseCode::Normal,
-						// )));
-						// ctx.close(None);
-						// ctx.stop();
+				if let Ok(message) =
+					from_slice::<DirectorClientMsg>(&bin.to_vec()) {
+					println!("{:?}", message);
+					match message.msg_type {
+						DirectorClientType::EndGame => {
+							self.game_addr.do_send(director_to_game::EndGame {});
+							// self.app_addr.do_send(director_to_app::EndGame {
+							// 	game_id: self.game_id.clone(),
+							// });
+							// ctx.close(Some(actix_web_actors::ws::CloseReason::from(
+							// 	actix_web_actors::ws::CloseCode::Normal,
+							// )));
+							// ctx.close(None);
+							// ctx.stop();
+						}
+						DirectorClientType::OpenGame => {
+							self.game_addr.do_send(director_to_game::OpenGame {});
+						}
+						DirectorClientType::CloseGame => {
+							self.game_addr.do_send(director_to_game::CloseGame {});
+						}
+						DirectorClientType::Pong => {
+							// self.hb = Instant::now();
+						}
+						DirectorClientType::Kick => {
+							self.game_addr.do_send(director_to_game::KickParticipant {
+								user_id: message.extra_fields.unwrap().target.unwrap(),
+							});
+						}
+						DirectorClientType::NewOffsets => {
+							let offsets = message.extra_fields.unwrap().offsets.unwrap();
+							self.game_addr.do_send(director_to_game::SetOffsets {
+								subsidies: offsets.subsidies,
+								supply_shock: offsets.supply_shock,
+								trending: offsets.trending,
+							})
+						}
+						DirectorClientType::NextTurn => {
+							self.game_addr.do_send(director_to_game::ForceTurn {});
+						} // _ => (),
 					}
-					DirectorClientType::OpenGame => {
-						self.game_addr.do_send(director_to_game::OpenGame {});
-					}
-					DirectorClientType::CloseGame => {
-						self.game_addr.do_send(director_to_game::CloseGame {});
-					}
-					DirectorClientType::Pong => {
-						// self.hb = Instant::now();
-					}
-					DirectorClientType::Kick => {
-						self.game_addr.do_send(director_to_game::KickParticipant {
-							user_id: message.extra_fields.unwrap().target.unwrap(),
-						});
-					}
-					DirectorClientType::NewOffsets => {
-						let offsets = message.extra_fields.unwrap().offsets.unwrap();
-						self.game_addr.do_send(director_to_game::SetOffsets {
-							subsidies: offsets.subsidies,
-							supply_shock: offsets.supply_shock,
-							trending: offsets.trending,
-						})
-					}
-					DirectorClientType::NextTurn => {
-						self.game_addr.do_send(director_to_game::ForceTurn {});
-					} // _ => (),
+
+				}
+				else {
+					println!("Invalid structure received");
 				}
 				self.reset_hb();
 				// self.hb = Instant::now();
@@ -199,7 +202,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Director {
 impl Handler<game_to_director::Info> for Director {
 	type Result = ();
 	fn handle(&mut self, msg: game_to_director::Info, ctx: &mut Self::Context) -> Self::Result {
-		let fields = ServerExtraField {
+		let fields = ServerExtraFields {
 			info: Some(msg.info),
 			..Default::default()
 		};
@@ -220,7 +223,7 @@ impl Handler<game_to_director::Unresponsive> for Director {
 		msg: game_to_director::Unresponsive,
 		ctx: &mut Self::Context,
 	) -> Self::Result {
-		let fields = ServerExtraField {
+		let fields = ServerExtraFields {
 			target: Some(msg.id),
 			participant_type: Some(msg.participant_type),
 			..Default::default()
@@ -242,7 +245,7 @@ impl Handler<game_to_director::Disconnected> for Director {
 		msg: game_to_director::Disconnected,
 		ctx: &mut Self::Context,
 	) -> Self::Result {
-		let fields = ServerExtraField {
+		let fields = ServerExtraFields {
 			target: Some(msg.id),
 			participant_type: Some(msg.participant_type),
 			..Default::default()
@@ -264,7 +267,7 @@ impl Handler<game_to_director::Connected> for Director {
 		msg: game_to_director::Connected,
 		ctx: &mut Self::Context,
 	) -> Self::Result {
-		let fields = ServerExtraField {
+		let fields = ServerExtraFields {
 			target: Some(msg.id),
 			participant_type: Some(msg.participant_type),
 			..Default::default()
@@ -286,7 +289,7 @@ impl Handler<game_to_director::NewParticipant> for Director {
 		msg: game_to_director::NewParticipant,
 		ctx: &mut Self::Context,
 	) -> Self::Result {
-		let fields = ServerExtraField {
+		let fields = ServerExtraFields {
 			target: Some(msg.id),
 			..Default::default()
 		};
@@ -330,7 +333,7 @@ impl Handler<game_to_director::KickedParticipant> for Director {
 		msg: game_to_director::KickedParticipant,
 		ctx: &mut Self::Context,
 	) -> Self::Result {
-		let fields = ServerExtraField {
+		let fields = ServerExtraFields {
 			target: Some(msg.id),
 			..Default::default()
 		};
@@ -393,7 +396,7 @@ impl Handler<game_to_participant::EndedGame> for Director {
 impl Handler<game_to_participant::NewOffsets> for Director {
 	type Result = ();
 	fn handle(&mut self, msg: game_to_participant::NewOffsets, ctx: &mut Self::Context) {
-		let fields = ServerExtraField {
+		let fields = ServerExtraFields {
 			offsets: Some(director_structs::Offsets {
 				subsidies: msg.subsidies,
 				supply_shock: msg.supply_shock,
