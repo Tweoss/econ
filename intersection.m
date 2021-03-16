@@ -57,4 +57,5 @@ disp(['y = ', num2str(calc_pos(t(1),p_y(1),p_y(2),p_y(3),p_y(4)+y_p))])
 disp(['err = ', num2str(ferr)])
 disp(['equilibrium producer_surplus = ', num2str(producer_surplus(t(1), p_x(1),p_x(2),p_x(3),p_x(4),p_y(1),p_y(2),p_y(3),p_y(4),y_p,x,y))])
 disp(['equilibrium consumer_surplus = ', num2str(consumer_surplus(t(2), c_x(1),c_x(2),c_x(3),c_x(4),c_y(1),c_y(2),c_y(3),c_y(4),y_c,x,y))])
+disp(['necessary funds. consumer: ', num2str(x*y), ', producer: ', num2str(integrate(t(1),p_x(1),p_x(2),p_x(3),p_x(4),p_y(1),p_y(2),p_y(3),p_y(4),y_p))])
 
