@@ -1,0 +1,1 @@
+export function __cargo_web_snippet_866e008abcec00e107b72d8bc54d63e088405503(Module) { document.getElementById("kicked-modal").click; }
