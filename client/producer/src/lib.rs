@@ -15,6 +15,8 @@ use yew::services::ConsoleService;
 
 use serde_cbor::{from_slice, to_vec};
 
+use stdweb::js;
+
 mod structs;
 use structs::{
     ClientExtraFields, ProducerClientMsg, ProducerClientType, ProducerServerMsg,
@@ -27,7 +29,6 @@ struct Model {
     link: ComponentLink<Self>,
     ws: Option<WebSocketTask>,
     // server_data: String, // data received from the server
-    text: String, // text in our input box
     fetch_task: Option<fetch::FetchTask>,
     // client_data: DirectorClientMsg,
     producers: HashMap<String, Participant>,
@@ -38,6 +39,8 @@ struct Model {
     price: f64,
     score: f64,
     balance: f64,
+    took_turn: bool,
+    error_msg: String,
     // personal_id: String,
 }
 
@@ -131,7 +134,7 @@ impl Graphs {
             + 3. * f64::powi(1. - t, 2) * t * -10.
             + 3. * (1. - t) * f64::powi(t, 2) * -10.
             + f64::powi(t, 3) * 100.
-            + f64::from(extra_y)
+            + f64::from(extra_y);
         // self.producer_y = f64::powi(1. - t, 3) * f64::from(extra_y + 80)
         //     + 3. * f64::powi(1. - t, 2) * t * f64::from(extra_y - 10)
         //     + 3. * (1. - t) * f64::powi(t, 2) * f64::from(extra_y - 10)
@@ -208,6 +211,24 @@ impl Graphs {
             y3,
         )
     }
+    fn get_t_for_quantity(&self, t_0: f64, t_2: f64, x: f64, iterations: u32) -> f64 {
+        let t_1 = (t_0+t_2)/2.;
+        if iterations == 0 {
+            return t_1;
+        }
+        let x_1 = 3. * f64::powi(1. - t_1, 2) * t_1 * 10.
+        + 3. * (1. - t_1) * f64::powi(t_1, 2) * 45.
+        + f64::powi(t_1, 3) * 80. - x;
+        if x_1 > 0. {
+            self.get_t_for_quantity(t_0, t_1, x, iterations - 1)
+        }
+        else if x_1 < 0. {
+            self.get_t_for_quantity(t_1, t_2, x, iterations - 1)
+        }
+        else {
+            t_1
+        }
+    }
 }
 
 enum Msg {
@@ -223,8 +244,8 @@ enum Msg {
     StartTouch(yew::TouchEvent),
     TouchMove(yew::TouchEvent),
     EndDrag,
-    Quantity(yew::InputEvent),
-    Price(yew::InputEvent),
+    Quantity(yew::InputData),
+    Price(yew::html::InputData),
     Submit,
     // ToggleOpen,
     // AdjustOffset(u8),
@@ -240,7 +261,6 @@ impl Component for Model {
         Self {
             link,
             ws: None,
-            text: String::new(),
             fetch_task: None,
             producers: HashMap::new(),
             graph_data: Graphs::new(),
@@ -250,6 +270,8 @@ impl Component for Model {
             balance: 0.,
             score: 0.,
             quantity: 0.,
+            took_turn: false,
+            error_msg: String::new(),
         }
     }
 
@@ -301,22 +323,17 @@ impl Component for Model {
             Msg::Ignore => false,
             Msg::Received(Ok(s)) => {
                 match s.msg_type {
-                    // ProducerServerType::Info => {
-                    //     let info = s.extra_fields.unwrap().info.unwrap();
-                    //     if info.is_open {
-                    //         self.is_open = "Close".to_string();
-                    //     } else {
-                    //         self.is_open = "Open".to_string();
-                    //     }
-                    //     self.game_id = info.game_id;
-                    //     self.turn = info.turn;
-                    //     self.graph_data
-                    //         .data(info.trending, info.supply_shock, info.subsidies);
-                    //     self.consumers.extend(info.consumers.into_iter());
-                    //     self.producers.extend(info.producers.into_iter());
-                    //     self.directors.extend(info.directors.into_iter());
-                    //     self.viewers.extend(info.viewers.into_iter());
-                    // }
+                    ProducerServerType::Info => {
+                        let info = s.extra_fields.unwrap().info.unwrap();
+                        ConsoleService::log(&format!("{:?}",info));
+                        self.producers.extend(info.producers.into_iter());
+                        self.game_id = info.game_id;
+                        self.turn = info.turn;
+                        self.graph_data.data(info.supply_shock, info.subsidies);
+                        self.balance = info.balance;
+                        self.score = info.score;
+                        self.took_turn = info.took_turn;
+                    }
                     ProducerServerType::Ping => {
                         if let Some(ref mut task) = self.ws {
                             ConsoleService::log("Sending Pong");
@@ -327,6 +344,22 @@ impl Component for Model {
                             .unwrap()));
                         }
                         return false;
+                    }
+                    ProducerServerType::ServerKicked => {
+                        self.ws = None;
+                        js! {
+                            document.getElementById("kicked-modal").click;
+                        }
+                    }
+                    ProducerServerType::ChoiceFailed => {
+                        self.error_msg = s.extra_fields.unwrap().fail_info.unwrap();
+                    }
+                    ProducerServerType::ChoiceSubmitted => {
+                        let tuple = s.extra_fields.unwrap().submitted_info.unwrap();
+                        self.score = tuple.0;
+                        self.balance = tuple.1;
+                        self.took_turn = true;
+                        self.error_msg = "".to_string();
                     }
                     // DirectorServerType::NewConsumer => {
                     //     self.consumers
@@ -386,40 +419,6 @@ impl Component for Model {
                     //         "viewer" => self
                     //             .viewers
                     //             .update_status(&target, PlayerState::Disconnected),
-                    //         _ => (),
-                    //     }
-                    // }
-                    // DirectorServerType::UnresponsivePlayer => {
-                    //     let target = s.extra_fields.clone().unwrap().target.unwrap();
-                    //     match s.extra_fields.unwrap().participant_type.unwrap().as_str() {
-                    //         "consumer" => self
-                    //             .consumers
-                    //             .update_status(&target, PlayerState::Unresponsive),
-                    //         "producer" => self
-                    //             .producers
-                    //             .update_status(&target, PlayerState::Unresponsive),
-                    //         "director" => self
-                    //             .directors
-                    //             .update_status(&target, PlayerState::Unresponsive),
-                    //         "viewer" => self
-                    //             .viewers
-                    //             .update_status(&target, PlayerState::Unresponsive),
-                    //         _ => (),
-                    //     }
-                    // }
-                    // DirectorServerType::ConnectedPlayer => {
-                    //     let target = s.extra_fields.clone().unwrap().target.unwrap();
-                    //     match s.extra_fields.unwrap().participant_type.unwrap().as_str() {
-                    //         "consumer" => self
-                    //             .consumers
-                    //             .update_status(&target, PlayerState::Connected),
-                    //         "producer" => self
-                    //             .producers
-                    //             .update_status(&target, PlayerState::Connected),
-                    //         "director" => self
-                    //             .directors
-                    //             .update_status(&target, PlayerState::Connected),
-                    //         "viewer" => self.viewers.update_status(&target, PlayerState::Connected),
                     //         _ => (),
                     //     }
                     // }
@@ -550,18 +549,43 @@ impl Component for Model {
                 }
                 false
             }
-            Msg::Quantity(event) => {
-                self.quantity = event.as_f64().unwrap();
-                ConsoleService::log(&event.as_f64().unwrap().to_string());
+            Msg::Quantity(data) => {
+                if let Ok(value) = data.value.parse() {
+                    self.quantity = value;
+                }
                 false
             }
-            Msg::Price(event) => {
-                self.price = event.as_f64().unwrap();
+            Msg::Price(data) => {
+                if let Ok(value) = data.value.parse() {
+                    self.price = value;
+                }
                 false
             }
             Msg::Submit => {
+                if let Some(ref mut task) = self.ws {
+                    ConsoleService::log("Sending Submit");
+                    let extra_fields = ClientExtraFields {
+                        quantity: self.quantity,
+                        price: self.price,
+                        t: self.graph_data.get_t_for_quantity(0., 1., self.quantity, 50),
+                    };
+                    task.send_binary(Ok(to_vec(&ProducerClientMsg {
+                        msg_type: ProducerClientType::Choice,
+                        choice: Some(extra_fields),
+                    })
+                    .unwrap()));
+                }
+                
+                // match element.class_name().as_ref() {
+                //     "kickable live" | "kickable unresponsive" | "kickable" => {
+                //         element.set_class_name("kicked");
+                //         return true;
+                //     }
+                //     _ => {}
+                // }
+                
                 false
-            }
+            },
         }
     }
 
@@ -576,15 +600,14 @@ impl Component for Model {
     }
 
     fn view(&self) -> Html {
-        let producer_click_down = self.link.callback(|event| Msg::StartClick(event));
-        let consumer_click_down = self.link.callback(|event| Msg::StartClick(event));
+        let producer_click_down = self.link.callback(Msg::StartClick);
         let click_move = self.link.callback(Msg::MouseMove);
-        let consumer_touch_start = self.link.callback(|event| Msg::StartTouch(event));
-        let producer_touch_start = self.link.callback(|event| Msg::StartTouch(event));
+        let producer_touch_start = self.link.callback(Msg::StartTouch);
         let touch_move = self.link.callback(Msg::TouchMove);
         let end_drag = self.link.callback(|_: yew::MouseEvent| Msg::EndDrag);
         let change_quantity = self.link.callback(Msg::Quantity);
         let change_price = self.link.callback(Msg::Price);
+        let submit = self.link.callback(|_| Msg::Submit);
 
         html! {
             <>
@@ -597,29 +620,21 @@ impl Component for Model {
                                 <div class="d-xl-flex flex-fill justify-content-xl-center align-items-xl-center" style="width: 100%;">
                                     <svg viewBox="-5 -5 100 100" preserveAspectRatio="xMidYMid meet" fill="white" >
                                         <g id="Producer Group" transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=producer_click_down onmousemove=click_move onmouseup=end_drag.clone() onmouseleave=end_drag.clone() ontouchstart=producer_touch_start ontouchmove=touch_move>
-                                        // <g transform="scale(1,-1) translate(0,-90)" style="cursor:cell">
                                             <rect width="105" height="105" x="-5" y="-5" fill-opacity="0%"></rect>
                                             <text x="10" y="-70" style="font: 10px Georgia; " transform="scale(1,-1)">{format!("{:.2}, {:.2}",self.graph_data.producer_x,self.graph_data.producer_y)}</text>
-                                            // <text x="10" y="-70" style="font: 10px Georgia; " transform="scale(1,-1)">32.50, 15.00</text>
-            
-                                            // <path d="M 0 80 C 10 -10, 50 -10, 80 100" stroke="white" stroke-width="1" fill="transparent"/>
                                             <path d="M 0 80 C 10 -10, 45 -10, 80 100" stroke="#6495ED" stroke-width="1" stroke-opacity="60%" fill-opacity="0%" stroke-dasharray="4" />
                                             <path d={
                                                 let net: i16 = i16::from(self.graph_data.supply_shock) - i16::from(self.graph_data.subsidies);
                                                 format!("M 0 {} C 10 {}, 45 {}, 80 {}", net+80, net-10, net-10, net+100)
                                             } stroke="white" stroke-width="1" fill="transparent"/>
                                             <polygon points="0,95 -5,90 -1,90 -1,-1 90,-1 90,-5 95,0 90,5 90,1 1,1 1,90 5,90" fill="#1F6DDE" />
-            
                                             <line x1="25" x2="25" y1="2" y2="-2" stroke="white" stroke-width="1"/>
                                             <line x1="50" x2="50" y1="3" y2="-3" stroke="white" stroke-width="1"/>
                                             <text y="-5" x="47" style="font: 5px Georgia; " transform="scale(1,-1)">{"50"}</text>
                                             <line x1="75" x2="75" y1="2" y2="-2" stroke="white" stroke-width="1"/>
-                                            
                                             <line y1="25" y2="25" x1="2" x2="-2" stroke="white" stroke-width="1"/>
                                             <line y1="50" y2="50" x1="3" x2="-3" stroke="white" stroke-width="1"/>
                                             <line y1="75" y2="75" x1="2" x2="-2" stroke="white" stroke-width="1"/>
-                                            
-                                            // <circle cx="32.5" cy="15" r="3" stroke="white" fill="#F34547" stroke-width="0.2"/>
                                             <circle cx={format!("{:.2}",self.graph_data.producer_x)} cy={format!("{:.2}",self.graph_data.producer_y)} r="3" stroke="white" fill="#F34547" stroke-width="0.2"/>
                                         </g>
                                     </svg>
@@ -638,149 +653,45 @@ impl Component for Model {
                                 <h4>{"Previous Turn"}</h4>
                                 <div class="flex-grow-1 flex-shrink-1 sellers">
                                     {self.producers.render()}
-                                    // <div class="seller">
-                                    //     <p class="d-flex flex-grow-1 id" style="margin-bottom: 0px;">78b6a858-2d25-489a-8e76-7a69d9e70903<br></p>
-                                    //     <p class="text-center d-xl-flex flex-grow-1 quantity" style="margin-bottom: 0px;">$30</p>
-                                    //     <p class="text-center d-xl-flex flex-grow-1 quantity" style="margin-bottom: 0px;">85/87</p>
-                                    // </div>
-                                    // <div class="seller">
-                                    //     <p class="d-flex flex-grow-1 id" style="margin-bottom: 0px;">78b6a858-2d25-489a-8e76-7a69d9e70903<br></p>
-                                    //     <p class="text-center d-xl-flex flex-grow-1 quantity" style="margin-bottom: 0px;">$30</p>
-                                    //     <p class="text-center d-xl-flex flex-grow-1 quantity" style="margin-bottom: 0px;">85/87</p>
-                                    // </div>
-                                    // <div class="seller">
-                                    //     <p class="d-flex flex-grow-1 id" style="margin-bottom: 0px;">78b6a858-2d25-489a-8e76-7a69d9e70903<br></p>
-                                    //     <p class="text-center d-xl-flex flex-grow-1 quantity" style="margin-bottom: 0px;">$30</p>
-                                    //     <p class="text-center d-xl-flex flex-grow-1 quantity" style="margin-bottom: 0px;">85/87</p>
-                                    // </div>
                                 </div>
                             </div>
                             <form>
-                                <div class="form-group" style="width: 50%;"><label style="width: 40%;">{"Quantity"}</label><input class="form-control" type="number" style="width: 60%;background: var(--secondary);color: var(--white);text-align: center;" placeholder="0" min="0"/></div>
-                                <div class="form-group"><label for="Quantity" style="width: 40%;">{"Price"}</label><input class="form-control" type="number" style="width: 60%;color: var(--white);background: var(--secondary);text-align: center;" placeholder="0" min="0"/></div>
-                            </form><button class="btn btn-danger disabled btn-block flex-grow-0 flex-shrink-1" type="submit" disabled=false>{"Submit and End Turn"}</button>
+                                <div class="form-group" style="width: 45%;"><label for="Quantity" style="width: 40%;">{"Quantity"}</label><input oninput=change_quantity class="form-control" type="number" style="width: 60%;background: var(--secondary);color: var(--white);text-align: center;" placeholder="0" min="0" max="100"/></div>
+                                <div class="form-group" style="width: 45%;"><label for="Price"    style="width: 40%;">{"Price"}   </label><input oninput=change_price class="form-control" type="number" style="width: 60%;color: var(--white);background: var(--secondary);text-align: center;" placeholder="0" min="0" max="100"/></div>
+                            </form>
+                            <div class="d-flex">
+                                <p class="text-center text-danger mb-auto text-info" style="width: 100%;">{&self.error_msg}</p>
+                            </div>
+                            {
+                                if self.took_turn {
+                                    html! {<button onclick=submit class="btn btn-danger disabled btn-block flex-grow-0 flex-shrink-1" type="submit" disabled=true>{"Submit and End Turn"}</button>}
+                                }
+                                else {
+                                    ConsoleService::log("TEST");
+                                    html! {<button onclick=submit class="btn btn-danger btn-block flex-grow-0 flex-shrink-1" type="submit">{"Submit and End Turn"}</button>}
+                                }
+                            }
+                            // <button onclick=submit.clone() class="btn btn-danger disabled btn-block flex-grow-0 flex-shrink-1" type="submit" disabled=false>{"Submit and End Turn"}</button>
+                            // <button onclick=submit class="btn btn-danger disabled btn-block flex-grow-0 flex-shrink-1" type="submit" {"disabled"} disabled={self.took_turn}>{"Submit and End Turn"}</button>
                         </div>
                     </div>
                     <footer>
                         <p>{"Built by Francis Chua"}</p>
                     </footer>
+                    <button class="btn btn-danger border rounded" id="kick-modal" type="button" data-toggle="modal" data-target="#kicked-modal" hidden=true></button>
+                    <div class="modal fade" role="dialog" tabindex="-1" id="kicked-modal">
+                    <div class="modal-dialog" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h4 class="modal-title">{"Kicked by Server"}</h4><button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">{"×"}</span></button>
+                            </div>
+                            <div class="modal-footer">
+                                <button href="../../../login/" class="btn btn-info" type="button" data-dismiss="modal">{"Continue"}</button>
+                        </div>
+                        </div>
+                    </div>
                 </div>
-                // <div class="container text-center">
-                // <h1> {"Director Controls"}</h1>
-                //     <div class="row" style="margin-right: 0;margin-left: 0;">
-                //         <div class="col-md-4 text-center" style="padding: 0;min-height: 40vmin;">
-                //             <div class="row">
-                //                 <div class="col" style="min-height: 30vmin;">
-                //                     <h2>{"Events"}</h2>
-                //                     <div class="btn-group-vertical btn-group-lg" role="group">
-                //                         <button onclick={self.link.callback(|_| Msg::AdjustOffset(1))} class="btn btn-primary border rounded" type="button">{format!("Supply Shock: {}", self.graph_data.supply_shock)}</button>
-                //                         <button onclick={self.link.callback(|_| Msg::AdjustOffset(2))} class="btn btn-primary border rounded" type="button">{format!("Subsidies: {}", self.graph_data.subsidies)}</button>
-                //                         <button onclick={self.link.callback(|_| Msg::AdjustOffset(3))} class="btn btn-primary border rounded" type="button">{format!("Trending: {}", self.graph_data.trending)}</button>
-                //                     </div>
-                //                 </div>
-                //             </div>
-                //             <div class="row">
-                //                 <div class="col" style="min-height: 15vmin;">
-                //                     <h2>{"Control Flow"}</h2>
-                //                     <button onclick={self.link.callback(|_| Msg::NextTurn)} class="btn btn-lg btn-warning border rounded" type="button">{"Force Next Turn"}</button>
-                //                 </div>
-                //             </div>
-                //             <div class="row">
-                //                 <div class="col" style="min-height: 40vmin;">
-                //                     <h2>{"Danger"}</h2>
-                //                         <div class="btn-group-vertical btn-group-lg" role="group">
-                //                         <button onclick=open_close class="btn btn-primary border rounded" type="button">{&self.is_open}</button>
-                //                         <button class="btn btn-danger border rounded" type="button" data-toggle="modal" data-target="#confirm-modal">{"End Game"}</button>
-                //                     </div>
-                //                 </div>
-                //             </div>
-                //         </div>
-                //         <div class="col-md-4 text-center" style="padding: 0;min-height: 40vmin;">
-                //             <div class="d-flex flex-column" style="height: 100%;width: 100%;">
-                //                 <h2>{"Graphs"}</h2>
-                //                 <div class="d-xl-flex flex-fill justify-content-xl-center align-items-xl-center" style="width: 100%">
-                //                     <svg viewBox="-5 -5 100 100" preserveAspectRatio="xMidYMid meet" fill="white">
-                //                         <g id="Consumer Group" transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=consumer_click_down onmousemove=click_move.clone() onmouseup=end_drag.clone() onmouseleave=end_drag.clone() ontouchstart=consumer_touch_start ontouchmove=touch_move.clone()>
-                //                             <rect width="105" height="105" x="-5" y="-5" fill-opacity="0%"></rect>
-                //                             <text x="10" y="-30" style="font: 10px Georgia; " transform="scale(1,-1)">{format!("{:.2}, {:.2}",self.graph_data.consumer_x,self.graph_data.consumer_y)}</text>
-                //                             <path d="M 0 80 C 40 80, 65 70, 80 0" stroke="#6495ED" stroke-width="1" stroke-opacity="60%" fill-opacity="0%" stroke-dasharray="4" />
-                //                             <path d={
-                //                                 let temp: i16 = self.graph_data.trending.into();
-                //                                 format!("M 0 {} C 40 {}, 65 {}, 80 {}", temp+80, temp+80, temp+70, temp)
-                //                             }  stroke="white" stroke-width="1" fill="transparent"/>
-                //                             <polygon points="0,95 -5,90 -1,90 -1,-1 90,-1 90,-5 95,0 90,5 90,1 1,1 1,90 5,90" fill="#1F6DDE" />
-                //                             <line x1="25" x2="25" y1="2" y2="-2" stroke="white" stroke-width="1"/>
-                //                             <line x1="50" x2="50" y1="3" y2="-3" stroke="white" stroke-width="1"/>
-                //                             <text y="-5" x="47" style="font: 5px Georgia; " transform="scale(1,-1)">{"50"}</text>
-                //                             <line x1="75" x2="75" y1="2" y2="-2" stroke="white" stroke-width="1"/>
-                //                             <line y1="25" y2="25" x1="2" x2="-2" stroke="white" stroke-width="1"/>
-                //                             <line y1="50" y2="50" x1="3" x2="-3" stroke="white" stroke-width="1"/>
-                //                             <text x="5" y="-49" style="font: 5px Georgia; " transform="scale(1,-1)">{"50"}</text>
-                //                             <line y1="75" y2="75" x1="2" x2="-2" stroke="white" stroke-width="1"/>
-                //                             <circle cx={format!("{:.2}",self.graph_data.consumer_x)} cy={format!("{:.2}",self.graph_data.consumer_y)} r="3" stroke="white" fill="#F34547" stroke-width="0.2"/>
-                //                         </g>
-                //                     </svg>
-                //                 </div>
-                //                 <div class="d-xl-flex flex-fill justify-content-xl-center align-items-xl-center" style="width: 100%;">
-                //                     <svg viewBox="-5 -5 100 100" preserveAspectRatio="xMidYMid meet" fill="white">
-                //                         <g id="Producer Group" transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=producer_click_down onmousemove=click_move onmouseup=end_drag.clone() onmouseleave=end_drag.clone() ontouchstart=producer_touch_start ontouchmove=touch_move>
-                //                             <rect width="105" height="105" x="-5" y="-5" fill-opacity="0%"></rect>
-                //                             <text x="10" y="-70" style="font: 10px Georgia; " transform="scale(1,-1)">{format!("{:.2}, {:.2}",self.graph_data.producer_x,self.graph_data.producer_y)}</text>
-                //                             <path d="M 0 80 C 10 -10, 45 -10, 80 100" stroke="#6495ED" stroke-width="1" stroke-opacity="60%" fill-opacity="0%" stroke-dasharray="4" />
-                //                             <path d={
-                //                                 let net: i16 = i16::from(self.graph_data.supply_shock) - i16::from(self.graph_data.subsidies);
-                //                                 format!("M 0 {} C 10 {}, 45 {}, 80 {}", net+80, net-10, net-10, net+100)
-                //                             } stroke="white" stroke-width="1" fill="transparent"/>
-                //                             <polygon points="0,95 -5,90 -1,90 -1,-1 90,-1 90,-5 95,0 90,5 90,1 1,1 1,90 5,90" fill="#1F6DDE" />
-                //                             <line x1="25" x2="25" y1="2" y2="-2" stroke="white" stroke-width="1"/>
-                //                             <line x1="50" x2="50" y1="3" y2="-3" stroke="white" stroke-width="1"/>
-                //                             <text y="-5" x="47" style="font: 5px Georgia; " transform="scale(1,-1)">{"50"}</text>
-                //                             <line x1="75" x2="75" y1="2" y2="-2" stroke="white" stroke-width="1"/>
-                //                             <line y1="25" y2="25" x1="2" x2="-2" stroke="white" stroke-width="1"/>
-                //                             <line y1="50" y2="50" x1="3" x2="-3" stroke="white" stroke-width="1"/>
-                //                             <line y1="75" y2="75" x1="2" x2="-2" stroke="white" stroke-width="1"/>
-                //                             <circle cx={format!("{:.2}",self.graph_data.producer_x)} cy={format!("{:.2}",self.graph_data.producer_y)} r="3" stroke="white" fill="#F34547" stroke-width="0.2"/>
-                //                         </g>
-                //                     </svg>
-                //                 </div>
-                //             </div>
-                //         </div>
-                //         <div class="col-md-4 text-center" style="padding: 0;min-height: 40vmin;">
-                //             <h2>{"State"}</h2>
-                //             <p>{format!("Game ID: {}", self.game_id)}</p>
-                //             <p>{format!("Turn: {}", self.turn)}</p>
-                //             <div onclick=handle_click id="participants" style="overflow-y: scroll;max-height: 50vh;">
-                //                 <p class="lead" style="background: var(--dark);">{"Directors"}</p>
-                //                     {self.directors.render()}
-                //                     <p class="lead" style="background: var(--dark);">{"Viewers"}</p>
-                //                     {self.viewers.render()}
-                //                     <p class="lead" style="background: var(--dark);">{"Consumers"}</p>
-                //                     {self.consumers.render()}
-                //                     <p class="lead" style="background: var(--dark);">{"Producers"}</p>
-                //                     {self.producers.render()}
-                //             </div>
-                //         </div>
-                //     </div>
-                //     <footer>
-                //         <p>{"Built by Francis Chua"}</p>
-                //     </footer>
-                //     <div class="modal fade" role="dialog" tabindex="-1" id="confirm-modal">
-                //         <div class="modal-dialog" role="document">
-                //             <div class="modal-content">
-                //                 <div class="modal-header">
-                //                     <h4 class="modal-title">{"Confirm End Game"}</h4><button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">{"×"}</span></button>
-                //                 </div>
-                //                 <div class="modal-body">
-                //                     <p>{"Are you sure you want to end this game for all participants?"}</p>
-                //                 </div>
-                //                 <div class="modal-footer"><
-                //                     button class="btn btn-light" type="button" data-dismiss="modal">{"No"}</button>
-                //                     <button onclick=self.link.callback(|_| Msg::EndGame) class="btn btn-danger" type="button" data-dismiss="modal">{"Yes"}</button>
-                //                 </div>
-                //             </div>
-                //         </div>
-                //     </div>
-                // </div>
+                </div>
             </>
         }
     }
