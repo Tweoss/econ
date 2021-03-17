@@ -5,6 +5,7 @@ use actix_web_actors::ws;
 
 use crate::application::app::AppState;
 use crate::application::game_folder::participants::director_folder::director::Director;
+use crate::application::game_folder::participants::producer_folder::producer::Producer;
 
 use crate::handle_to_app;
 
@@ -26,16 +27,16 @@ pub async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpRes
 		"director" => {
 			println!("Asking for Director");
 			if let Some(game_addr) = addr
-			.send(handle_to_app::IsRegisteredDirector {
-				user_id: uuid.clone(),
-				game_id: game_id.clone(),
-			})
-			.await
-			.unwrap()
+				.send(handle_to_app::IsRegisteredDirector {
+					user_id: uuid.clone(),
+					game_id: game_id.clone(),
+				})
+				.await
+				.unwrap()
 			// if let Some(director_ws) =
 			// 	Director::new(uuid.to_string(), game_id.to_string(), addr.clone()).await
 			{
-				let director_ws = Director::new(uuid.to_string(), game_id.to_string(), game_addr).await;
+				let director_ws = Director::new(uuid.to_string(), game_id.to_string(), game_addr);
 				let resp = ws::start(director_ws, &req, stream);
 				println!("{:?}", resp);
 				return resp;
@@ -47,6 +48,20 @@ pub async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpRes
 			// resp;
 		}
 		"producer" => {
+			println!("Asking for Producer");
+			if let Some(game_addr) = addr
+				.send(handle_to_app::IsRegisteredPlayer {
+					user_id: uuid.clone(),
+					game_id: game_id.clone(),
+				})
+				.await
+				.unwrap()
+			{
+				let producer_ws = Producer::new(uuid.to_string(), game_id.to_string(), game_addr);
+				let resp = ws::start(producer_ws, &req, stream);
+				println!("{:?}", resp);
+				return resp;
+			}
 			// let resp = ws::start(Director::new(uuid.to_string(), game_id.to_string(), addr), &req, stream);
 			// println!("{:?}", resp);
 			// resp;

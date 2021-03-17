@@ -11,7 +11,7 @@ mod application;
 use crate::application::app::AppState;
 
 mod html_handlers;
-use html_handlers::{get_html, redirect, set_cookies, assets};
+use html_handlers::{get_html, redirect, set_cookies, assets, inline};
 
 mod ws_handler;
 use ws_handler::{handle_prep, handle_ws};
@@ -64,6 +64,7 @@ async fn main() -> std::io::Result<()> {
 			.route("/wsprep", web::post().to(handle_prep))
 			.service(get_html)
 			.service(assets)
+			.service(inline)
 			.service(
 				Files::new("/director_login", path.clone() + "director_login/static/")
 					.index_file("index.html"),
@@ -71,8 +72,6 @@ async fn main() -> std::io::Result<()> {
 			.service(Files::new("/login", path + "login/static/").index_file("index.html"))
 			.default_service(web::get().to(index_404))
 	})
-	// ! SWITCH THIS REPL
-	// .bind("127.0.0.1:8080")?
 	.bind("0.0.0.0:8080")?
 	.run()
 	.await

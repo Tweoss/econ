@@ -1,6 +1,8 @@
 use super::participants::{
-	consumer_folder::consumer::ConsumerState, director_folder::{director::DirectorState, director_structs},
-	producer_folder::{producer::ProducerState, producer_structs}, viewer_folder::viewer::ViewerState,
+	consumer_folder::consumer::ConsumerState,
+	director_folder::{director::DirectorState, director_structs},
+	producer_folder::{producer::ProducerState, producer_structs},
+	viewer_folder::viewer::ViewerState,
 };
 // use crate::application::game_folder::participants::director_folder::director_structs;
 use actix::prelude::*;
@@ -8,11 +10,11 @@ use actix::prelude::*;
 use crate::application::app::AppState;
 use crate::application::app_to_game::*;
 use crate::application::game_folder::game_to_director;
-use crate::application::game_folder::game_to_producer;
 use crate::application::game_folder::game_to_participant;
+use crate::application::game_folder::game_to_producer;
 use crate::application::game_folder::participants::director_folder::director_to_game;
-use crate::application::game_folder::participants::producer_folder::producer_to_game;
 use crate::application::game_folder::participants::participant_to_game;
+use crate::application::game_folder::participants::producer_folder::producer_to_game;
 
 // use super::participants::json;
 
@@ -35,8 +37,8 @@ pub struct Game {
 	is_open: bool,
 	turn: u64,
 	trending: u8,
-    supply_shock: u8,
-    subsidies: u8,
+	supply_shock: u8,
+	subsidies: u8,
 	app_addr: Addr<AppState>,
 	producer_next: bool,
 	game_id: String,
@@ -47,11 +49,10 @@ impl Actor for Game {
 	fn stopping(&mut self, _: &mut Self::Context) -> Running {
 		println!(
 			"Stopping a game actor with main director being: {} and id: {}",
-			self.id_main_director,
-			self.game_id
+			self.id_main_director, self.game_id
 		);
 		let date = chrono::Local::now();
-    	println!("Date and time: {}", date.format("[%Y-%m-%d][%H:%M:%S]"));
+		println!("Date and time: {}", date.format("[%Y-%m-%d][%H:%M:%S]"));
 		Running::Stop
 	}
 }
@@ -71,7 +72,7 @@ impl Game {
 			trending: 10,
 			supply_shock: 10,
 			subsidies: 0,
-			turn: 0,
+			turn: 1,
 			app_addr,
 			producer_next: true,
 			game_id,
@@ -88,18 +89,19 @@ impl Game {
 			if consumer.1.addr != None {
 				if consumer.1.is_responsive {
 					state = director_structs::PlayerState::Connected;
-				}
-				else {
+				} else {
 					state = director_structs::PlayerState::Unresponsive;
 				}
-			}
-			else {
+			} else {
 				state = director_structs::PlayerState::Disconnected;
 			}
-			consumers.push((consumer.0.clone(), director_structs::Participant {
-				state,
-				took_turn: Some(consumer.1.took_turn)
-			}))
+			consumers.push((
+				consumer.0.clone(),
+				director_structs::Participant {
+					state,
+					took_turn: Some(consumer.1.took_turn),
+				},
+			))
 		}
 
 		for producer in self.producers.read().unwrap().iter() {
@@ -107,18 +109,19 @@ impl Game {
 			if producer.1.addr != None {
 				if producer.1.is_responsive {
 					state = director_structs::PlayerState::Connected;
-				}
-				else {
+				} else {
 					state = director_structs::PlayerState::Unresponsive;
 				}
-			}
-			else {
+			} else {
 				state = director_structs::PlayerState::Disconnected;
 			}
-			producers.push((producer.0.clone(), director_structs::Participant {
-				state,
-				took_turn: Some(producer.1.took_turn)
-			}))
+			producers.push((
+				producer.0.clone(),
+				director_structs::Participant {
+					state,
+					took_turn: Some(producer.1.took_turn),
+				},
+			))
 		}
 
 		for viewer in self.viewers.read().unwrap().iter() {
@@ -126,18 +129,19 @@ impl Game {
 			if viewer.1.addr != None {
 				if viewer.1.is_responsive {
 					state = director_structs::PlayerState::Connected;
-				}
-				else {
+				} else {
 					state = director_structs::PlayerState::Unresponsive;
 				}
-			}
-			else {
+			} else {
 				state = director_structs::PlayerState::Disconnected;
 			}
-			viewers.push((viewer.0.clone(), director_structs::Participant {
-				state,
-				took_turn: None,
-			}))
+			viewers.push((
+				viewer.0.clone(),
+				director_structs::Participant {
+					state,
+					took_turn: None,
+				},
+			))
 		}
 
 		for director in self.directors.read().unwrap().iter() {
@@ -145,18 +149,19 @@ impl Game {
 			if director.1.addr != None {
 				if director.1.is_responsive {
 					state = director_structs::PlayerState::Connected;
-				}
-				else {
+				} else {
 					state = director_structs::PlayerState::Unresponsive;
 				}
-			}
-			else {
+			} else {
 				state = director_structs::PlayerState::Disconnected;
 			}
-			directors.push((director.0.clone(), director_structs::Participant {
-				state,
-				took_turn: None,
-			}))
+			directors.push((
+				director.0.clone(),
+				director_structs::Participant {
+					state,
+					took_turn: None,
+				},
+			))
 		}
 		director_structs::Info {
 			consumers,
@@ -170,7 +175,6 @@ impl Game {
 			subsidies: self.subsidies,
 			game_id: self.game_id.clone(),
 		}
-		
 	}
 	fn get_producer_info(&self, id: String) -> producer_structs::Info {
 		let mut producers = Vec::new();
@@ -183,7 +187,9 @@ impl Game {
 		let supply_shock = self.supply_shock;
 		let subsidies = self.subsidies;
 		let producer = self.producers.read().unwrap();
-		let balance = producer.get(&id).unwrap().balance; let score = producer.get(&id).unwrap().score;
+		let balance = producer.get(&id).unwrap().balance;
+		let score = producer.get(&id).unwrap().score;
+		let took_turn = producer.get(&id).unwrap().took_turn;
 		producer_structs::Info {
 			producers,
 			turn,
@@ -192,8 +198,10 @@ impl Game {
 			subsidies,
 			balance,
 			score,
+			took_turn,
 		}
 	}
+	// fn next_turn(&self)
 }
 
 // ! APPLICATION TO GAME HANDLERS
@@ -341,13 +349,21 @@ impl Handler<director_to_game::RegisterAddressGetInfo> for Game {
 		} else if let Some(mut addr_value) = self.directors.write().unwrap().get_mut(&msg.user_id) {
 			addr_value.addr = Some(msg.addr.clone());
 		}
-		msg.addr.do_send(game_to_director::Info {info: self.get_director_info()});
+		msg.addr.do_send(game_to_director::Info {
+			info: self.get_director_info(),
+		});
 		if let Some(addr) = &self.state_main_director.addr {
-			addr.do_send(game_to_director::Connected { id: msg.user_id.clone(), participant_type: "director".to_string() });
+			addr.do_send(game_to_director::Connected {
+				id: msg.user_id.clone(),
+				participant_type: "director".to_string(),
+			});
 		}
 		for elem in self.directors.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
-				addr.do_send(game_to_director::Connected { id: msg.user_id.clone(), participant_type: "director".to_string() });
+				addr.do_send(game_to_director::Connected {
+					id: msg.user_id.clone(),
+					participant_type: "director".to_string(),
+				});
 			}
 		}
 	}
@@ -408,14 +424,29 @@ impl Handler<director_to_game::CloseGame> for Game {
 }
 
 impl Handler<director_to_game::SetOffsets> for Game {
-	type Result=();
+	type Result = ();
 	fn handle(&mut self, msg: director_to_game::SetOffsets, _: &mut Context<Self>) {
+		// * Turn starts at 1, producer. 
+		// if self.turn%2 == 0 {
+
+		// }
 		self.subsidies = msg.subsidies;
 		self.trending = msg.trending;
 		self.supply_shock = msg.supply_shock;
+		if let Some(addr) = &self.state_main_director.addr {
+			addr.do_send(game_to_participant::NewOffsets {
+				subsidies: msg.subsidies,
+				trending: msg.trending,
+				supply_shock: msg.supply_shock,
+			});
+		}
 		for elem in self.directors.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
-				addr.do_send(game_to_participant::NewOffsets {subsidies: msg.subsidies, trending: msg.trending, supply_shock: msg.supply_shock});
+				addr.do_send(game_to_participant::NewOffsets {
+					subsidies: msg.subsidies,
+					trending: msg.trending,
+					supply_shock: msg.supply_shock,
+				});
 			}
 		}
 		// for elem in self.consumers.read().unwrap().values() {
@@ -428,9 +459,6 @@ impl Handler<director_to_game::SetOffsets> for Game {
 		// 		addr.do_send(game_to_participant::NewOffsets {subsidies: msg.subsidies, trending: msg.trending, supply_shock: msg.supply_shock});
 		// 	}
 		// }
-		if let Some(addr) = &self.state_main_director.addr {
-			addr.do_send(game_to_participant::NewOffsets {subsidies: msg.subsidies, trending: msg.trending, supply_shock: msg.supply_shock});
-		}
 	}
 }
 
@@ -460,15 +488,56 @@ impl Handler<producer_to_game::RegisterAddressGetInfo> for Game {
 		if let Some(mut addr_value) = self.producers.write().unwrap().get_mut(&msg.user_id) {
 			addr_value.addr = Some(msg.addr.clone());
 		}
-		msg.addr.do_send(game_to_producer::Info {info: self.get_producer_info(msg.user_id.clone())});
+		msg.addr.do_send(game_to_producer::Info {
+			info: self.get_producer_info(msg.user_id.clone()),
+		});
 		if let Some(addr) = &self.state_main_director.addr {
-			addr.do_send(game_to_director::Connected { id: msg.user_id.clone(), participant_type: "producer".to_string() });
+			addr.do_send(game_to_director::Connected {
+				id: msg.user_id.clone(),
+				participant_type: "producer".to_string(),
+			});
 		}
 		for elem in self.directors.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
-				addr.do_send(game_to_director::Connected { id: msg.user_id.clone(), participant_type: "producer".to_string() });
+				addr.do_send(game_to_director::Connected {
+					id: msg.user_id.clone(),
+					participant_type: "producer".to_string(),
+				});
 			}
 		}
+	}
+}
+
+impl Handler<producer_to_game::NewScoreEndTurn> for Game {
+	type Result = ();
+	fn handle(&mut self, msg: producer_to_game::NewScoreEndTurn, _: &mut Context<Self>) -> Self::Result {
+		self.producers.write().unwrap().get_mut(&msg.user_id).unwrap().score = msg.new_score;
+		self.producers.write().unwrap().get_mut(&msg.user_id).unwrap().balance = 0.;
+		self.producers.write().unwrap().get_mut(&msg.user_id).unwrap().took_turn = true;
+		if let Some(addr) = &self.state_main_director.addr {
+			addr.do_send(game_to_director::TurnTaken {
+				id: msg.user_id.clone(),
+				participant_type: "producer".to_string(),
+			});
+		}
+		for elem in self.directors.read().unwrap().values() {
+			if let Some(addr) = &elem.addr {
+				addr.do_send(game_to_director::TurnTaken {
+					id: msg.user_id.clone(),
+					participant_type: "producer".to_string(),
+				});
+			}
+		}
+		// for elem in self.viewers.read().unwrap().values() {
+		// 	if let Some(addr) = &elem.addr {
+		// 		addr.do_send(game_to_viewer::NewScoreEndTurn {
+		// 			id: msg.user_id.clone(),
+		// 			participant_type: "producer".to_string(),
+		// 			new_score: msg.new_score,
+		// 		});
+		// 	}
+		// }
+
 	}
 }
 
@@ -481,11 +550,17 @@ impl Handler<participant_to_game::Unresponsive> for Game {
 	) -> Self::Result {
 		println!("Unresponsive {}: {}", &msg.participant_type, &msg.id);
 		if let Some(addr) = &self.state_main_director.addr {
-			addr.do_send(game_to_director::Unresponsive { id: msg.id.clone(), participant_type: msg.participant_type.clone() });
+			addr.do_send(game_to_director::Unresponsive {
+				id: msg.id.clone(),
+				participant_type: msg.participant_type.clone(),
+			});
 		}
 		for elem in self.directors.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
-				addr.do_send(game_to_director::Unresponsive { id: msg.id.clone(), participant_type: msg.participant_type.clone() });
+				addr.do_send(game_to_director::Unresponsive {
+					id: msg.id.clone(),
+					participant_type: msg.participant_type.clone(),
+				});
 			}
 		}
 	}
@@ -500,11 +575,17 @@ impl Handler<participant_to_game::Responsive> for Game {
 	) -> Self::Result {
 		println!("Responsive again");
 		if let Some(addr) = &self.state_main_director.addr {
-			addr.do_send(game_to_director::Connected { id: msg.id.clone(), participant_type: msg.participant_type.clone() });
+			addr.do_send(game_to_director::Connected {
+				id: msg.id.clone(),
+				participant_type: msg.participant_type.clone(),
+			});
 		}
 		for elem in self.directors.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
-				addr.do_send(game_to_director::Connected { id: msg.id.clone(), participant_type: msg.participant_type.clone() });
+				addr.do_send(game_to_director::Connected {
+					id: msg.id.clone(),
+					participant_type: msg.participant_type.clone(),
+				});
 			}
 		}
 	}
@@ -512,33 +593,57 @@ impl Handler<participant_to_game::Responsive> for Game {
 
 impl Handler<participant_to_game::Disconnected> for Game {
 	type Result = ();
-	fn handle(&mut self, msg: participant_to_game::Disconnected, _: &mut Context<Self>) -> Self::Result {
+	fn handle(
+		&mut self,
+		msg: participant_to_game::Disconnected,
+		_: &mut Context<Self>,
+	) -> Self::Result {
 		match msg.participant_type.as_str() {
 			"director" => {
 				if msg.id == self.id_main_director {
 					self.state_main_director.addr = None;
-				}
-				else {
-					self.directors.write().unwrap().get_mut(&msg.id).unwrap().addr = None;
+				} else {
+					self.directors
+						.write()
+						.unwrap()
+						.get_mut(&msg.id)
+						.unwrap()
+						.addr = None;
 				}
 			}
 			"consumer" => {
-				self.consumers.write().unwrap().get_mut(&msg.id).unwrap().addr = None;
+				self.consumers
+					.write()
+					.unwrap()
+					.get_mut(&msg.id)
+					.unwrap()
+					.addr = None;
 			}
 			"producer" => {
-				self.producers.write().unwrap().get_mut(&msg.id).unwrap().addr = None;
+				self.producers
+					.write()
+					.unwrap()
+					.get_mut(&msg.id)
+					.unwrap()
+					.addr = None;
 			}
 			"viewer" => {
 				self.viewers.write().unwrap().get_mut(&msg.id).unwrap().addr = None;
 			}
-			_ => ()
+			_ => (),
 		}
 		if let Some(addr) = &self.state_main_director.addr {
-			addr.do_send(game_to_director::Disconnected { id: msg.id.clone(), participant_type: msg.participant_type.clone() });
+			addr.do_send(game_to_director::Disconnected {
+				id: msg.id.clone(),
+				participant_type: msg.participant_type.clone(),
+			});
 		}
 		for elem in self.directors.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
-				addr.do_send(game_to_director::Disconnected { id: msg.id.clone(), participant_type: msg.participant_type.clone() });
+				addr.do_send(game_to_director::Disconnected {
+					id: msg.id.clone(),
+					participant_type: msg.participant_type.clone(),
+				});
 			}
 		}
 	}

@@ -23,12 +23,14 @@ use crate::application::game_folder::participants::json::{
 	CLIENT_TERMINATE, CLIENT_TIMEOUT, HEARTBEAT_INTERVAL,
 };
 
+const CLIENT_T_CALCULATION_FREEDOM: f64 = 0.0001;
+
 pub struct ProducerState {
 	pub is_responsive: bool,
 	pub took_turn: bool,
 	pub score: f64,
 	pub balance: f64,
-	pub quantity_remaining: f64,
+	pub quantity_produced: f64,
 	pub price: f64,
 	pub addr: Option<Addr<Producer>>,
 }
@@ -39,8 +41,8 @@ impl ProducerState {
 			is_responsive: true,
 			took_turn: false,
 			score: 0.,
-			balance: 0.,
-			quantity_remaining: 0.,
+			balance: 2000.,
+			quantity_produced: 0.,
 			price: 0.,
 			addr: None,
 		}
@@ -51,6 +53,11 @@ pub struct Producer {
 	pub uuid: String,
 	pub game_id: String,
 	pub game_addr: Addr<Game>,
+	took_turn: bool,
+	subsidies: u8,
+	supply_shock: u8,
+	balance: f64,
+	score: f64,
 	hb: Instant,
 	is_unresponsive: bool,
 }
@@ -80,14 +87,20 @@ impl Actor for Producer {
 }
 
 impl Producer {
-	// pub async fn new(uuid: String, game_id: String, addr: &actix_web::web::Data<Addr<AppState>>) -> Option<Producer> {
-	// 	if let Some(game_addr) = addr.send(IsProducer {user_id: uuid.clone(), game_id: game_id.clone()}).await.unwrap() {
-	// 		Some(Producer {uuid, game_id, game_addr})
-	// 	}
-	// 	else {
-	// 		None
-	// 	}
-	// }
+	pub fn new(uuid: String, game_id: String, game_addr: Addr<Game>) -> Producer {
+		Producer {
+			uuid,
+			game_id,
+			game_addr,
+			subsidies: 0,
+			supply_shock: 0,
+			balance: 0.,
+			score: 0.,
+			took_turn: false,
+			hb: Instant::now(),
+			is_unresponsive: false,
+		}
+	}
 	fn hb(&self, ctx: &mut ws::WebsocketContext<Self>) {
 		ctx.run_interval(HEARTBEAT_INTERVAL, |act, ctx| {
 			// check client heartbeats
@@ -132,26 +145,110 @@ impl Producer {
 			self.is_unresponsive = false;
 		}
 	}
+	#[allow(clippy::many_single_char_names)]
+	// * try to produce an amount. returns score if works. if not, insufficient funds => None
+	fn try_produce(&mut self, quantity: f64, t: f64) -> Result<f64, String> {
+		let believed_quantity = 3. * f64::powi(1. - t, 2) * t * 10.
+			+ 3. * (1. - t) * f64::powi(t, 2) * 45.
+			+ f64::powi(t, 3) * 80.;
+		if believed_quantity - quantity < CLIENT_T_CALCULATION_FREEDOM
+			&& believed_quantity - quantity > -CLIENT_T_CALCULATION_FREEDOM
+		{
+			let p = f64::from(self.supply_shock) - f64::from(self.subsidies);
+			// p_x = [0,10,45,80];
+			// p_y = [80,-10,-10,100];
+			let (a, b, c, d) = (0., 10., 45., 80.);
+			let (e, f, g, h) = (80., -10., -10., 100.);
+			// output = -3*(a - b)*(e + p)*t + (3/2)*(5*a*e - 7*b*e + 2*c*e - 3*a*f + 3*b*f + 2*(a - 2*b + c)*p)*t^2 - (9*c*e - d*e - 6*c*f + 3*c*p - d*p - 3*b*(6*e - 6*f + g + p) + a*(10*e - 12*f + 3*g + p))*t^3 + (3/4)*(3*(5*c*e - d*e - 7*c*f + d*f + 2*c*g) + a*(10*e - 18*f + 9*g - h) + b*(-22*e + 36*f - 15*g + h))*t^4 - (3/5)*(5*a*e - 13*b*e + 11*c*e - 3*d*e - 12*a*f + 30*b*f - 24*c*f + 6*d*f + 9*a*g - 21*b*g + 15*c*g - 3*d*g - 2*(a - 2*b + c)*h)*t^5 + (1/2)*(a - 3*b + 3*c - d)*(e - 3*f + 3*g - h)*t^6;
+
+			let cost =
+				-3. * (a - b) * (e + p) * t
+					+ (3. / 2.)
+						* (5. * a * e - 7. * b * e + 2. * c * e - 3. * a * f
+							+ 3. * b * f + 2. * (a - 2. * b + c) * p)
+						* f64::powi(t, 2) - (9. * c * e - d * e - 6. * c * f + 3. * c * p
+					- d * p - 3. * b * (6. * e - 6. * f + g + p)
+					+ a * (10. * e - 12. * f + 3. * g + p))
+					* f64::powi(t, 3) + (3. / 4.)
+					* (3. * (5. * c * e - d * e - 7. * c * f + d * f + 2. * c * g)
+						+ a * (10. * e - 18. * f + 9. * g - h)
+						+ b * (-22. * e + 36. * f - 15. * g + h))
+					* f64::powi(t, 4) - (3. / 5.)
+					* (5. * a * e - 13. * b * e + 11. * c * e - 3. * d * e - 12. * a * f
+						+ 30. * b * f - 24. * c * f
+						+ 6. * d * f + 9. * a * g
+						- 21. * b * g + 15. * c * g
+						- 3. * d * g - 2. * (a - 2. * b + c) * h)
+					* f64::powi(t, 5) + (1. / 2.)
+					* (a - 3. * b + 3. * c - d)
+					* (e - 3. * f + 3. * g - h)
+					* f64::powi(t, 6);
+			if cost > self.balance {
+				println!("Cost = {}, balance = {}", cost, self.balance);
+				Err("Insufficient Funds".to_string())
+			} else {
+				//* no immediate gain for producers
+				self.balance -= cost;
+				//* remove the rest of the balance and put as part of score
+				self.score += self.balance;
+				self.balance = 0.;
+				self.game_addr.do_send(producer_to_game::NewScoreEndTurn {
+					new_score: self.score,
+					user_id: self.uuid.clone(),
+				});
+				Ok(self.score)
+			}
+		} else {
+			Err("Inaccurate t Value".to_string())
+		}
+	}
 }
 
-/// Handler for ws::Message message
 impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Producer {
 	fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
 		if let Ok(ws::Message::Binary(bin)) = msg {
-  				if let Ok(message) =
-  					from_slice::<ProducerClientMsg>(&bin.to_vec()) {
-  					println!("{:?}", message);
-  					match message.msg_type {
-  						ProducerClientType::Choice => (),
-  						ProducerClientType::Pong => (),
-  						// _ => (),
-  					}
-
-  				}
-  				else {
-  					println!("Invalid structure received");
-  				}
-  			}
+			if let Ok(message) = from_slice::<ProducerClientMsg>(&bin.to_vec()) {
+				println!("{:?}", message);
+				match message.msg_type {
+					ProducerClientType::Choice => {
+						let choice = message.choice.unwrap();
+						match self.try_produce(choice.quantity, choice.t) {
+							Ok(score) => {
+								let extra_fields = Some(ServerExtraFields {
+									submitted_info: Some((score, self.balance)),
+									..Default::default()
+								});
+								ctx.binary(
+									to_vec(&ProducerServerMsg {
+										msg_type: ProducerServerType::ChoiceSubmitted,
+										extra_fields
+									})
+									.unwrap(),
+								);
+								self.took_turn = true;
+							}
+							Err(msg)=> {
+								let extra_fields = Some(ServerExtraFields {
+									fail_info: Some(msg),
+									..Default::default()
+								});
+								ctx.binary(
+									to_vec(&ProducerServerMsg {
+										msg_type: ProducerServerType::ChoiceFailed,
+										extra_fields
+									})
+									.unwrap(),
+								);
+							}
+						}
+					}
+					ProducerClientType::Pong => (),
+					// _ => (),
+				}
+			} else {
+				println!("Invalid structure received");
+			}
+		}
 		self.reset_hb();
 	}
 }
@@ -170,6 +267,11 @@ impl Handler<game_to_participant::EndedGame> for Producer {
 impl Handler<game_to_producer::Info> for Producer {
 	type Result = ();
 	fn handle(&mut self, msg: game_to_producer::Info, ctx: &mut Self::Context) -> Self::Result {
+		self.subsidies = msg.info.subsidies;
+		self.supply_shock = msg.info.supply_shock;
+		self.balance = msg.info.balance;
+		self.score = msg.info.score;
+		self.took_turn = msg.info.took_turn;
 		let extra_fields = producer_structs::ServerExtraFields {
 			info: Some(msg.info),
 			..Default::default()

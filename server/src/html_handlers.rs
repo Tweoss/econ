@@ -196,7 +196,6 @@ pub async fn set_cookies(cookie_info: web::Json<CookieInfo>, req: HttpRequest) -
 }
 
 
-// ! PLAN TO MAKE DIFFERENT HANDLERS
 #[get("/{play_view_direct}/{type}/{gameid:\\d*}/{filename}.{ext}")]
 async fn get_html(req: HttpRequest) -> impl Responder {
 	// http://localhost:8080/play/producer/gameid/index.html
@@ -295,21 +294,48 @@ async fn assets(req: HttpRequest) -> impl Responder {
 	let mut prepath = "../client/".to_owned();
 	let url_viewtype = req.match_info().get("type").unwrap();
 	let path = req.match_info().get("rest_of_path").unwrap();
-	println!("Handling css");
-	println!("{}", path);
 	prepath = match url_viewtype {
 		"viewer" => prepath + "viewer/",
 		"producer" => prepath + "producer/",
 		"consumer" => prepath + "consumer/",
 		"director" => prepath + "director_auth/",
 		_ => {
-			let ree: actix_files::NamedFile =
-				NamedFile::open(format!("../client/404/{}/index.html", DEPLOY_OR_STATIC)).unwrap();
-			return ree;
+			let failed: actix_files::NamedFile =
+			NamedFile::open(format!("../client/404/{}/index.html", DEPLOY_OR_STATIC)).unwrap();
+			return failed;
 		}
 	};
 	prepath += DEPLOY_OR_STATIC;
 	prepath += "/assets/";
 	prepath += path;
+	println!("{}", prepath);
 	NamedFile::open(prepath).unwrap()
 }
+
+#[get("/{play_view_direct}/{type}/{gameid:\\d*}/snippets/{folder}/{rest_of_path:.*}.js")]
+async fn inline(req: HttpRequest) -> impl Responder {
+	let mut prepath = "../client/".to_owned();
+	let url_viewtype = req.match_info().get("type").unwrap();
+	let folder = req.match_info().get("folder").unwrap();
+	let path = req.match_info().get("rest_of_path").unwrap();
+	prepath = match url_viewtype {
+		"viewer" => prepath + "viewer/",
+		"producer" => prepath + "producer/",
+		"consumer" => prepath + "consumer/",
+		"director" => prepath + "director_auth/",
+		_ => {
+			let failed: actix_files::NamedFile =
+				NamedFile::open(format!("../client/404/{}/index.html", DEPLOY_OR_STATIC)).unwrap();
+			return failed;
+		}
+	};
+	prepath += DEPLOY_OR_STATIC;
+	prepath += "/snippets/";
+	prepath += folder;
+	prepath += "/";
+	prepath += path;
+	prepath += ".js";
+	println!("{}", prepath);
+	NamedFile::open(prepath).unwrap()
+}
+

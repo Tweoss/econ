@@ -76,7 +76,7 @@ impl Actor for Director {
 }
 
 impl Director {
-	pub async fn new(
+	pub fn new(
 		uuid: String,
 		game_id: String,
 		game_addr: Addr<Game>,
@@ -275,6 +275,28 @@ impl Handler<game_to_director::Connected> for Director {
 		ctx.binary(
 			to_vec(&DirectorServerMsg {
 				msg_type: DirectorServerType::ConnectedPlayer,
+				extra_fields: Some(fields),
+			})
+			.unwrap(),
+		);
+	}
+}
+
+impl Handler<game_to_director::TurnTaken> for Director {
+	type Result = ();
+	fn handle(
+		&mut self,
+		msg: game_to_director::TurnTaken,
+		ctx: &mut Self::Context,
+	) -> Self::Result {
+		let fields = ServerExtraFields {
+			target: Some(msg.id),
+			participant_type: Some(msg.participant_type),
+			..Default::default()
+		};
+		ctx.binary(
+			to_vec(&DirectorServerMsg {
+				msg_type: DirectorServerType::TurnTaken,
 				extra_fields: Some(fields),
 			})
 			.unwrap(),

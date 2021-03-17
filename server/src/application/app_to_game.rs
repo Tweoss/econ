@@ -1,12 +1,6 @@
 use actix::prelude::*;
 /// Register a new player \
 /// Forwarded from App
-/// ```
-/// pub struct NewPlayer {
-///     pub user_id: String,
-///     pub username: String,
-/// }
-/// ```
 #[derive(Message)]
 #[rtype(String)]
 pub struct NewPlayer {
@@ -27,14 +21,14 @@ pub struct NewDirector {
 #[rtype(bool)]
 pub struct IsGameOpen {}
 
-/// Check if Game is open to players
+
 #[derive(Message)]
 #[rtype(bool)]
 pub struct IsDirector {
 	pub user_id: String,
 }
 
-/// Check if Game is open to players
+
 #[derive(Message)]
 #[rtype(bool)]
 pub struct IsPlayer {
@@ -42,12 +36,6 @@ pub struct IsPlayer {
 }
 
 /// Check if this id is the main director
-/// ```
-/// #[rtype(bool)]
-/// pub struct IsMainDirector {
-///     pub user_id: String,
-/// }
-/// ```
 #[derive(Message)]
 #[rtype(bool)]
 pub struct IsMainDirector {

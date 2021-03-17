@@ -39,6 +39,7 @@ pub struct Info {
 	pub subsidies: u8,
 	pub balance: f64,
 	pub score: f64,
+	pub took_turn: bool,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -53,7 +54,7 @@ pub struct ServerExtraFields {
 	pub offsets: Option<Offsets>,
 	pub turn_info: Option<TurnInfo>,
 	// * Remaining balance
-	pub submitted_info: Option<f64>,
+	pub submitted_info: Option<(f64, f64)>,
 	pub fail_info: Option<String>,
 	// * New score
 	pub purchased: Option<f64>,
@@ -69,6 +70,7 @@ pub struct Offsets {
 pub struct ClientExtraFields {
 	pub quantity: f64,
 	pub price: f64,
+	pub t: f64,
 }
 
 #[derive(Debug, Serialize, Clone)]

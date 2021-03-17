@@ -210,6 +210,45 @@ impl Handler<IsRegisteredDirector> for AppState {
 }
 
 
+impl Handler<IsRegisteredPlayer> for AppState {
+    type Result = ResponseFuture<Option<Addr<Game>>>;
+    fn handle(
+        &mut self,
+        msg: IsRegisteredPlayer,
+        _context: &mut Context<Self>,
+    ) -> Self::Result {
+        if let Some(addr) = self
+            .game_map
+            .read()
+            .unwrap()
+            .get(&msg.game_id)
+            // .iter()
+            // .find(|&x| x.0 == msg.game_id)
+        {
+            let async_addr = addr.clone();
+            // let async_addr = addr.1.clone();
+            Box::pin(async move {
+                if async_addr
+                    .clone()
+                    .send(app_to_game::IsPlayer {
+                        user_id: msg.user_id,
+                    })
+                    .await
+                    .unwrap()
+                {
+                    Some(async_addr)
+                } else {
+                    None
+                }
+            })
+        } else {
+            println!("Could not find game with ID {}", msg.game_id);
+            Box::pin(async move { None })
+        }
+    }
+}
+
+
 impl Handler<game_to_app::EndGame> for AppState {
     type Result = ();
     fn handle(&mut self, msg: game_to_app::EndGame, _: &mut Context<Self>) -> Self::Result {
