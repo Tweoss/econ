@@ -49,10 +49,18 @@ struct Model {
 }
 
 impl Participant {
-    fn new() -> Participant {
-        Participant {
-            state: PlayerState::Disconnected,
-            took_turn: None,
+    fn new(can_take_turn: bool) -> Participant {
+        if can_take_turn {
+            Participant {
+                state: PlayerState::Disconnected,
+                took_turn: Some(false),
+            }
+        }
+        else {
+            Participant {
+                state: PlayerState::Disconnected,
+                took_turn: None,
+            }
         }
     }
     fn render(&self, id: String) -> Html {
@@ -91,6 +99,7 @@ impl Participant {
 trait ParticipantCollection {
     fn render(&self) -> Html;
     fn update_status(&mut self, id: &str, status: PlayerState);
+    fn took_turn(&mut self, id: &str);
 }
 
 impl ParticipantCollection for HashMap<String, Participant> {
@@ -105,6 +114,11 @@ impl ParticipantCollection for HashMap<String, Participant> {
     fn update_status(&mut self, id: &str, status: PlayerState) {
         if let Some(participant) = self.get_mut(id) {
             participant.state = status;
+        }
+    }
+    fn took_turn(&mut self, id: &str) {
+        if let Some(participant) = self.get_mut(id) {
+            participant.took_turn = Some(true);
         }
     }
 }
@@ -173,7 +187,8 @@ impl Graphs {
         self.consumer_y = f64::powi(1. - t, 3) * 80.
             + 3. * f64::powi(1. - t, 2) * t * 80.
             + 3. * (1. - t) * f64::powi(t, 2) * 70.
-            + f64::powi(t, 3) + f64::from(extra_y);
+            + f64::powi(t, 3)
+            + f64::from(extra_y);
     }
     fn producer_move(&mut self, mouse_x: f64, mouse_y: f64) {
         // * extra cost
@@ -347,8 +362,12 @@ impl Component for Model {
                     let protocol: String = window().unwrap().location().protocol().unwrap();
                     // let url = format!("ws://{}/ws/{}/{}/{}", host, v[0], v[1], v[2]);
                     let url = match protocol.as_str() {
-                        "http:" => {format!("ws://{}/ws/{}/{}/{}", host, v[0], v[1], v[2])}
-                        "https:" => {format!("wss://{}/ws/{}/{}/{}", host, v[0], v[1], v[2])}
+                        "http:" => {
+                            format!("ws://{}/ws/{}/{}/{}", host, v[0], v[1], v[2])
+                        }
+                        "https:" => {
+                            format!("wss://{}/ws/{}/{}/{}", host, v[0], v[1], v[2])
+                        }
                         &_ => return false,
                     };
                     // let url = format!("wss://{}/ws/{}/{}/{}", host, v[0], v[1], v[2]);
@@ -401,19 +420,19 @@ impl Component for Model {
                     }
                     DirectorServerType::NewConsumer => {
                         self.consumers
-                            .insert(s.extra_fields.unwrap().target.unwrap(), Participant::new());
+                            .insert(s.extra_fields.unwrap().target.unwrap(), Participant::new(true));
                     }
                     DirectorServerType::NewProducer => {
                         self.producers
-                            .insert(s.extra_fields.unwrap().target.unwrap(), Participant::new());
+                            .insert(s.extra_fields.unwrap().target.unwrap(), Participant::new(true));
                     }
                     DirectorServerType::NewDirector => {
                         self.directors
-                            .insert(s.extra_fields.unwrap().target.unwrap(), Participant::new());
+                            .insert(s.extra_fields.unwrap().target.unwrap(), Participant::new(false));
                     }
                     DirectorServerType::NewViewer => {
                         self.viewers
-                            .insert(s.extra_fields.unwrap().target.unwrap(), Participant::new());
+                            .insert(s.extra_fields.unwrap().target.unwrap(), Participant::new(false));
                     }
                     DirectorServerType::ParticipantKicked => {
                         let target = s.extra_fields.unwrap().target;
@@ -496,6 +515,14 @@ impl Component for Model {
                     }
                     DirectorServerType::ServerKicked => {
                         self.ws = None;
+                    }
+                    DirectorServerType::TurnTaken => {
+                        let target = s.extra_fields.clone().unwrap().target.unwrap();
+                        match s.extra_fields.unwrap().participant_type.unwrap().as_str() {
+                            "consumer" => self.consumers.took_turn(&target),
+                            "producer" => self.producers.took_turn(&target),
+                            _ => (),
+                        }
                     }
                     _ => {}
                 }

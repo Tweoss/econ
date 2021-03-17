@@ -29,6 +29,7 @@ pub enum DirectorServerType {
 	GameEnded,
 	TurnAdvanced,
 	ParticipantKicked,
+	TurnTaken,
 	Ping,
 	ServerKicked,
 	NewDirector,
