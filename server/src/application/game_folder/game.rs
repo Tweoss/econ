@@ -426,27 +426,31 @@ impl Handler<director_to_game::CloseGame> for Game {
 impl Handler<director_to_game::SetOffsets> for Game {
 	type Result = ();
 	fn handle(&mut self, msg: director_to_game::SetOffsets, _: &mut Context<Self>) {
-		// * Turn starts at 1, producer. 
-		// if self.turn%2 == 0 {
-
-		// }
-		self.subsidies = msg.subsidies;
-		self.trending = msg.trending;
-		self.supply_shock = msg.supply_shock;
-		if let Some(addr) = &self.state_main_director.addr {
-			addr.do_send(game_to_participant::NewOffsets {
-				subsidies: msg.subsidies,
-				trending: msg.trending,
-				supply_shock: msg.supply_shock,
-			});
-		}
-		for elem in self.directors.read().unwrap().values() {
-			if let Some(addr) = &elem.addr {
+		// * Turn starts at 1, producer.
+		if self.turn % 2 == 1
+			&& self.subsidies == msg.subsidies
+			&& self.supply_shock == msg.supply_shock
+			|| self.turn % 2 == 0 && self.trending == msg.trending
+		{
+			// * make sure that the others aren't changing
+			self.subsidies = msg.subsidies;
+			self.trending = msg.trending;
+			self.supply_shock = msg.supply_shock;
+			if let Some(addr) = &self.state_main_director.addr {
 				addr.do_send(game_to_participant::NewOffsets {
 					subsidies: msg.subsidies,
 					trending: msg.trending,
 					supply_shock: msg.supply_shock,
 				});
+			}
+			for elem in self.directors.read().unwrap().values() {
+				if let Some(addr) = &elem.addr {
+					addr.do_send(game_to_participant::NewOffsets {
+						subsidies: msg.subsidies,
+						trending: msg.trending,
+						supply_shock: msg.supply_shock,
+					});
+				}
 			}
 		}
 		// for elem in self.consumers.read().unwrap().values() {
@@ -510,10 +514,29 @@ impl Handler<producer_to_game::RegisterAddressGetInfo> for Game {
 
 impl Handler<producer_to_game::NewScoreEndTurn> for Game {
 	type Result = ();
-	fn handle(&mut self, msg: producer_to_game::NewScoreEndTurn, _: &mut Context<Self>) -> Self::Result {
-		self.producers.write().unwrap().get_mut(&msg.user_id).unwrap().score = msg.new_score;
-		self.producers.write().unwrap().get_mut(&msg.user_id).unwrap().balance = 0.;
-		self.producers.write().unwrap().get_mut(&msg.user_id).unwrap().took_turn = true;
+	fn handle(
+		&mut self,
+		msg: producer_to_game::NewScoreEndTurn,
+		_: &mut Context<Self>,
+	) -> Self::Result {
+		self.producers
+			.write()
+			.unwrap()
+			.get_mut(&msg.user_id)
+			.unwrap()
+			.score = msg.new_score;
+		self.producers
+			.write()
+			.unwrap()
+			.get_mut(&msg.user_id)
+			.unwrap()
+			.balance = 0.;
+		self.producers
+			.write()
+			.unwrap()
+			.get_mut(&msg.user_id)
+			.unwrap()
+			.took_turn = true;
 		if let Some(addr) = &self.state_main_director.addr {
 			addr.do_send(game_to_director::TurnTaken {
 				id: msg.user_id.clone(),
@@ -537,7 +560,6 @@ impl Handler<producer_to_game::NewScoreEndTurn> for Game {
 		// 		});
 		// 	}
 		// }
-
 	}
 }
 
