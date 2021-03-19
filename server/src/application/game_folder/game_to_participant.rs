@@ -11,6 +11,10 @@ pub struct TurnAdvanced {}
 
 #[derive(Message)]
 #[rtype(result="()")]
+pub struct Kicked {}
+
+#[derive(Message)]
+#[rtype(result="()")]
 pub struct NewOffsets {
 	pub trending: u8,
 	pub subsidies: u8,

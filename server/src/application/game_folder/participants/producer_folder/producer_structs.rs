@@ -11,6 +11,7 @@ pub enum ProducerServerType {
 	Info,
 	GameEnded,
 	TurnAdvanced,
+	NewOffsets,
 	ChoiceSubmitted,
 	ChoiceFailed,
 	QuantityPurchased,

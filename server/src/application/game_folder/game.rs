@@ -377,7 +377,8 @@ impl Handler<director_to_game::KickParticipant> for Game {
 		_: &mut Context<Self>,
 	) -> Self::Result {
 		self.consumers.write().unwrap().remove(&msg.user_id);
-		self.producers.write().unwrap().remove(&msg.user_id);
+		self.producers.write().unwrap().remove_entry(&msg.user_id).map(|x| x.1.addr.map(|addr| addr.do_send(game_to_participant::Kicked {})));
+		// self.producers.write().unwrap().remove(&msg.user_id);
 		self.directors.write().unwrap().remove(&msg.user_id);
 		self.viewers.write().unwrap().remove(&msg.user_id);
 		for elem in self.directors.read().unwrap().values() {
@@ -452,13 +453,17 @@ impl Handler<director_to_game::SetOffsets> for Game {
 					});
 				}
 			}
+			for elem in self.producers.read().unwrap().values() {
+				if let Some(addr) = &elem.addr {
+					addr.do_send(game_to_participant::NewOffsets {
+						subsidies: msg.subsidies,
+						trending: msg.trending,
+						supply_shock: msg.supply_shock,
+					});
+				}
+			}
 		}
 		// for elem in self.consumers.read().unwrap().values() {
-		// 	if let Some(addr) = &elem.addr {
-		// 		addr.do_send(game_to_participant::NewOffsets {subsidies: msg.subsidies, trending: msg.trending, supply_shock: msg.supply_shock});
-		// 	}
-		// }
-		// for elem in self.producers.read().unwrap().values() {
 		// 	if let Some(addr) = &elem.addr {
 		// 		addr.do_send(game_to_participant::NewOffsets {subsidies: msg.subsidies, trending: msg.trending, supply_shock: msg.supply_shock});
 		// 	}

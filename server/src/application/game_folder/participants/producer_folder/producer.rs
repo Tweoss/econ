@@ -264,6 +264,26 @@ impl Handler<game_to_participant::EndedGame> for Producer {
 	}
 }
 
+impl Handler<game_to_participant::NewOffsets> for Producer {
+	type Result = ();
+	fn handle(&mut self, msg: game_to_participant::NewOffsets, ctx: &mut Self::Context) {
+		let fields = ServerExtraFields {
+			offsets: Some(producer_structs::Offsets {
+				subsidies: msg.subsidies,
+				supply_shock: msg.supply_shock,
+			}),
+			..Default::default()
+		};
+		ctx.binary(
+			to_vec(&ProducerServerMsg {
+				msg_type: ProducerServerType::NewOffsets,
+				extra_fields: Some(fields),
+			})
+			.unwrap(),
+		);
+	}
+}
+
 impl Handler<game_to_producer::Info> for Producer {
 	type Result = ();
 	fn handle(&mut self, msg: game_to_producer::Info, ctx: &mut Self::Context) -> Self::Result {
@@ -283,5 +303,19 @@ impl Handler<game_to_producer::Info> for Producer {
 			})
 			.unwrap(),
 		);
+	}
+}
+
+impl Handler<game_to_participant::Kicked> for Producer {
+	type Result = ();
+	fn handle(&mut self, _msg: game_to_participant::Kicked, ctx: &mut Self::Context) -> Self::Result {
+		ctx.binary(
+			to_vec(&ProducerServerMsg {
+				msg_type: ProducerServerType::ServerKicked,
+				extra_fields: None,
+			})
+			.unwrap(),
+		);
+		ctx.terminate();
 	}
 }
