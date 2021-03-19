@@ -379,7 +379,8 @@ impl Handler<director_to_game::KickParticipant> for Game {
 		self.consumers.write().unwrap().remove(&msg.user_id);
 		self.producers.write().unwrap().remove_entry(&msg.user_id).map(|x| x.1.addr.map(|addr| addr.do_send(game_to_participant::Kicked {})));
 		// self.producers.write().unwrap().remove(&msg.user_id);
-		self.directors.write().unwrap().remove(&msg.user_id);
+		self.directors.write().unwrap().remove_entry(&msg.user_id).map(|x| x.1.addr.map(|addr| addr.do_send(game_to_participant::Kicked {})));
+		// self.directors.write().unwrap().remove(&msg.user_id);
 		self.viewers.write().unwrap().remove(&msg.user_id);
 		for elem in self.directors.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {

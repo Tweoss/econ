@@ -449,3 +449,17 @@ impl Handler<game_to_participant::TurnAdvanced> for Director {
 		);
 	}
 }
+
+impl Handler<game_to_participant::Kicked> for Director {
+	type Result = ();
+	fn handle(&mut self, _msg: game_to_participant::Kicked, ctx: &mut Self::Context) -> Self::Result {
+		ctx.binary(
+			to_vec(&DirectorServerMsg {
+				msg_type: DirectorServerType::ServerKicked,
+				extra_fields: None,
+			})
+			.unwrap(),
+		);
+		ctx.terminate();
+	}
+}
