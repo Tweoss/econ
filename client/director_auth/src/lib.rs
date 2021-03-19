@@ -317,7 +317,31 @@ enum Msg {
     NextTurn,
 }
 
-impl Model {}
+impl Model {
+    fn render_buttons(&self) -> Html {
+        // * consumer's turn. can change producer offsets
+        if self.turn%2 == 0 {
+            html! {
+                <>
+                    <button onclick={self.link.callback(|_| Msg::AdjustOffset(1))} class="btn btn-primary border rounded" type="button">{format!("Supply Shock: {}", self.graph_data.supply_shock)}</button>
+                    <button onclick={self.link.callback(|_| Msg::AdjustOffset(2))} class="btn btn-primary border rounded" type="button">{format!("Subsidies: {}", self.graph_data.subsidies)}</button>
+                    <button onclick={self.link.callback(|_| Msg::AdjustOffset(3))} class="btn btn-primary border rounded disabled" type="button" disabled=true>{format!("Trending: {}", self.graph_data.trending)}</button>       
+                </>
+            }
+        }
+        else {
+            html! {
+                <>
+                    <button onclick={self.link.callback(|_| Msg::AdjustOffset(1))} class="btn btn-primary border rounded disabled" type="button" disabled=true>{format!("Supply Shock: {}", self.graph_data.supply_shock)}</button>
+                    <button onclick={self.link.callback(|_| Msg::AdjustOffset(2))} class="btn btn-primary border rounded disabled" type="button" disabled=true>{format!("Subsidies: {}", self.graph_data.subsidies)}</button>
+                    <button onclick={self.link.callback(|_| Msg::AdjustOffset(3))} class="btn btn-primary border rounded" type="button">{format!("Trending: {}", self.graph_data.trending)}</button>
+                </>
+            }
+        }
+    }
+
+
+}
 
 impl Component for Model {
     type Message = Msg;
@@ -821,9 +845,10 @@ impl Component for Model {
                                 <div class="col" style="min-height: 30vmin;">
                                     <h2>{"Events"}</h2>
                                     <div class="btn-group-vertical btn-group-lg" role="group">
-                                        <button onclick={self.link.callback(|_| Msg::AdjustOffset(1))} class="btn btn-primary border rounded" type="button">{format!("Supply Shock: {}", self.graph_data.supply_shock)}</button>
-                                        <button onclick={self.link.callback(|_| Msg::AdjustOffset(2))} class="btn btn-primary border rounded" type="button">{format!("Subsidies: {}", self.graph_data.subsidies)}</button>
-                                        <button onclick={self.link.callback(|_| Msg::AdjustOffset(3))} class="btn btn-primary border rounded" type="button">{format!("Trending: {}", self.graph_data.trending)}</button>
+                                        {self.render_buttons()}
+                                        // <button onclick={self.link.callback(|_| Msg::AdjustOffset(1))} class="btn btn-primary border rounded" type="button">{format!("Supply Shock: {}", self.graph_data.supply_shock)}</button>
+                                        // <button onclick={self.link.callback(|_| Msg::AdjustOffset(2))} class="btn btn-primary border rounded" type="button">{format!("Subsidies: {}", self.graph_data.subsidies)}</button>
+                                        // <button onclick={self.link.callback(|_| Msg::AdjustOffset(3))} class="btn btn-primary border rounded" type="button">{format!("Trending: {}", self.graph_data.trending)}</button>
                                     </div>
                                 </div>
                             </div>
