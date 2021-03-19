@@ -348,7 +348,7 @@ impl Component for Model {
                     ProducerServerType::ServerKicked => {
                         self.ws = None;
                         js! {
-                            document.getElementById("kicked-modal").click;
+                            document.getElementById("kick-modal").click();
                         }
                     }
                     ProducerServerType::ChoiceFailed => {
@@ -360,6 +360,13 @@ impl Component for Model {
                         self.balance = tuple.1;
                         self.took_turn = true;
                         self.error_msg = "".to_string();
+                    }
+                    ProducerServerType::NewOffsets => {
+                        let offsets = s.extra_fields.unwrap().offsets.unwrap();
+                        self.graph_data.data(
+                            offsets.supply_shock,
+                            offsets.subsidies,
+                        );
                     }
                     // DirectorServerType::NewConsumer => {
                     //     self.consumers
@@ -392,14 +399,6 @@ impl Component for Model {
                     // }
                     // DirectorServerType::GameClosed => {
                     //     self.is_open = "Open".to_owned();
-                    // }
-                    // DirectorServerType::NewOffsets => {
-                    //     let offsets = s.extra_fields.unwrap().offsets.unwrap();
-                    //     self.graph_data.data(
-                    //         offsets.trending,
-                    //         offsets.supply_shock,
-                    //         offsets.subsidies,
-                    //     );
                     // }
                     // DirectorServerType::TurnAdvanced => {
                     //     self.turn += 1;
@@ -576,14 +575,6 @@ impl Component for Model {
                     .unwrap()));
                 }
                 
-                // match element.class_name().as_ref() {
-                //     "kickable live" | "kickable unresponsive" | "kickable" => {
-                //         element.set_class_name("kicked");
-                //         return true;
-                //     }
-                //     _ => {}
-                // }
-                
                 false
             },
         }
@@ -667,12 +658,9 @@ impl Component for Model {
                                     html! {<button onclick=submit class="btn btn-danger disabled btn-block flex-grow-0 flex-shrink-1" type="submit" disabled=true>{"Submit and End Turn"}</button>}
                                 }
                                 else {
-                                    ConsoleService::log("TEST");
                                     html! {<button onclick=submit class="btn btn-danger btn-block flex-grow-0 flex-shrink-1" type="submit">{"Submit and End Turn"}</button>}
                                 }
                             }
-                            // <button onclick=submit.clone() class="btn btn-danger disabled btn-block flex-grow-0 flex-shrink-1" type="submit" disabled=false>{"Submit and End Turn"}</button>
-                            // <button onclick=submit class="btn btn-danger disabled btn-block flex-grow-0 flex-shrink-1" type="submit" {"disabled"} disabled={self.took_turn}>{"Submit and End Turn"}</button>
                         </div>
                     </div>
                     <footer>
@@ -686,7 +674,7 @@ impl Component for Model {
                                 <h4 class="modal-title">{"Kicked by Server"}</h4><button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">{"×"}</span></button>
                             </div>
                             <div class="modal-footer">
-                                <button href="../../../login/" class="btn btn-info" type="button" data-dismiss="modal">{"Continue"}</button>
+                                <a class="btn btn-info active" role="button" href="/login/index.html" id="test">{"Continue"}</a>
                         </div>
                         </div>
                     </div>

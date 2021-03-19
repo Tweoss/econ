@@ -22,6 +22,7 @@ pub enum ProducerServerType {
 	ChoiceSubmitted,
 	ChoiceFailed,
 	QuantityPurchased,
+	NewOffsets,
 	Ping,
 	ServerKicked,
 	Ignore,

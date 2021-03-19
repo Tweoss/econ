@@ -1,4 +1,4 @@
-import { __cargo_web_snippet_866e008abcec00e107b72d8bc54d63e088405503 } from './snippets/producer-c426941d032412c3/inline0.js';
+import { __cargo_web_snippet_e246c7c3a320ec351337378aff599a545c88f89d } from './snippets/producer-c426941d032412c3/inline0.js';
 import { __cargo_web_snippet_80d6d56760c65e49b7be8b6b01c1ea861b046bf0 } from './snippets/stdweb-bb142200b065bd55/inline407.js';
 import { wasm_bindgen_initialize } from './snippets/stdweb-bb142200b065bd55/inline46.js';
 import { __cargo_web_snippet_72fc447820458c720c68d0d8e078ede631edd723 } from './snippets/stdweb-bb142200b065bd55/inline558.js';
@@ -343,8 +343,8 @@ async function init(input) {
         var ret = getObject(arg0);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbg_cargowebsnippet866e008abcec00e107b72d8bc54d63e088405503_0f948d9a062941ed = function(arg0) {
-        __cargo_web_snippet_866e008abcec00e107b72d8bc54d63e088405503(takeObject(arg0));
+    imports.wbg.__wbg_cargowebsnippete246c7c3a320ec351337378aff599a545c88f89d_0408fca36b26716b = function(arg0) {
+        __cargo_web_snippet_e246c7c3a320ec351337378aff599a545c88f89d(takeObject(arg0));
     };
     imports.wbg.__wbg_cargowebsnippet80d6d56760c65e49b7be8b6b01c1ea861b046bf0_5a8953894b8affd6 = function(arg0, arg1) {
         __cargo_web_snippet_80d6d56760c65e49b7be8b6b01c1ea861b046bf0(takeObject(arg0), arg1);
