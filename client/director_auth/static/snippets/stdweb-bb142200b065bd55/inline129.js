@@ -1,1 +1,1 @@
-export function __cargo_web_snippet_09c2e65cb945b3a07d756cb7c7369bfd2d291800(Module, $0, $1, $2) { $0 = Module.STDWEB_PRIVATE.to_js($0);$1 = Module.STDWEB_PRIVATE.to_js($1);$2 = Module.STDWEB_PRIVATE.to_js($2);($0).setRequestHeader(($1),($2)); }
+export function __cargo_web_snippet_0e0844338c5a42a35fb70254bff87e9d4c1a5bb8(Module, $0, $1, $2) { $1 = Module.STDWEB_PRIVATE.to_js($1);$2 = Module.STDWEB_PRIVATE.to_js($2);Module.STDWEB_PRIVATE.from_js($0, (function(){return new Image(($1),($2));})()); }

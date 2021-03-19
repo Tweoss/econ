@@ -1,1 +1,1 @@
-export function __cargo_web_snippet_2034053b7b6771271a2dad3e5416b045a74488a1(Module, $0, $1, $2, $3) { Module.STDWEB_PRIVATE.acquire_js_reference( $0 ).setTimeout( function() {Module.STDWEB_PRIVATE.dyncall( 'vi', $1, [$2] );}, $3 ); }
+export function __cargo_web_snippet_bdc6715b420dbbf050a58166e768ab274a16cd1e(Module, $0, $1, $2) { $1 = Module.STDWEB_PRIVATE.to_js($1);$2 = Module.STDWEB_PRIVATE.to_js($2);Module.STDWEB_PRIVATE.from_js($0, (function(){return($1).assignedElements({flatten:($2)});})()); }

@@ -19,6 +19,8 @@ use yew::services::ConsoleService;
 
 use serde_cbor::{from_slice, to_vec};
 
+use stdweb::js;
+
 mod structs;
 use structs::{
     ClientExtraFields, DirectorClientMsg, DirectorClientType, DirectorServerMsg,
@@ -539,6 +541,9 @@ impl Component for Model {
                     }
                     DirectorServerType::ServerKicked => {
                         self.ws = None;
+                        js! {
+                            document.getElementById("kick-modal").click();
+                        }
                     }
                     DirectorServerType::TurnTaken => {
                         let target = s.extra_fields.clone().unwrap().target.unwrap();
@@ -953,6 +958,19 @@ impl Component for Model {
                             </div>
                         </div>
                     </div>
+                    <button class="btn btn-danger border rounded" id="kick-modal" type="button" data-toggle="modal" data-target="#kicked-modal" hidden=true></button>
+                    <div class="modal fade" role="dialog" tabindex="-1" id="kicked-modal">
+                    <div class="modal-dialog" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h4 class="modal-title">{"Kicked by Server"}</h4><button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">{"×"}</span></button>
+                            </div>
+                            <div class="modal-footer">
+                                <a class="btn btn-info active" role="button" href="/director_login/index.html" id="test">{"Continue"}</a>
+                        </div>
+                        </div>
+                    </div>
+                </div>
                 </div>
             </>
         }

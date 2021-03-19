@@ -1,1 +1,1 @@
-export function __cargo_web_snippet_e76f261e12047f7d5f9ef27ed9ea398187468f49(Module, $0, $1) { $1 = Module.STDWEB_PRIVATE.to_js($1);Module.STDWEB_PRIVATE.from_js($0, (function(){return($1).attributeName;})()); }
+export function __cargo_web_snippet_7c8dfab835dc8a552cd9d67f27d26624590e052c(Module, $0) { var r = Module.STDWEB_PRIVATE.acquire_js_reference( $0 );return (r instanceof DOMException) && (r.name === "SyntaxError"); }

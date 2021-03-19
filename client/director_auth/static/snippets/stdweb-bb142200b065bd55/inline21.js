@@ -1,1 +1,1 @@
-export function __cargo_web_snippet_abad6e7efe50d1778e5cefe75fc227e4952de4e7(Module, $0) { return (Module.STDWEB_PRIVATE.acquire_js_reference( $0 ) instanceof Uint16Array) | 0; }
+export function __cargo_web_snippet_09c2e65cb945b3a07d756cb7c7369bfd2d291800(Module, $0, $1, $2) { $0 = Module.STDWEB_PRIVATE.to_js($0);$1 = Module.STDWEB_PRIVATE.to_js($1);$2 = Module.STDWEB_PRIVATE.to_js($2);($0).setRequestHeader(($1),($2)); }

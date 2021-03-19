@@ -1,1 +1,1 @@
-export function __cargo_web_snippet_72fc447820458c720c68d0d8e078ede631edd723(Module, $0, $1, $2) { console.error( 'Panic location:', Module.STDWEB_PRIVATE.to_js_string( $0, $1 ) + ':' + $2 ); }
+export function __cargo_web_snippet_e20fbb0533ef6a0d0bcf28a4fda0d1f64e6bb56f(Module, $0) { var o = Module.STDWEB_PRIVATE.acquire_js_reference( $0 );return (o instanceof FocusEvent && o.type === "blur"); }

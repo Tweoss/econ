@@ -1,1 +1,1 @@
-export function __cargo_web_snippet_6d20fd36f091c6068e953266e1c3c66c10546ed5(Module, $0) { $0 = Module.STDWEB_PRIVATE.to_js($0);($0).disconnect(); }
+export function __cargo_web_snippet_c023351d5bff43ef3dd317b499821cd4e71492f0(Module, $0) { var r = Module.STDWEB_PRIVATE.acquire_js_reference( $0 );return (r instanceof DOMException) && (r.name === "HierarchyRequestError"); }

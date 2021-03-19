@@ -1,1 +1,1 @@
-export function __cargo_web_snippet_2dde96449f3c4ae38d3095349749fc831670415d(Module, $0, $1) { $1 = Module.STDWEB_PRIVATE.to_js($1);Module.STDWEB_PRIVATE.from_js($0, (function(){return($1).touchType;})()); }
+export function __cargo_web_snippet_e90ee3bf41e53058c4b72618c94a7b9786eeb4aa(Module, $0) { var o = Module.STDWEB_PRIVATE.acquire_js_reference( $0 );return (o instanceof EventTarget); }

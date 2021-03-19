@@ -1,1 +1,1 @@
-export function __cargo_web_snippet_253a9c75b8d23eabafb2ca9f93f2aaf653580830(Module, $0, $1) { $1 = Module.STDWEB_PRIVATE.to_js($1);Module.STDWEB_PRIVATE.from_js($0, (function(){return($1).wasClean;})()); }
+export function __cargo_web_snippet_601c7f3da9120e294007309fd1d1572603e538a0(Module, $0) { var o = Module.STDWEB_PRIVATE.acquire_js_reference( $0 );return (o instanceof UnloadEvent && o.type === "unload"); }

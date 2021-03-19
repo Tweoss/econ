@@ -1,1 +1,1 @@
-export function __cargo_web_snippet_c392f20048127cbc3ace5ab07fe26112b98c6ea8(Module, $0) { var o = Module.STDWEB_PRIVATE.acquire_js_reference( $0 );return (o instanceof ProgressEvent && o.type === "loadstart"); }
+export function __cargo_web_snippet_b6bdbc5ea620c57d3dbc5af2d2f7357276748675(Module, $0) { var o = Module.STDWEB_PRIVATE.acquire_js_reference( $0 );return (o instanceof MutationObserver); }

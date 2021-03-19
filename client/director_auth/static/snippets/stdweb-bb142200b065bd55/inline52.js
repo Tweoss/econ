@@ -1,1 +1,1 @@
-export function __cargo_web_snippet_86d3581f577bd16bb76dfcf1320fa125038a9602(Module, $0, $1) { $1 = Module.STDWEB_PRIVATE.to_js($1);Module.STDWEB_PRIVATE.from_js($0, (function(){return($1).offsetWidth;})()); }
+export function __cargo_web_snippet_5b7b0a37a1d17754654c9c4c6c13f57dd52294fd(Module, $0) { var o = Module.STDWEB_PRIVATE.acquire_js_reference( $0 );return (o instanceof MouseEvent && o.type === "wheel"); }

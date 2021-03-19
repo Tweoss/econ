@@ -1,1 +1,1 @@
-export function __cargo_web_snippet_f5c5fdc5f1799892ed52576f0442e07096ca5252(Module, $0, $1) { $0 = Module.STDWEB_PRIVATE.to_js($0);$1 = Module.STDWEB_PRIVATE.to_js($1);($0).crossOrigin=($1) }
+export function __cargo_web_snippet_37f123361e40b110cef478a4c4ab6d5b8c7e60cf(Module, $0, $1) { $1 = Module.STDWEB_PRIVATE.to_js($1);Module.STDWEB_PRIVATE.from_js($0, (function(){return($1).buffer;})()); }
