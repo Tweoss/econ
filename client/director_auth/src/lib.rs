@@ -486,6 +486,12 @@ impl Component for Model {
                     }
                     DirectorServerType::TurnAdvanced => {
                         self.turn += 1;
+                        for producer in self.producers.values_mut() {
+                            producer.took_turn = Some(false);
+                        }
+                        for consumer in self.consumers.values_mut() {
+                            consumer.took_turn = Some(false);
+                        }
                     }
                     DirectorServerType::DisconnectedPlayer => {
                         let target = s.extra_fields.clone().unwrap().target.unwrap();
