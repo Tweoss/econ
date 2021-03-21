@@ -45,13 +45,6 @@ struct Model {
 }
 
 impl Participant {
-    fn new(produced: f64, price: f64, remaining: f64) -> Participant {
-        Participant {
-            produced,
-            price,
-            remaining,
-        }
-    }
     fn render(&self, id: String) -> Html {
         html! {
             <div class="seller">
@@ -212,10 +205,10 @@ impl Graphs {
         )
     }
     fn get_t_for_quantity(&self, t_0: f64, t_2: f64, x: f64, iterations: u32) -> f64 {
-        let t_1 = (t_0+t_2)/2.;
         if iterations == 0 {
-            return t_1;
+            return t_0;
         }
+        let t_1 = (t_0+t_2)/2.;
         let x_1 = 3. * f64::powi(1. - t_1, 2) * t_1 * 10.
         + 3. * (1. - t_1) * f64::powi(t_1, 2) * 45.
         + f64::powi(t_1, 3) * 80. - x;
@@ -252,7 +245,22 @@ enum Msg {
     // NextTurn,
 }
 
-impl Model {}
+impl Model {
+    fn update_producers(&mut self, new_list: Vec<(String, Participant)>) {
+        self.producers.clear();
+        for producer in new_list {
+            self.producers.insert(producer.0, producer.1);
+        }
+    }
+    fn render_submit(&self) -> Html {
+        if self.took_turn || self.turn%2 == 0 {
+            html! {<button onclick=self.link.callback(|_| Msg::Submit) class="btn btn-danger disabled btn-block flex-grow-0 flex-shrink-1" type="submit" disabled=true>{"Submit and End Turn"}</button>}
+        }
+        else {
+            html! {<button onclick=self.link.callback(|_| Msg::Submit) class="btn btn-danger btn-block flex-grow-0 flex-shrink-1" type="submit">{"Submit and End Turn"}</button>}
+        }
+    }
+}
 
 impl Component for Model {
     type Message = Msg;
@@ -368,62 +376,16 @@ impl Component for Model {
                             offsets.subsidies,
                         );
                     }
-                    // DirectorServerType::NewConsumer => {
-                    //     self.consumers
-                    //         .insert(s.extra_fields.unwrap().target.unwrap(), Participant::new());
-                    // }
-                    // DirectorServerType::NewProducer => {
-                    //     self.producers
-                    //         .insert(s.extra_fields.unwrap().target.unwrap(), Participant::new());
-                    // }
-                    // DirectorServerType::NewDirector => {
-                    //     self.directors
-                    //         .insert(s.extra_fields.unwrap().target.unwrap(), Participant::new());
-                    // }
-                    // DirectorServerType::NewViewer => {
-                    //     self.viewers
-                    //         .insert(s.extra_fields.unwrap().target.unwrap(), Participant::new());
-                    // }
-                    // DirectorServerType::ParticipantKicked => {
-                    //     let target = s.extra_fields.unwrap().target;
-                    //     ConsoleService::log("Received Message to kick: ");
-                    //     ConsoleService::log(&target.clone().unwrap());
-                    //     //* remove any references to this id
-                    //     self.producers.remove(target.as_ref().unwrap());
-                    //     self.consumers.remove(target.as_ref().unwrap());
-                    //     self.directors.remove(target.as_ref().unwrap());
-                    //     self.viewers.remove(target.as_ref().unwrap());
-                    // }
-                    // DirectorServerType::GameOpened => {
-                    //     self.is_open = "Close".to_owned();
-                    // }
-                    // DirectorServerType::GameClosed => {
-                    //     self.is_open = "Open".to_owned();
-                    // }
-                    // DirectorServerType::TurnAdvanced => {
-                    //     self.turn += 1;
-                    // }
-                    // DirectorServerType::DisconnectedPlayer => {
-                    //     let target = s.extra_fields.clone().unwrap().target.unwrap();
-                    //     match s.extra_fields.unwrap().participant_type.unwrap().as_str() {
-                    //         "consumer" => self
-                    //             .consumers
-                    //             .update_status(&target, PlayerState::Disconnected),
-                    //         "producer" => self
-                    //             .producers
-                    //             .update_status(&target, PlayerState::Disconnected),
-                    //         "director" => self
-                    //             .directors
-                    //             .update_status(&target, PlayerState::Disconnected),
-                    //         "viewer" => self
-                    //             .viewers
-                    //             .update_status(&target, PlayerState::Disconnected),
-                    //         _ => (),
-                    //     }
-                    // }
-                    // DirectorServerType::ServerKicked => {
-                    //     self.ws = None;
-                    // }
+                    ProducerServerType::TurnInfo => {
+                        self.update_producers(s.extra_fields.unwrap().turn_info.unwrap().producers);
+                    }
+                    ProducerServerType::TurnAdvanced => {
+                        self.turn += 1;
+                        self.took_turn = false;
+                        if self.turn%2 == 1 {
+                            self.balance = s.extra_fields.unwrap().balance.unwrap();
+                        }
+                    }
                     _ => {}
                 }
                 true
@@ -598,7 +560,6 @@ impl Component for Model {
         let end_drag = self.link.callback(|_: yew::MouseEvent| Msg::EndDrag);
         let change_quantity = self.link.callback(Msg::Quantity);
         let change_price = self.link.callback(Msg::Price);
-        let submit = self.link.callback(|_| Msg::Submit);
 
         html! {
             <>
@@ -607,7 +568,7 @@ impl Component for Model {
                     <div class="row" style="margin-right: 0;margin-left: 0;">
                         <div class="col-md-6 text-center" style="padding: 0;min-height: 40vmin;">
                             <div class="d-flex flex-column" style="height: 100%;width: 100%;">
-                                <h2>{"Graphs"}</h2>
+                                <h2>{"Marginal Cost"}</h2>
                                 <div class="d-xl-flex flex-fill justify-content-xl-center align-items-xl-center" style="width: 100%;">
                                     <svg viewBox="-5 -5 100 100" preserveAspectRatio="xMidYMid meet" fill="white" >
                                         <g id="Producer Group" transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=producer_click_down onmousemove=click_move onmouseup=end_drag.clone() onmouseleave=end_drag.clone() ontouchstart=producer_touch_start ontouchmove=touch_move>
@@ -642,24 +603,19 @@ impl Component for Model {
                             <p>{format!("Turn: {}", self.turn)}</p>
                             <div class="d-flex flex-column flex-grow-1 marketplace">
                                 <h4>{"Previous Turn"}</h4>
-                                <div class="flex-grow-1 flex-shrink-1 sellers">
+                                <div class="flex-grow-1 flex-shrink-1 sellers" style="background: var(--dark);border-radius: 6px;border: 2px solid var(--secondary);margin: 8px;">
                                     {self.producers.render()}
                                 </div>
                             </div>
                             <form>
-                                <div class="form-group" style="width: 45%;"><label for="Quantity" style="width: 40%;">{"Quantity"}</label><input oninput=change_quantity class="form-control" type="number" style="width: 60%;background: var(--secondary);color: var(--white);text-align: center;" placeholder="0" min="0" max="100"/></div>
+                                <div class="form-group" style="width: 45%;"><label for="Quantity" style="width: 40%;">{"Quantity"}</label><input oninput=change_quantity class="form-control" type="number" style="width: 60%;background: var(--secondary);color: var(--white);text-align: center;" placeholder="0" min="0" max="80"/></div>
                                 <div class="form-group" style="width: 45%;"><label for="Price"    style="width: 40%;">{"Price"}   </label><input oninput=change_price class="form-control" type="number" style="width: 60%;color: var(--white);background: var(--secondary);text-align: center;" placeholder="0" min="0" max="100"/></div>
                             </form>
                             <div class="d-flex">
                                 <p class="text-center text-danger mb-auto text-info" style="width: 100%;">{&self.error_msg}</p>
                             </div>
                             {
-                                if self.took_turn {
-                                    html! {<button onclick=submit class="btn btn-danger disabled btn-block flex-grow-0 flex-shrink-1" type="submit" disabled=true>{"Submit and End Turn"}</button>}
-                                }
-                                else {
-                                    html! {<button onclick=submit class="btn btn-danger btn-block flex-grow-0 flex-shrink-1" type="submit">{"Submit and End Turn"}</button>}
-                                }
+                                self.render_submit()
                             }
                         </div>
                     </div>

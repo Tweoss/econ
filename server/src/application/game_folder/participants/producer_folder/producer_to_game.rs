@@ -13,4 +13,6 @@ pub struct RegisterAddressGetInfo {
 pub struct NewScoreEndTurn {
 	pub user_id: String,
 	pub new_score: f64,
+	pub produced: f64,
+	pub price: f64,
 }

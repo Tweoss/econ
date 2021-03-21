@@ -19,6 +19,7 @@ pub enum ProducerServerType {
 	Info,
 	GameEnded,
 	TurnAdvanced,
+	TurnInfo,
 	ChoiceSubmitted,
 	ChoiceFailed,
 	QuantityPurchased,
@@ -54,7 +55,6 @@ pub struct Info {
 #[derive(Debug, Deserialize, Clone)]
 pub struct TurnInfo {
 	pub producers: Vec<(String, Participant)>,
-	pub offsets: Offsets,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -68,6 +68,8 @@ pub struct ServerExtraFields {
 	pub fail_info: Option<String>,
 	// * New score
 	pub purchased: Option<f64>,
+	// * New Balance after Turn ends
+	pub balance: Option<f64>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

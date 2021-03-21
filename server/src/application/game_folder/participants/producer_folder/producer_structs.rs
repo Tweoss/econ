@@ -12,12 +12,12 @@ pub enum ProducerServerType {
 	GameEnded,
 	TurnAdvanced,
 	NewOffsets,
+	TurnInfo,
 	ChoiceSubmitted,
 	ChoiceFailed,
 	QuantityPurchased,
 	Ping,
 	ServerKicked,
-	Ignore,
 }
 #[derive(Debug, Deserialize, PartialEq)]
 pub enum ProducerClientType {
@@ -44,9 +44,9 @@ pub struct Info {
 }
 
 #[derive(Debug, Serialize, Clone)]
+/// Only sent when producer's turn ends
 pub struct TurnInfo {
 	pub producers: Vec<(String, Participant)>,
-	pub offsets: Offsets,
 }
 
 #[derive(Debug, Default, Serialize, Clone)]
@@ -59,6 +59,8 @@ pub struct ServerExtraFields {
 	pub fail_info: Option<String>,
 	// * New score
 	pub purchased: Option<f64>,
+	// * New Balance after Turn ends
+	pub balance: Option<f64>,
 }
 
 #[derive(Debug, Serialize, Clone)]

@@ -23,6 +23,7 @@ use crate::application::game_folder::participants::json::{
 	CLIENT_TERMINATE, CLIENT_TIMEOUT, HEARTBEAT_INTERVAL,
 };
 
+const INITIAL_BALANCE: f64 = 4000.;
 const CLIENT_T_CALCULATION_FREEDOM: f64 = 0.0001;
 
 pub struct ProducerState {
@@ -41,7 +42,7 @@ impl ProducerState {
 			is_responsive: true,
 			took_turn: false,
 			score: 0.,
-			balance: 2000.,
+			balance: INITIAL_BALANCE,
 			quantity_produced: 0.,
 			price: 0.,
 			addr: None,
@@ -53,6 +54,7 @@ pub struct Producer {
 	pub uuid: String,
 	pub game_id: String,
 	pub game_addr: Addr<Game>,
+	is_producer_turn: bool,
 	took_turn: bool,
 	subsidies: u8,
 	supply_shock: u8,
@@ -99,6 +101,7 @@ impl Producer {
 			took_turn: false,
 			hb: Instant::now(),
 			is_unresponsive: false,
+			is_producer_turn: false,
 		}
 	}
 	fn hb(&self, ctx: &mut ws::WebsocketContext<Self>) {
@@ -147,7 +150,7 @@ impl Producer {
 	}
 	#[allow(clippy::many_single_char_names)]
 	// * try to produce an amount. returns score if works. if not, insufficient funds => None
-	fn try_produce(&mut self, quantity: f64, t: f64) -> Result<f64, String> {
+	fn try_produce(&mut self, quantity: f64, t: f64, price: f64) -> Result<f64, String> {
 		let believed_quantity = 3. * f64::powi(1. - t, 2) * t * 10.
 			+ 3. * (1. - t) * f64::powi(t, 2) * 45.
 			+ f64::powi(t, 3) * 80.;
@@ -195,6 +198,8 @@ impl Producer {
 				self.game_addr.do_send(producer_to_game::NewScoreEndTurn {
 					new_score: self.score,
 					user_id: self.uuid.clone(),
+					produced: quantity,
+					price,
 				});
 				Ok(self.score)
 			}
@@ -211,34 +216,36 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Producer {
 				println!("{:?}", message);
 				match message.msg_type {
 					ProducerClientType::Choice => {
-						let choice = message.choice.unwrap();
-						match self.try_produce(choice.quantity, choice.t) {
-							Ok(score) => {
-								let extra_fields = Some(ServerExtraFields {
-									submitted_info: Some((score, self.balance)),
-									..Default::default()
-								});
-								ctx.binary(
-									to_vec(&ProducerServerMsg {
-										msg_type: ProducerServerType::ChoiceSubmitted,
-										extra_fields
-									})
-									.unwrap(),
-								);
-								self.took_turn = true;
-							}
-							Err(msg)=> {
-								let extra_fields = Some(ServerExtraFields {
-									fail_info: Some(msg),
-									..Default::default()
-								});
-								ctx.binary(
-									to_vec(&ProducerServerMsg {
-										msg_type: ProducerServerType::ChoiceFailed,
-										extra_fields
-									})
-									.unwrap(),
-								);
+						if !self.took_turn && self.is_producer_turn {
+							let choice = message.choice.unwrap();
+							match self.try_produce(choice.quantity, choice.t, choice.price) {
+								Ok(score) => {
+									let extra_fields = Some(ServerExtraFields {
+										submitted_info: Some((score, self.balance)),
+										..Default::default()
+									});
+									ctx.binary(
+										to_vec(&ProducerServerMsg {
+											msg_type: ProducerServerType::ChoiceSubmitted,
+											extra_fields,
+										})
+										.unwrap(),
+									);
+									self.took_turn = true;
+								}
+								Err(msg) => {
+									let extra_fields = Some(ServerExtraFields {
+										fail_info: Some(msg),
+										..Default::default()
+									});
+									ctx.binary(
+										to_vec(&ProducerServerMsg {
+											msg_type: ProducerServerType::ChoiceFailed,
+											extra_fields,
+										})
+										.unwrap(),
+									);
+								}
 							}
 						}
 					}
@@ -284,6 +291,58 @@ impl Handler<game_to_participant::NewOffsets> for Producer {
 	}
 }
 
+impl Handler<game_to_participant::Kicked> for Producer {
+	type Result = ();
+	fn handle(
+		&mut self,
+		_msg: game_to_participant::Kicked,
+		ctx: &mut Self::Context,
+	) -> Self::Result {
+		ctx.binary(
+			to_vec(&ProducerServerMsg {
+				msg_type: ProducerServerType::ServerKicked,
+				extra_fields: None,
+			})
+			.unwrap(),
+		);
+		ctx.terminate();
+	}
+}
+
+impl Handler<game_to_participant::TurnAdvanced> for Producer {
+	type Result = ();
+	fn handle(
+		&mut self,
+		_msg: game_to_participant::TurnAdvanced,
+		ctx: &mut Self::Context,
+	) -> Self::Result {
+		self.took_turn = false;
+		self.is_producer_turn = !self.is_producer_turn;
+		let fields = ServerExtraFields {
+			balance: Some(INITIAL_BALANCE),
+			..Default::default()
+		};
+		if self.is_producer_turn {
+			self.balance = INITIAL_BALANCE;
+			ctx.binary(
+				to_vec(&ProducerServerMsg {
+					msg_type: ProducerServerType::TurnAdvanced,
+					extra_fields: Some(fields),
+				})
+				.unwrap(),
+			);
+		} else {
+			ctx.binary(
+				to_vec(&ProducerServerMsg {
+					msg_type: ProducerServerType::TurnAdvanced,
+					extra_fields: None,
+				})
+				.unwrap(),
+			);
+		}
+	}
+}
+
 impl Handler<game_to_producer::Info> for Producer {
 	type Result = ();
 	fn handle(&mut self, msg: game_to_producer::Info, ctx: &mut Self::Context) -> Self::Result {
@@ -292,6 +351,7 @@ impl Handler<game_to_producer::Info> for Producer {
 		self.balance = msg.info.balance;
 		self.score = msg.info.score;
 		self.took_turn = msg.info.took_turn;
+		self.is_producer_turn = msg.info.turn % 2 == 1;
 		let extra_fields = producer_structs::ServerExtraFields {
 			info: Some(msg.info),
 			..Default::default()
@@ -306,16 +366,21 @@ impl Handler<game_to_producer::Info> for Producer {
 	}
 }
 
-impl Handler<game_to_participant::Kicked> for Producer {
+impl Handler<game_to_producer::TurnList> for Producer {
 	type Result = ();
-	fn handle(&mut self, _msg: game_to_participant::Kicked, ctx: &mut Self::Context) -> Self::Result {
+	fn handle(&mut self, msg: game_to_producer::TurnList, ctx: &mut Self::Context) -> Self::Result {
+		let fields = ServerExtraFields {
+			turn_info: Some(producer_structs::TurnInfo {
+				producers: msg.list,
+			}),
+			..Default::default()
+		};
 		ctx.binary(
 			to_vec(&ProducerServerMsg {
-				msg_type: ProducerServerType::ServerKicked,
-				extra_fields: None,
+				msg_type: ProducerServerType::TurnInfo,
+				extra_fields: Some(fields),
 			})
 			.unwrap(),
 		);
-		ctx.terminate();
 	}
 }
