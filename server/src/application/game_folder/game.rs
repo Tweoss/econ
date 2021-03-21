@@ -22,8 +22,6 @@ use crate::application::game_folder::game_to_app;
 use std::collections::HashMap;
 use std::sync::RwLock;
 
-// //* Game can receive messages about a Player joining, admin Messages, other things?
-
 pub struct Game {
 	// is_connected, i64: score in dollars
 	consumers: RwLock<HashMap<String, ConsumerState>>,
@@ -31,7 +29,7 @@ pub struct Game {
 	producers: RwLock<HashMap<String, ProducerState>>,
 	directors: RwLock<HashMap<String, DirectorState>>,
 	viewers: RwLock<HashMap<String, ViewerState>>,
-	past_turn: RwLock<HashMap<String, producer_structs::Participant>>,
+	past_turn: RwLock<Vec<(String, producer_structs::Participant)>>,
 	id_main_director: String,
 	state_main_director: DirectorState,
 	is_open: bool,
@@ -65,7 +63,7 @@ impl Game {
 			consumers: RwLock::new(HashMap::new()),
 			directors: RwLock::new(HashMap::new()),
 			viewers: RwLock::new(HashMap::new()),
-			past_turn: RwLock::new(HashMap::new()),
+			past_turn: RwLock::new(Vec::new()),
 			id_main_director,
 			state_main_director: DirectorState::new(),
 			is_open: false,
@@ -377,9 +375,23 @@ impl Handler<director_to_game::KickParticipant> for Game {
 		_: &mut Context<Self>,
 	) -> Self::Result {
 		self.consumers.write().unwrap().remove(&msg.user_id);
-		self.producers.write().unwrap().remove_entry(&msg.user_id).map(|x| x.1.addr.map(|addr| addr.do_send(game_to_participant::Kicked {})));
+		self.producers
+			.write()
+			.unwrap()
+			.remove_entry(&msg.user_id)
+			.map(|x| {
+				x.1.addr
+					.map(|addr| addr.do_send(game_to_participant::Kicked {}))
+			});
 		// self.producers.write().unwrap().remove(&msg.user_id);
-		self.directors.write().unwrap().remove_entry(&msg.user_id).map(|x| x.1.addr.map(|addr| addr.do_send(game_to_participant::Kicked {})));
+		self.directors
+			.write()
+			.unwrap()
+			.remove_entry(&msg.user_id)
+			.map(|x| {
+				x.1.addr
+					.map(|addr| addr.do_send(game_to_participant::Kicked {}))
+			});
 		// self.directors.write().unwrap().remove(&msg.user_id);
 		self.viewers.write().unwrap().remove(&msg.user_id);
 		for elem in self.directors.read().unwrap().values() {
@@ -476,14 +488,35 @@ impl Handler<director_to_game::ForceTurn> for Game {
 	type Result = ();
 	fn handle(&mut self, _: director_to_game::ForceTurn, _: &mut Context<Self>) -> Self::Result {
 		self.turn += 1;
+		if self.turn%2 == 0 {
+			let list = self.past_turn.read().unwrap().clone();
+			for elem in self.producers.read().unwrap().values() {
+				if let Some(addr) = &elem.addr {
+					addr.do_send(game_to_producer::TurnList {list: list.clone()});
+				}
+			}
+			for producer in self.producers.write().unwrap().values_mut() {
+				producer.took_turn = false;
+			}
+			for consumer in self.consumers.write().unwrap().values_mut() {
+				consumer.took_turn = false;
+			}
+			// self.producers.write().unwrap().values_mut().map(|elem| elem.took_turn = false);
+		}
+		if let Some(addr) = &self.state_main_director.addr {
+			addr.do_send(game_to_participant::TurnAdvanced {});
+		}
 		for elem in self.directors.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
 				addr.do_send(game_to_participant::TurnAdvanced {});
 			}
 		}
-		if let Some(addr) = &self.state_main_director.addr {
-			addr.do_send(game_to_participant::TurnAdvanced {});
+		for elem in self.producers.read().unwrap().values() {
+			if let Some(addr) = &elem.addr {
+				addr.do_send(game_to_participant::TurnAdvanced {});
+			}
 		}
+
 	}
 }
 
@@ -566,6 +599,7 @@ impl Handler<producer_to_game::NewScoreEndTurn> for Game {
 		// 		});
 		// 	}
 		// }
+		self.past_turn.write().unwrap().push((msg.user_id, producer_structs::Participant{ produced: msg.produced, remaining: msg.produced, price: msg.price}));
 	}
 }
 
