@@ -5,7 +5,9 @@ use wasm_bindgen::JsCast;
 use web_sys::SvggElement;
 use yew::prelude::*;
 
+extern crate console_error_panic_hook;
 use anyhow::Error;
+use std::panic;
 
 use http::{Request, Response};
 use yew::html::ComponentLink;
@@ -643,5 +645,6 @@ impl Component for Model {
 
 #[wasm_bindgen(start)]
 pub fn run_app() {
+    panic::set_hook(Box::new(console_error_panic_hook::hook));
     App::<Model>::new().mount_to_body();
 }

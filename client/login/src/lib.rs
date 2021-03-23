@@ -9,6 +9,8 @@ extern crate yew;
 
 // use failure::Error;
 use anyhow::Error;
+extern crate console_error_panic_hook;
+use std::panic;
 
 use http::{Request, Response};
 use stdweb::js;
@@ -157,5 +159,6 @@ impl Component for Model {
 // }
 #[wasm_bindgen(start)]
 pub fn run_app() {
+	panic::set_hook(Box::new(console_error_panic_hook::hook));
 	App::<Model>::new().mount_to_body();
 }
