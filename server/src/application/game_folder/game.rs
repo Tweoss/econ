@@ -212,6 +212,9 @@ impl Game {
 impl Handler<NewPlayer> for Game {
 	type Result = String;
 	fn handle(&mut self, msg: NewPlayer, _: &mut Context<Self>) -> Self::Result {
+		if self.consumers.read().unwrap().values().any(|x| x.name == msg.username) || self.producers.read().unwrap().values().any(|x| x.name == msg.username) {
+			return "Name taken".to_string();
+		}
 		self.producer_next = !self.producer_next;
 		if self.producer_next {
 			self.consumers.write().unwrap().insert(
@@ -273,6 +276,9 @@ impl Handler<IsGameOpen> for Game {
 impl Handler<NewDirector> for Game {
 	type Result = ();
 	fn handle(&mut self, msg: NewDirector, _: &mut Context<Self>) -> Self::Result {
+		if self.directors.read().unwrap().values().any(|x| x.name == msg.username) {
+			return;
+		}
 		self.directors
 			.write()
 			.unwrap()

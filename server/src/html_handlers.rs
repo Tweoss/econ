@@ -33,8 +33,8 @@ pub async fn set_cookies(cookie_info: web::Json<CookieInfo>, req: HttpRequest) -
 	);
 	if !game_id.chars().any(|c| c.is_ascii_digit()) {
 		return HttpResponse::Ok()
-		.content_type("plain/text")
-		.body("Invalid Game ID")
+			.content_type("plain/text")
+			.body("Invalid Game ID");
 	}
 	let addr = req.app_data::<web::Data<actix::Addr<AppState>>>().unwrap();
 
@@ -104,22 +104,28 @@ pub async fn set_cookies(cookie_info: web::Json<CookieInfo>, req: HttpRequest) -
 		match viewtype.as_ref() {
 			"player" => {
 				if is_open {
-					viewtype_cookie.set_value(
-						addr.send(handle_to_app::NewPlayer {
+					let player_type = addr
+						.send(handle_to_app::NewPlayer {
 							user_id: temp_uuid,
 							game_id,
 							username: username.clone(),
 						})
 						.await
-						.unwrap(),
-					);
-					HttpResponse::build(http::StatusCode::OK)
-						.cookie(id_cookie)
-						.cookie(name_cookie)
-						.cookie(viewtype_cookie)
-						.cookie(game_id_cookie)
-						.content_type("plain/text")
-						.body("Success")
+						.unwrap();
+					if player_type == "Name taken" {
+						HttpResponse::Ok()
+							.content_type("plain/text")
+							.body("Name taken")
+					} else {
+						viewtype_cookie.set_value(player_type);
+						HttpResponse::build(http::StatusCode::OK)
+							.cookie(id_cookie)
+							.cookie(name_cookie)
+							.cookie(viewtype_cookie)
+							.cookie(game_id_cookie)
+							.content_type("plain/text")
+							.body("Success")
+					}
 				} else {
 					HttpResponse::Ok()
 						.content_type("plain/text")
@@ -192,9 +198,7 @@ pub async fn set_cookies(cookie_info: web::Json<CookieInfo>, req: HttpRequest) -
 			.content_type("plain/text")
 			.body("No Game with that ID Found")
 	}
-
 }
-
 
 #[get("/{play_view_direct}/{type}/{gameid:\\d*}/{filename}.{ext}")]
 async fn get_html(req: HttpRequest) -> impl Responder {
@@ -223,7 +227,12 @@ async fn get_html(req: HttpRequest) -> impl Responder {
 				"producer" => prepath + "producer/",
 				"consumer" => prepath + "consumer/",
 				"director" => prepath + "director_auth/",
-				_ => return Ok(NamedFile::open(format!("../client/404/{}/index.html", DEPLOY_OR_STATIC))),
+				_ => {
+					return Ok(NamedFile::open(format!(
+						"../client/404/{}/index.html",
+						DEPLOY_OR_STATIC
+					)))
+				}
 			};
 			prepath += DEPLOY_OR_STATIC;
 			prepath += "/";
@@ -301,7 +310,7 @@ async fn assets(req: HttpRequest) -> impl Responder {
 		"director" => prepath + "director_auth/",
 		_ => {
 			let failed: actix_files::NamedFile =
-			NamedFile::open(format!("../client/404/{}/index.html", DEPLOY_OR_STATIC)).unwrap();
+				NamedFile::open(format!("../client/404/{}/index.html", DEPLOY_OR_STATIC)).unwrap();
 			return failed;
 		}
 	};
@@ -338,4 +347,3 @@ async fn inline(req: HttpRequest) -> impl Responder {
 	println!("{}", prepath);
 	NamedFile::open(prepath).unwrap()
 }
-
