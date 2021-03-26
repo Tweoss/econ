@@ -91,8 +91,8 @@ pub struct NewDirector {
 #[rtype(result="()")]
 pub struct NewGame {
     pub user_id: String,
-    pub game_id: String,
     pub username: String,
+    pub game_id: String,
 }
 
 /// Prevent main directors from joining other games

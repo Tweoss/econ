@@ -53,17 +53,18 @@ struct Model {
 }
 
 impl Participant {
-    fn new(can_take_turn: bool) -> Participant {
+    fn new(can_take_turn: bool, name: String) -> Participant {
         if can_take_turn {
             Participant {
                 state: PlayerState::Disconnected,
                 took_turn: Some(false),
+                name,
             }
-        }
-        else {
+        } else {
             Participant {
                 state: PlayerState::Disconnected,
                 took_turn: None,
+                name,
             }
         }
     }
@@ -76,24 +77,22 @@ impl Participant {
         match self.state {
             PlayerState::Unresponsive => {
                 html! {
-                    <p class="kickable unresponsive" id={id.clone()}>{id.clone()}{"\u{00a0}"}{"\u{00a0}"} <i class="fa fa-signal"></i> {
-                        icon
-                    }</p>
+                    <p class="kickable unresponsive" id={id.clone()}>{format!("{:?}, {} ",self.name, id.clone())} <i class="fa fa-signal"></i> {icon} </p>
                 }
             }
             PlayerState::Connected => {
                 html! {
-                    <p class="kickable live" id={id.clone()}>{id.clone()}{"\u{00a0}"}{"\u{00a0}"} <i class="fa fa-user"></i> {icon}</p>
+                    <p class="kickable live" id={id.clone()}>{format!("{:?}, {} ",self.name, id.clone())} <i class="fa fa-user"></i> {icon} </p>
                 }
             }
             PlayerState::Disconnected => {
                 html! {
-                    <p class="kickable" id={id.clone()}>{id.clone()}{"\u{00a0}"}{"\u{00a0}"} <i class="fa fa-user-o"></i> {icon}</p>
+                    <p class="kickable" id={id.clone()}>{format!("{:?}, {} ",self.name, id.clone())}<i class="fa fa-o"></i> {icon} </p>
                 }
             }
             PlayerState::Kicked => {
                 html! {
-                    <p class="kicked">{id.clone()}</p>
+                    <p class="kicked" id={id.clone()}>{format!("{:?}, {}  ",self.name, id.clone())}</p>
                 }
             }
         }
@@ -324,16 +323,15 @@ enum Msg {
 impl Model {
     fn render_buttons(&self) -> Html {
         // * consumer's turn. can change producer offsets
-        if self.turn%2 == 0 {
+        if self.turn % 2 == 0 {
             html! {
                 <>
                     <button onclick={self.link.callback(|_| Msg::AdjustOffset(1))} class="btn btn-primary border rounded" type="button">{format!("Supply Shock: {}", self.graph_data.supply_shock)}</button>
                     <button onclick={self.link.callback(|_| Msg::AdjustOffset(2))} class="btn btn-primary border rounded" type="button">{format!("Subsidies: {}", self.graph_data.subsidies)}</button>
-                    <button onclick={self.link.callback(|_| Msg::AdjustOffset(3))} class="btn btn-primary border rounded disabled" type="button" disabled=true>{format!("Trending: {}", self.graph_data.trending)}</button>       
+                    <button onclick={self.link.callback(|_| Msg::AdjustOffset(3))} class="btn btn-primary border rounded disabled" type="button" disabled=true>{format!("Trending: {}", self.graph_data.trending)}</button>
                 </>
             }
-        }
-        else {
+        } else {
             html! {
                 <>
                     <button onclick={self.link.callback(|_| Msg::AdjustOffset(1))} class="btn btn-primary border rounded disabled" type="button" disabled=true>{format!("Supply Shock: {}", self.graph_data.supply_shock)}</button>
@@ -343,8 +341,6 @@ impl Model {
             }
         }
     }
-
-
 }
 
 impl Component for Model {
@@ -447,20 +443,32 @@ impl Component for Model {
                         return false;
                     }
                     DirectorServerType::NewConsumer => {
-                        self.consumers
-                            .insert(s.extra_fields.unwrap().target.unwrap(), Participant::new(true));
+                        let extra_fields = s.extra_fields.unwrap();
+                        self.consumers.insert(
+                            extra_fields.target.unwrap(),
+                            Participant::new(true, extra_fields.name.unwrap()),
+                        );
                     }
                     DirectorServerType::NewProducer => {
-                        self.producers
-                            .insert(s.extra_fields.unwrap().target.unwrap(), Participant::new(true));
+                        let extra_fields = s.extra_fields.unwrap();
+                        self.producers.insert(
+                            extra_fields.target.unwrap(),
+                            Participant::new(true, extra_fields.name.unwrap()),
+                        );
                     }
                     DirectorServerType::NewDirector => {
-                        self.directors
-                            .insert(s.extra_fields.unwrap().target.unwrap(), Participant::new(false));
+                        let extra_fields = s.extra_fields.unwrap();
+                        self.directors.insert(
+                            extra_fields.target.unwrap(),
+                            Participant::new(false, extra_fields.name.unwrap()),
+                        );
                     }
                     DirectorServerType::NewViewer => {
-                        self.viewers
-                            .insert(s.extra_fields.unwrap().target.unwrap(), Participant::new(false));
+                        let extra_fields = s.extra_fields.unwrap();
+                        self.viewers.insert(
+                            extra_fields.target.unwrap(),
+                            Participant::new(false, extra_fields.name.unwrap()),
+                        );
                     }
                     DirectorServerType::ParticipantKicked => {
                         let target = s.extra_fields.unwrap().target;

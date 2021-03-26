@@ -16,8 +16,6 @@ use crate::application::game_folder::participants::director_folder::director_to_
 use crate::application::game_folder::participants::participant_to_game;
 use crate::application::game_folder::participants::producer_folder::producer_to_game;
 
-// use super::participants::json;
-
 use crate::application::game_folder::game_to_app;
 use std::collections::HashMap;
 use std::sync::RwLock;
@@ -56,7 +54,7 @@ impl Actor for Game {
 }
 
 impl Game {
-	pub fn new(app_addr: Addr<AppState>, id_main_director: String, game_id: String) -> Game {
+	pub fn new(app_addr: Addr<AppState>, id_main_director: String, name_main_director: String, game_id: String) -> Game {
 		println!("Making a new GAME with director id: {}", id_main_director);
 		Game {
 			producers: RwLock::new(HashMap::new()),
@@ -65,7 +63,7 @@ impl Game {
 			viewers: RwLock::new(HashMap::new()),
 			past_turn: RwLock::new(Vec::new()),
 			id_main_director,
-			state_main_director: DirectorState::new(),
+			state_main_director: DirectorState::new(name_main_director),
 			is_open: false,
 			trending: 10,
 			supply_shock: 10,
@@ -98,6 +96,7 @@ impl Game {
 				director_structs::Participant {
 					state,
 					took_turn: Some(consumer.1.took_turn),
+					name: consumer.1.name.clone(),
 				},
 			))
 		}
@@ -118,6 +117,7 @@ impl Game {
 				director_structs::Participant {
 					state,
 					took_turn: Some(producer.1.took_turn),
+					name: producer.1.name.clone(),
 				},
 			))
 		}
@@ -138,6 +138,7 @@ impl Game {
 				director_structs::Participant {
 					state,
 					took_turn: None,
+					name: viewer.1.name.clone(),
 				},
 			))
 		}
@@ -158,6 +159,7 @@ impl Game {
 				director_structs::Participant {
 					state,
 					took_turn: None,
+					name: director.1.name.clone(),
 				},
 			))
 		}
@@ -212,14 +214,15 @@ impl Handler<NewPlayer> for Game {
 	fn handle(&mut self, msg: NewPlayer, _: &mut Context<Self>) -> Self::Result {
 		self.producer_next = !self.producer_next;
 		if self.producer_next {
-			self.consumers
-				.write()
-				.unwrap()
-				.insert(msg.user_id.clone(), ConsumerState::new());
+			self.consumers.write().unwrap().insert(
+				msg.user_id.clone(),
+				ConsumerState::new(msg.username.clone()),
+			);
 			for elem in self.directors.read().unwrap().values() {
 				if let Some(addr) = &elem.addr {
 					addr.do_send(game_to_director::NewParticipant {
 						id: msg.user_id.clone(),
+						name: msg.username.clone(),
 						participant_type: director_structs::ParticipantType::Consumer,
 					});
 				}
@@ -227,19 +230,21 @@ impl Handler<NewPlayer> for Game {
 			if let Some(addr) = &self.state_main_director.addr {
 				addr.do_send(game_to_director::NewParticipant {
 					id: msg.user_id,
+					name: msg.username,
 					participant_type: director_structs::ParticipantType::Consumer,
 				})
 			}
 			"consumer".to_string()
 		} else {
-			self.producers
-				.write()
-				.unwrap()
-				.insert(msg.user_id.clone(), ProducerState::new());
+			self.producers.write().unwrap().insert(
+				msg.user_id.clone(),
+				ProducerState::new(msg.username.clone()),
+			);
 			for elem in self.directors.read().unwrap().values() {
 				if let Some(addr) = &elem.addr {
 					addr.do_send(game_to_director::NewParticipant {
 						id: msg.user_id.clone(),
+						name: msg.username.clone(),
 						participant_type: director_structs::ParticipantType::Producer,
 					});
 				}
@@ -247,6 +252,7 @@ impl Handler<NewPlayer> for Game {
 			if let Some(addr) = &self.state_main_director.addr {
 				addr.do_send(game_to_director::NewParticipant {
 					id: msg.user_id,
+					name: msg.username,
 					participant_type: director_structs::ParticipantType::Producer,
 				})
 			}
@@ -270,11 +276,12 @@ impl Handler<NewDirector> for Game {
 		self.directors
 			.write()
 			.unwrap()
-			.insert(msg.user_id.clone(), DirectorState::new());
+			.insert(msg.user_id.clone(), DirectorState::new(msg.username.clone()));
 		for elem in self.directors.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
 				addr.do_send(game_to_director::NewParticipant {
 					id: msg.user_id.clone(),
+					name: msg.username.clone(),
 					participant_type: director_structs::ParticipantType::Director,
 				});
 			}
@@ -282,6 +289,7 @@ impl Handler<NewDirector> for Game {
 		if let Some(addr) = &self.state_main_director.addr {
 			addr.do_send(game_to_director::NewParticipant {
 				id: msg.user_id,
+				name: msg.username,
 				participant_type: director_structs::ParticipantType::Director,
 			});
 		}
@@ -488,11 +496,11 @@ impl Handler<director_to_game::ForceTurn> for Game {
 	type Result = ();
 	fn handle(&mut self, _: director_to_game::ForceTurn, _: &mut Context<Self>) -> Self::Result {
 		self.turn += 1;
-		if self.turn%2 == 0 {
+		if self.turn % 2 == 0 {
 			let list = self.past_turn.read().unwrap().clone();
 			for elem in self.producers.read().unwrap().values() {
 				if let Some(addr) = &elem.addr {
-					addr.do_send(game_to_producer::TurnList {list: list.clone()});
+					addr.do_send(game_to_producer::TurnList { list: list.clone() });
 				}
 			}
 			for producer in self.producers.write().unwrap().values_mut() {
@@ -516,7 +524,6 @@ impl Handler<director_to_game::ForceTurn> for Game {
 				addr.do_send(game_to_participant::TurnAdvanced {});
 			}
 		}
-
 	}
 }
 
@@ -599,7 +606,14 @@ impl Handler<producer_to_game::NewScoreEndTurn> for Game {
 		// 		});
 		// 	}
 		// }
-		self.past_turn.write().unwrap().push((msg.user_id, producer_structs::Participant{ produced: msg.produced, remaining: msg.produced, price: msg.price}));
+		self.past_turn.write().unwrap().push((
+			msg.user_id,
+			producer_structs::Participant {
+				produced: msg.produced,
+				remaining: msg.produced,
+				price: msg.price,
+			},
+		));
 	}
 }
 

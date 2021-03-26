@@ -30,13 +30,15 @@ use crate::application::game_folder::participants::json::{CLIENT_TERMINATE, CLIE
 pub struct DirectorState {
 	pub is_responsive: bool,
 	pub addr: Option<Addr<Director>>,
+	pub name: String,
 }
 
 impl DirectorState {
-	pub fn new() -> DirectorState {
+	pub fn new(name: String) -> DirectorState {
 		DirectorState {
 			is_responsive: true,
 			addr: None,
+			name,
 		}
 	}
 }
@@ -313,6 +315,7 @@ impl Handler<game_to_director::NewParticipant> for Director {
 	) -> Self::Result {
 		let fields = ServerExtraFields {
 			target: Some(msg.id),
+			name: Some(msg.name),
 			..Default::default()
 		};
 		match msg.participant_type {

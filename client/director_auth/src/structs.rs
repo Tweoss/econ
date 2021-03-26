@@ -75,6 +75,7 @@ pub struct Info {
 #[derive(Debug, Deserialize, Clone)]
 pub struct ServerExtraFields {
 	pub target: Option<String>,
+	pub name: Option<String>,
 	pub info: Option<Info>,
 	pub offsets: Option<Offsets>,
 	pub participant_type: Option<String>,
@@ -98,6 +99,7 @@ pub struct Offsets {
 pub struct Participant {
 	pub state: PlayerState,
 	pub took_turn: Option<bool>,
+	pub name: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]

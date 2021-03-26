@@ -129,7 +129,7 @@ impl Handler<NewDirector> for AppState {
 impl Handler<NewGame> for AppState {
     type Result = ();
     fn handle(&mut self, msg: NewGame, context: &mut Context<Self>) -> Self::Result {
-        let game = Game::new(context.address(), msg.user_id, msg.game_id.clone());
+        let game = Game::new(context.address(), msg.user_id, msg.username, msg.game_id.clone());
         self.game_map
             .write()
             .unwrap()

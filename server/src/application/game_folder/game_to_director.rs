@@ -31,6 +31,7 @@ pub struct Connected {
 #[rtype(result = "()")]
 pub struct NewParticipant {
 	pub id: String,
+	pub name: String,
 	pub participant_type: super::participants::director_folder::director_structs::ParticipantType,
 }
 
