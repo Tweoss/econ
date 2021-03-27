@@ -29,6 +29,7 @@ web-sys = { version = "0.3.45", features = [
 	"SvgGraphicsElement",
 	"SvggElement",
 	"SvgMatrix",
+	"HtmlParagraphElement",
 	"TouchEvent",
 	"TouchList",
 	"Touch",

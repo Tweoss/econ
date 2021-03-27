@@ -45,8 +45,7 @@ pub struct Info {
 	pub producers: Vec<(String, Participant)>,
 	pub turn: u64,
 	pub game_id: String,
-	pub supply_shock: u8,
-	pub subsidies: u8,
+	pub trending: u8,
 	pub balance: f64,
 	pub score: f64,
 	pub took_turn: bool,
@@ -74,8 +73,7 @@ pub struct ServerExtraFields {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Offsets {
-	pub supply_shock: u8,
-	pub subsidies: u8,
+	pub trending: u8,
 }
 
 #[derive(Debug, Serialize, Default)]

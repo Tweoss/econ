@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::SvggElement;
+use web_sys::HtmlParagraphElement;
 use yew::prelude::*;
 
 extern crate console_error_panic_hook;
@@ -33,12 +34,11 @@ struct Model {
     // server_data: String, // data received from the server
     fetch_task: Option<fetch::FetchTask>,
     // client_data: DirectorClientMsg,
-    producers: HashMap<String, Participant>,
+    producers: HashMap<String, (Participant, f64)>,
     graph_data: Graphs,
     turn: u64,
     game_id: String,
-    quantity: f64,
-    price: f64,
+    quantity_purchased: f64,
     score: f64,
     balance: f64,
     took_turn: bool,
@@ -76,8 +76,7 @@ impl ParticipantCollection for HashMap<String, Participant> {
 struct Graphs {
     consumer_x: f64,
     consumer_y: f64,
-    supply_shock: u8,
-    subsidies: u8,
+    trending: u8,
     matrix: Option<(f64, f64, f64, f64, f64, f64)>,
     dragging: bool,
 }
@@ -87,15 +86,13 @@ impl Graphs {
         Graphs {
             consumer_x: 32.50,
             consumer_y: 15.00,
-            supply_shock: 0,
-            subsidies: 0,
+            trending: 0,
             matrix: None,
             dragging: false,
         }
     }
-    fn data(&mut self, supply_shock: u8, subsidies: u8) {
-        self.supply_shock = supply_shock;
-        self.subsidies = subsidies;
+    fn data(&mut self, trending: u8) {
+        self.trending = trending;
         self.consumer_move(self.consumer_x, self.consumer_y);
     }
     fn reset_matrix(&mut self) {
@@ -103,7 +100,7 @@ impl Graphs {
     }
     fn consumer_move(&mut self, mouse_x: f64, mouse_y: f64) {
         // * extra cost
-        let extra_y: i16 = i16::from(self.supply_shock) - i16::from(self.subsidies);
+        let extra_y = self.trending;
         let t = Graphs::get_closest_point_to_cubic_bezier(
             10,
             mouse_x,
@@ -113,25 +110,21 @@ impl Graphs {
             20,
             0.,
             (extra_y + 80).into(),
-            10.,
-            (extra_y - 10).into(),
-            45.,
-            (extra_y - 10).into(),
+            40.,
+            (extra_y + 80).into(),
+            70.,
+            (extra_y + 70).into(),
             80.,
-            (extra_y + 100).into(),
+            (extra_y + 0).into(),
         );
-        self.consumer_x = 3. * f64::powi(1. - t, 2) * t * 10.
-            + 3. * (1. - t) * f64::powi(t, 2) * 45.
+        self.consumer_x = 3. * f64::powi(1. - t, 2) * t * 40.
+            + 3. * (1. - t) * f64::powi(t, 2) * 70.
             + f64::powi(t, 3) * 80.;
         self.consumer_y = f64::powi(1. - t, 3) * 80.
-            + 3. * f64::powi(1. - t, 2) * t * -10.
-            + 3. * (1. - t) * f64::powi(t, 2) * -10.
-            + f64::powi(t, 3) * 100.
+            + 3. * f64::powi(1. - t, 2) * t * 80.
+            + 3. * (1. - t) * f64::powi(t, 2) * 70.
+            // + f64::powi(t, 3) * 100.
             + f64::from(extra_y);
-        // self.consumer_y = f64::powi(1. - t, 3) * f64::from(extra_y + 80)
-        //     + 3. * f64::powi(1. - t, 2) * t * f64::from(extra_y - 10)
-        //     + 3. * (1. - t) * f64::powi(t, 2) * f64::from(extra_y - 10)
-        //     + f64::powi(t, 3) * f64::from(extra_y + 100);
     }
     // * Takes in number of iterations, the point to be projected, the start and end bounds on the guess, the resolution (slices), and the control points
     // * Returns the t value of the minimum
@@ -231,25 +224,21 @@ enum Msg {
     Received(Result<ConsumerServerMsg, Error>), // data received from server
     PrepWsConnect,
     // EndGame,
-    // HandleKick(Option<EventTarget>),
     StartClick(yew::MouseEvent),
     MouseMove(yew::MouseEvent),
     StartTouch(yew::TouchEvent),
     TouchMove(yew::TouchEvent),
     EndDrag,
-    Quantity(yew::InputData),
+    Quantity(yew::events::InputEvent),
     Price(yew::html::InputData),
     Submit,
-    // ToggleOpen,
-    // AdjustOffset(u8),
-    // NextTurn,
 }
 
 impl Model {
     fn update_producers(&mut self, new_list: Vec<(String, Participant)>) {
         self.producers.clear();
         for producer in new_list {
-            self.producers.insert(producer.0, producer.1);
+            self.producers.insert(producer.0, (producer.1,0.));
         }
     }
     fn render_submit(&self) -> Html {
@@ -272,12 +261,11 @@ impl Component for Model {
             fetch_task: None,
             producers: HashMap::new(),
             graph_data: Graphs::new(),
-            game_id: "".to_string(),
+            game_id: String::new(),
             turn: 0,
-            price: 0.,
             balance: 0.,
             score: 0.,
-            quantity: 0.,
+            quantity_purchased: 0.,
             took_turn: false,
             error_msg: String::new(),
         }
@@ -334,10 +322,10 @@ impl Component for Model {
                     ConsumerServerType::Info => {
                         let info = s.extra_fields.unwrap().info.unwrap();
                         ConsoleService::log(&format!("{:?}",info));
-                        self.producers.extend(info.producers.into_iter());
+                        self.producers.extend(info.producers.into_iter().map(|tuple| (tuple.0, (tuple.1, 0.))));
                         self.game_id = info.game_id;
                         self.turn = info.turn;
-                        self.graph_data.data(info.supply_shock, info.subsidies);
+                        self.graph_data.data(info.trending);
                         self.balance = info.balance;
                         self.score = info.score;
                         self.took_turn = info.took_turn;
@@ -372,8 +360,7 @@ impl Component for Model {
                     ConsumerServerType::NewOffsets => {
                         let offsets = s.extra_fields.unwrap().offsets.unwrap();
                         self.graph_data.data(
-                            offsets.supply_shock,
-                            offsets.subsidies,
+                            offsets.trending,
                         );
                     }
                     ConsumerServerType::TurnInfo => {
@@ -382,7 +369,7 @@ impl Component for Model {
                     ConsumerServerType::TurnAdvanced => {
                         self.turn += 1;
                         self.took_turn = false;
-                        if self.turn%2 == 1 {
+                        if self.turn%2 == 0 {
                             self.balance = s.extra_fields.unwrap().balance.unwrap();
                         }
                     }
@@ -510,31 +497,50 @@ impl Component for Model {
                 }
                 false
             }
-            Msg::Quantity(data) => {
-                if let Ok(value) = data.value.parse() {
-                    self.quantity = value;
+            Msg::Quantity(event) => {
+				if let Some(target) = event.current_target() {
+                    let element: HtmlParagraphElement = target.dyn_ref::<HtmlParagraphElement>().unwrap().clone();
+					let id = element.id();
+                    // self.graph_data.matrix = Some((
+                    //     matrix.a().into(),
+                    //     matrix.b().into(),
+                    //     matrix.c().into(),
+                    //     matrix.d().into(),
+                    //     matrix.e().into(),
+                    //     matrix.f().into(),
+                    // ));
+                    // let matrix = self.graph_data.matrix.unwrap();
+                    // let temp_x: f64 = event.client_x().into();
+                    // let temp_y: f64 = event.client_y().into();
+                    // let mouse_x = matrix.0 * temp_x + matrix.2 * temp_y + matrix.4;
+                    // let mouse_y = matrix.1 * temp_x + matrix.3 * temp_y + matrix.5;
+                    // self.graph_data.consumer_move(mouse_x, mouse_y);
+                    // self.graph_data.dragging = true;
                 }
+                // if let Ok(value) = data.value.parse() {
+                //     self.quantity = value;
+                // }
                 false
             }
             Msg::Price(data) => {
-                if let Ok(value) = data.value.parse() {
-                    self.price = value;
-                }
+                // if let Ok(value) = data.value.parse() {
+                    // self.price = value;
+                // }
                 false
             }
             Msg::Submit => {
                 if let Some(ref mut task) = self.ws {
                     ConsoleService::log("Sending Submit");
-                    let extra_fields = ClientExtraFields {
-                        quantity: self.quantity,
-                        price: self.price,
-                        t: self.graph_data.get_t_for_quantity(0., 1., self.quantity, 50),
-                    };
-                    task.send_binary(Ok(to_vec(&ConsumerClientMsg {
-                        msg_type: ConsumerClientType::Choice,
-                        choice: Some(extra_fields),
-                    })
-                    .unwrap()));
+                    // let extra_fields = ClientExtraFields {
+                    //     quantity: self.quantity,
+                    //     price: self.price,
+                    //     t: self.graph_data.get_t_for_quantity(0., 1., self.quantity, 50),
+                    // };
+                    // task.send_binary(Ok(to_vec(&ConsumerClientMsg {
+                    //     msg_type: ConsumerClientType::Choice,
+                    //     choice: Some(extra_fields),
+                    // })
+                    // .unwrap()));
                 }
                 
                 false
@@ -553,96 +559,96 @@ impl Component for Model {
     }
 
     fn view(&self) -> Html {
-        let producer_click_down = self.link.callback(Msg::StartClick);
+        let consumer_click_down = self.link.callback(Msg::StartClick);
         let click_move = self.link.callback(Msg::MouseMove);
-        let producer_touch_start = self.link.callback(Msg::StartTouch);
+        let consumer_touch_start = self.link.callback(Msg::StartTouch);
         let touch_move = self.link.callback(Msg::TouchMove);
         let end_drag = self.link.callback(|_: yew::MouseEvent| Msg::EndDrag);
-        let change_quantity = self.link.callback(Msg::Quantity);
+        let change_quantity = self.link.callback(|e: yew::events::InputEvent| Msg::Quantity(e));
         let change_price = self.link.callback(Msg::Price);
 
         html! {
             <>
-                <div class="container text-center">
-                    <h1>{"Consumer"}</h1>
-                    <div class="row" style="margin-right: 0;margin-left: 0;">
-                        <div class="col-md-6 text-center" style="padding: 0;min-height: 40vmin;">
-                            <div class="d-flex flex-column" style="height: 100%;width: 100%;">
-                                <h2>{"Marginal Utility"}</h2>
-                                <div class="d-xl-flex flex-fill justify-content-xl-center align-items-xl-center" style="width: 100%;">
-                                    <svg viewBox="-5 -5 100 100" preserveAspectRatio="xMidYMid meet" fill="white" >
-                                        <g id="Consumer Group" transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=producer_click_down onmousemove=click_move onmouseup=end_drag.clone() onmouseleave=end_drag.clone() ontouchstart=producer_touch_start ontouchmove=touch_move>
-                                            <rect width="105" height="105" x="-5" y="-5" fill-opacity="0%"></rect>
+                // <div class="container text-center">
+                //     <h1>{"Consumer"}</h1>
+                //     <div class="row" style="margin-right: 0;margin-left: 0;">
+                //         <div class="col-md-6 text-center" style="padding: 0;min-height: 40vmin;">
+                //             <div class="d-flex flex-column" style="height: 100%;width: 100%;">
+                //                 <h2>{"Marginal Utility"}</h2>
+                //                 <div class="d-xl-flex flex-fill justify-content-xl-center align-items-xl-center" style="width: 100%;">
+                //                     <svg viewBox="-5 -5 100 100" preserveAspectRatio="xMidYMid meet" fill="white" >
+                //                         <g id="Consumer Group" transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=consumer_click_down onmousemove=click_move onmouseup=end_drag.clone() onmouseleave=end_drag.clone() ontouchstart=consumer_touch_start ontouchmove=touch_move>
+                //                             <rect width="105" height="105" x="-5" y="-5" fill-opacity="0%"></rect>
 
-											<text x="10" y="-30" style="font: 10px Georgia; " transform="scale(1,-1)">{format!("{:.2}, {:.2}",self.graph_data.consumer_x,self.graph_data.consumer_y)}</text>
-											<path d="M 0 80 C 40 80, 70 70, 80 0" stroke="#6495ED" stroke-width="1" stroke-opacity="60%" fill-opacity="0%" stroke-dasharray="4" />
+				// 							<text x="10" y="-30" style="font: 10px Georgia; " transform="scale(1,-1)">{format!("{:.2}, {:.2}",self.graph_data.consumer_x,self.graph_data.consumer_y)}</text>
+				// 							<path d="M 0 80 C 40 80, 70 70, 80 0" stroke="#6495ED" stroke-width="1" stroke-opacity="60%" fill-opacity="0%" stroke-dasharray="4" />
 
-                                            <path d={
-                                                let net = self.graph_data.subsidies;
-                                                format!("M 0 {} C 40 {}, 70 {}, 80 {}", net+80, net+80, net+70, net)
-                                            } stroke="white" stroke-width="1" fill="transparent"/>
+                //                             <path d={
+                //                                 let net = self.graph_data.subsidies;
+                //                                 format!("M 0 {} C 40 {}, 70 {}, 80 {}", net+80, net+80, net+70, net)
+                //                             } stroke="white" stroke-width="1" fill="transparent"/>
 
-											<polygon points="0,95 -5,90 -1,90 -1,-1 90,-1 90,-5 95,0 90,5 90,1 1,1 1,90 5,90" fill="#1F6DDE" />
+				// 							<polygon points="0,95 -5,90 -1,90 -1,-1 90,-1 90,-5 95,0 90,5 90,1 1,1 1,90 5,90" fill="#1F6DDE" />
 
-											<line x1="25" x2="25" y1="2" y2="-2" stroke="white" stroke-width="1"/>
-											<line x1="50" x2="50" y1="3" y2="-3" stroke="white" stroke-width="1"/>
-											<line x1="75" x2="75" y1="2" y2="-2" stroke="white" stroke-width="1"/>
-											<text y="-5" x="47" style="font: 5px Georgia; " transform="scale(1,-1)">{"50"}</text>
+				// 							<line x1="25" x2="25" y1="2" y2="-2" stroke="white" stroke-width="1"/>
+				// 							<line x1="50" x2="50" y1="3" y2="-3" stroke="white" stroke-width="1"/>
+				// 							<line x1="75" x2="75" y1="2" y2="-2" stroke="white" stroke-width="1"/>
+				// 							<text y="-5" x="47" style="font: 5px Georgia; " transform="scale(1,-1)">{"50"}</text>
 											
-											<line y1="25" y2="25" x1="2" x2="-2" stroke="white" stroke-width="1"/>
-											<line y1="50" y2="50" x1="3" x2="-3" stroke="white" stroke-width="1"/>
-											<line y1="75" y2="75" x1="2" x2="-2" stroke="white" stroke-width="1"/>
-											<text x="5" y="-49" style="font: 5px Georgia; " transform="scale(1,-1)">{"50"}</text>
+				// 							<line y1="25" y2="25" x1="2" x2="-2" stroke="white" stroke-width="1"/>
+				// 							<line y1="50" y2="50" x1="3" x2="-3" stroke="white" stroke-width="1"/>
+				// 							<line y1="75" y2="75" x1="2" x2="-2" stroke="white" stroke-width="1"/>
+				// 							<text x="5" y="-49" style="font: 5px Georgia; " transform="scale(1,-1)">{"50"}</text>
 											
-                                            <circle cx={format!("{:.2}",self.graph_data.consumer_x)} cy={format!("{:.2}",self.graph_data.consumer_y)} r="3" stroke="white" fill="#F34547" stroke-width="0.2"/>
-                                        </g>
-                                    </svg>
-                                </div>
-                                <div class="d-flex">
-                                    <p class="text-center text-light mb-auto text-info" style="width: 50%;">{format!("Balance: {}", self.balance)}</p>
-                                    <p class="text-center text-light mb-auto text-info" style="width: 50%;">{format!("Score: {}", self.score)}</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6 text-center d-flex flex-column" style="padding: 0;min-height: 40vmin;">
-                            <h2>{"Marketplace"}</h2>
-                            <p>{format!("Game ID: {}", self.game_id)}</p>
-                            <p>{format!("Turn: {}", self.turn)}</p>
-                            <div class="d-flex flex-column flex-grow-1 marketplace">
-                                <h4>{"Previous Turn"}</h4>
-                                <div class="flex-grow-1 flex-shrink-1 sellers" style="background: var(--dark);border-radius: 6px;border: 2px solid var(--secondary);margin: 8px;">
-                                    {self.producers.render()}
-                                </div>
-                            </div>
-                            <form>
-                                <div class="form-group" style="width: 45%;"><label for="Quantity" style="width: 40%;">{"Quantity"}</label><input oninput=change_quantity class="form-control" type="number" style="width: 60%;background: var(--secondary);color: var(--white);text-align: center;" placeholder="0" min="0" max="80"/></div>
-                                <div class="form-group" style="width: 45%;"><label for="Price"    style="width: 40%;">{"Price"}   </label><input oninput=change_price class="form-control" type="number" style="width: 60%;color: var(--white);background: var(--secondary);text-align: center;" placeholder="0" min="0" max="100"/></div>
-                            </form>
-                            <div class="d-flex">
-                                <p class="text-center text-danger mb-auto text-info" style="width: 100%;">{&self.error_msg}</p>
-                            </div>
-                            {
-                                self.render_submit()
-                            }
-                        </div>
-                    </div>
-                    <footer>
-                        <p>{"Built by Francis Chua"}</p>
-                    </footer>
-                    <button class="btn btn-danger border rounded" id="kick-modal" type="button" data-toggle="modal" data-target="#kicked-modal" hidden=true></button>
-                    <div class="modal fade" role="dialog" tabindex="-1" id="kicked-modal">
-                    <div class="modal-dialog" role="document">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h4 class="modal-title">{"Kicked by Server"}</h4><button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">{"×"}</span></button>
-                            </div>
-                            <div class="modal-footer">
-                                <a class="btn btn-info active" role="button" href="/login/index.html" id="test">{"Continue"}</a>
-                        </div>
-                        </div>
-                    </div>
-                </div>
-                </div>
+                //                             <circle cx={format!("{:.2}",self.graph_data.consumer_x)} cy={format!("{:.2}",self.graph_data.consumer_y)} r="3" stroke="white" fill="#F34547" stroke-width="0.2"/>
+                //                         </g>
+                //                     </svg>
+                //                 </div>
+                //                 <div class="d-flex">
+                //                     <p class="text-center text-light mb-auto text-info" style="width: 50%;">{format!("Balance: {}", self.balance)}</p>
+                //                     <p class="text-center text-light mb-auto text-info" style="width: 50%;">{format!("Score: {}", self.score)}</p>
+                //                 </div>
+                //             </div>
+                //         </div>
+                //         <div class="col-md-6 text-center d-flex flex-column" style="padding: 0;min-height: 40vmin;">
+                //             <h2>{"Marketplace"}</h2>
+                //             <p>{format!("Game ID: {}", self.game_id)}</p>
+                //             <p>{format!("Turn: {}", self.turn)}</p>
+                //             <div class="d-flex flex-column flex-grow-1 marketplace">
+                //                 <h4>{"Previous Turn"}</h4>
+                //                 <div class="flex-grow-1 flex-shrink-1 sellers" style="background: var(--dark);border-radius: 6px;border: 2px solid var(--secondary);margin: 8px;">
+                //                     {self.producers.render()}
+                //                 </div>
+                //             </div>
+                //             <form>
+                //                 <div class="form-group" style="width: 45%;"><label for="Quantity" style="width: 40%;">{"Quantity"}</label><input oninput=change_quantity class="form-control" type="number" style="width: 60%;background: var(--secondary);color: var(--white);text-align: center;" placeholder="0" min="0" max="80"/></div>
+                //                 <div class="form-group" style="width: 45%;"><label for="Price"    style="width: 40%;">{"Price"}   </label><input oninput=change_price class="form-control" type="number" style="width: 60%;color: var(--white);background: var(--secondary);text-align: center;" placeholder="0" min="0" max="100"/></div>
+                //             </form>
+                //             <div class="d-flex">
+                //                 <p class="text-center text-danger mb-auto text-info" style="width: 100%;">{&self.error_msg}</p>
+                //             </div>
+                //             {
+                //                 self.render_submit()
+                //             }
+                //         </div>
+                //     </div>
+                //     <footer>
+                //         <p>{"Built by Francis Chua"}</p>
+                //     </footer>
+                //     <button class="btn btn-danger border rounded" id="kick-modal" type="button" data-toggle="modal" data-target="#kicked-modal" hidden=true></button>
+                //     <div class="modal fade" role="dialog" tabindex="-1" id="kicked-modal">
+                //     <div class="modal-dialog" role="document">
+                //         <div class="modal-content">
+                //             <div class="modal-header">
+                //                 <h4 class="modal-title">{"Kicked by Server"}</h4><button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">{"×"}</span></button>
+                //             </div>
+                //             <div class="modal-footer">
+                //                 <a class="btn btn-info active" role="button" href="/login/index.html" id="test">{"Continue"}</a>
+                //         </div>
+                //         </div>
+                //     </div>
+                // </div>
+                // </div>
             </>
         }
     }
