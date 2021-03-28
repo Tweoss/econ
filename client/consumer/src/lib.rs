@@ -370,7 +370,9 @@ impl Component for Model {
                         self.turn += 1;
                         self.took_turn = false;
                         if self.turn % 2 == 0 {
-                            self.score = s.extra_fields.unwrap().score.unwrap();
+                            let balance_score = s.extra_fields.unwrap().balance_score.unwrap();
+                            self.balance = balance_score.0;
+                            self.score = balance_score.1;
                         }
                     }
                     _ => {}

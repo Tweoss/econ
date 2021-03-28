@@ -587,6 +587,11 @@ impl Handler<director_to_game::ForceTurn> for Game {
 				addr.do_send(game_to_participant::TurnAdvanced {});
 			}
 		}
+		for elem in self.consumers.read().unwrap().values() {
+			if let Some(addr) = &elem.addr {
+				addr.do_send(game_to_participant::TurnAdvanced {});
+			}
+		}
 	}
 }
 

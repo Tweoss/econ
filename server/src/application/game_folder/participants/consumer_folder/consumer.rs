@@ -224,6 +224,41 @@ impl Handler<game_to_participant::NewOffsets> for Consumer {
 	}
 }
 
+impl Handler<game_to_participant::TurnAdvanced> for Consumer {
+	type Result = ();
+	fn handle(
+		&mut self,
+		_msg: game_to_participant::TurnAdvanced,
+		ctx: &mut Self::Context,
+	) -> Self::Result {
+		self.took_turn = false;
+		self.is_producer_turn = !self.is_producer_turn;
+		if !self.is_producer_turn {
+			self.score += self.balance;
+			self.balance = INITIAL_BALANCE;
+			let fields = ServerExtraFields {
+				balance_score: Some((INITIAL_BALANCE, self.score)),
+				..Default::default()
+			};
+			ctx.binary(
+				to_vec(&ConsumerServerMsg {
+					msg_type: ConsumerServerType::TurnAdvanced,
+					extra_fields: Some(fields),
+				})
+				.unwrap(),
+			);
+		} else {
+			ctx.binary(
+				to_vec(&ConsumerServerMsg {
+					msg_type: ConsumerServerType::TurnAdvanced,
+					extra_fields: None,
+				})
+				.unwrap(),
+			);
+		}
+	}
+}
+
 impl Handler<game_to_consumer::Info> for Consumer {
 	type Result = ();
 	fn handle(&mut self, msg: game_to_consumer::Info, ctx: &mut Self::Context) -> Self::Result {

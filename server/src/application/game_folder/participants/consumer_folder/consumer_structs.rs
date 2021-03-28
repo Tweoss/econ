@@ -61,7 +61,7 @@ pub struct ServerExtraFields {
 	// * Remaining 
 	pub purchased: Option<(String, f64)>,
 	// * New Score after Turn ends (moves from balance to score)
-	pub score: Option<f64>,
+	pub balance_score: Option<(f64, f64)>,
 }
 
 #[derive(Debug, Serialize, Clone)]
