@@ -1,5 +1,5 @@
 use super::participants::{
-	consumer_folder::consumer::ConsumerState,
+	consumer_folder::{consumer::ConsumerState, consumer_structs},
 	director_folder::{director::DirectorState, director_structs},
 	producer_folder::{producer::ProducerState, producer_structs},
 	viewer_folder::viewer::ViewerState,
@@ -12,9 +12,11 @@ use crate::application::app_to_game::*;
 use crate::application::game_folder::game_to_director;
 use crate::application::game_folder::game_to_participant;
 use crate::application::game_folder::game_to_producer;
+use crate::application::game_folder::game_to_consumer;
 use crate::application::game_folder::participants::director_folder::director_to_game;
-use crate::application::game_folder::participants::participant_to_game;
 use crate::application::game_folder::participants::producer_folder::producer_to_game;
+use crate::application::game_folder::participants::consumer_folder::consumer_to_game;
+use crate::application::game_folder::participants::participant_to_game;
 
 use crate::application::game_folder::game_to_app;
 use std::collections::HashMap;
@@ -177,28 +179,56 @@ impl Game {
 		}
 	}
 	fn get_producer_info(&self, id: String) -> producer_structs::Info {
-		let mut producers = Vec::new();
-		for producer in self.past_turn.read().unwrap().iter() {
-			producers.push((producer.0.clone(), producer.1.clone()));
-		}
-		// let score = self.producers.read().unwrap().get(&id).unwrap().score;
-		let turn = self.turn;
-		let game_id = self.game_id.clone();
-		let supply_shock = self.supply_shock;
-		let subsidies = self.subsidies;
-		let producer = self.producers.read().unwrap();
-		let balance = producer.get(&id).unwrap().balance;
-		let score = producer.get(&id).unwrap().score;
-		let took_turn = producer.get(&id).unwrap().took_turn;
+		// let mut producers = Vec::new();
+		// for producer in self.past_turn.read().unwrap().iter() {
+		// 	producers.push((producer.0.clone(), producer.1.clone()));
+		// }
+		// // let score = self.producers.read().unwrap().get(&id).unwrap().score;
+		// let turn = self.turn;
+		// let game_id = self.game_id.clone();
+		// let supply_shock = self.supply_shock;
+		// let subsidies = self.subsidies;
+		// let producer = self.producers.read().unwrap();
+		// let balance = producer.get(&id).unwrap().balance;
+		// let score = producer.get(&id).unwrap().score;
+		// let took_turn = producer.get(&id).unwrap().took_turn;
+		// producer_structs::Info {
+		// 	producers,
+		// 	turn,
+		// 	game_id,
+		// 	supply_shock,
+		// 	subsidies,
+		// 	balance,
+		// 	score,
+		// 	took_turn,
+		// }
+		let producers = self.past_turn.read().unwrap().clone();
+		let producers_list = self.producers.read().unwrap();
+		let producer = producers_list.get(&id).unwrap();
 		producer_structs::Info {
 			producers,
-			turn,
-			game_id,
-			supply_shock,
-			subsidies,
-			balance,
-			score,
-			took_turn,
+			turn: self.turn,
+			game_id: self.game_id.clone(),
+			supply_shock: self.supply_shock,
+			subsidies: self.subsidies,
+			balance: producer.balance,
+			score: producer.score,
+			took_turn: producer.took_turn,
+		}
+	}
+	fn get_consumer_info(&self, id: String) -> consumer_structs::Info {
+		let producers = self.past_turn.read().unwrap().clone();
+		let consumers_list = self.consumers.read().unwrap();
+		let consumer = consumers_list.get(&id).unwrap();
+		consumer_structs::Info {
+			producers,
+			turn: self.turn,
+			game_id: self.game_id.clone(),
+			trending: self.trending,
+			balance: consumer.balance,
+			quantity_purchased: consumer.quantity_purchased,
+			score: consumer.score,
+			took_turn: consumer.took_turn,
 		}
 	}
 	// fn next_turn(&self)
@@ -620,6 +650,37 @@ impl Handler<producer_to_game::NewScoreEndTurn> for Game {
 				price: msg.price,
 			},
 		));
+	}
+}
+
+impl Handler<consumer_to_game::RegisterAddressGetInfo> for Game {
+	// type Result = MessageResult<director_structs::Info>;
+	type Result = ();
+	fn handle(
+		&mut self,
+		msg: consumer_to_game::RegisterAddressGetInfo,
+		_: &mut Context<Self>,
+	) -> Self::Result {
+		if let Some(mut addr_value) = self.consumers.write().unwrap().get_mut(&msg.user_id) {
+			addr_value.addr = Some(msg.addr.clone());
+		}
+		msg.addr.do_send(game_to_consumer::Info {
+			info: self.get_consumer_info(msg.user_id.clone()),
+		});
+		if let Some(addr) = &self.state_main_director.addr {
+			addr.do_send(game_to_director::Connected {
+				id: msg.user_id.clone(),
+				participant_type: "consumer".to_string(),
+			});
+		}
+		for elem in self.directors.read().unwrap().values() {
+			if let Some(addr) = &elem.addr {
+				addr.do_send(game_to_director::Connected {
+					id: msg.user_id.clone(),
+					participant_type: "consumer".to_string(),
+				});
+			}
+		}
 	}
 }
 

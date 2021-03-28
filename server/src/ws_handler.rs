@@ -5,6 +5,7 @@ use actix_web_actors::ws;
 
 use crate::application::app::AppState;
 use crate::application::game_folder::participants::director_folder::director::Director;
+use crate::application::game_folder::participants::consumer_folder::consumer::Consumer;
 use crate::application::game_folder::participants::producer_folder::producer::Producer;
 
 use crate::handle_to_app;
@@ -43,9 +44,20 @@ pub async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpRes
 			}
 		}
 		"consumer" => {
-			// let resp = ws::start(Director::new(uuid.to_string(), game_id.to_string(), addr), &req, stream);
-			// println!("{:?}", resp);
-			// resp;
+			println!("Asking for Consumer");
+			if let Some(game_addr) = addr
+				.send(handle_to_app::IsRegisteredPlayer {
+					user_id: uuid.clone(),
+					game_id: game_id.clone(),
+				})
+				.await
+				.unwrap()
+			{
+				let consumer_ws = Consumer::new(uuid.to_string(), game_id.to_string(), game_addr);
+				let resp = ws::start(consumer_ws, &req, stream);
+				println!("{:?}", resp);
+				return resp;
+			}
 		}
 		"producer" => {
 			println!("Asking for Producer");
