@@ -23,10 +23,8 @@ use stdweb::js;
 mod structs;
 use structs::{
     ClientExtraFields, ConsumerClientMsg, ConsumerClientType, ConsumerServerMsg,
-    ConsumerServerType, /* Offsets,*/
+    ConsumerServerType, Participant/* Offsets,*/
 };
-
-use structs::Participant;
 
 struct Model {
     link: ComponentLink<Self>,
