@@ -12,13 +12,15 @@ use crate::application::game_folder::game_to_participant;
 pub struct ViewerState {
 	pub is_responsive: bool,
 	pub addr: Option<Addr<Viewer>>,
+	pub name: String,
 }
 
 impl ViewerState {
-	pub fn new() -> ViewerState {
+	pub fn new(name: String) -> ViewerState {
 		ViewerState {
 			is_responsive: false,
 			addr: None,
+			name,
 		}
 	}
 }
