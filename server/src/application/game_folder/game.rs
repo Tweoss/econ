@@ -9,14 +9,14 @@ use actix::prelude::*;
 
 use crate::application::app::AppState;
 use crate::application::app_to_game::*;
+use crate::application::game_folder::game_to_consumer;
 use crate::application::game_folder::game_to_director;
 use crate::application::game_folder::game_to_participant;
 use crate::application::game_folder::game_to_producer;
-use crate::application::game_folder::game_to_consumer;
-use crate::application::game_folder::participants::director_folder::director_to_game;
-use crate::application::game_folder::participants::producer_folder::producer_to_game;
 use crate::application::game_folder::participants::consumer_folder::consumer_to_game;
+use crate::application::game_folder::participants::director_folder::director_to_game;
 use crate::application::game_folder::participants::participant_to_game;
+use crate::application::game_folder::participants::producer_folder::producer_to_game;
 
 use crate::application::game_folder::game_to_app;
 use std::collections::HashMap;
@@ -56,7 +56,12 @@ impl Actor for Game {
 }
 
 impl Game {
-	pub fn new(app_addr: Addr<AppState>, id_main_director: String, name_main_director: String, game_id: String) -> Game {
+	pub fn new(
+		app_addr: Addr<AppState>,
+		id_main_director: String,
+		name_main_director: String,
+		game_id: String,
+	) -> Game {
 		println!("Making a new GAME with director id: {}", id_main_director);
 		Game {
 			producers: RwLock::new(HashMap::new()),
@@ -242,7 +247,19 @@ impl Game {
 impl Handler<NewPlayer> for Game {
 	type Result = String;
 	fn handle(&mut self, msg: NewPlayer, _: &mut Context<Self>) -> Self::Result {
-		if self.consumers.read().unwrap().values().any(|x| x.name == msg.username) || self.producers.read().unwrap().values().any(|x| x.name == msg.username) {
+		if self
+			.consumers
+			.read()
+			.unwrap()
+			.values()
+			.any(|x| x.name == msg.username)
+			|| self
+				.producers
+				.read()
+				.unwrap()
+				.values()
+				.any(|x| x.name == msg.username)
+		{
 			return "Name taken".to_string();
 		}
 		self.producer_next = !self.producer_next;
@@ -306,13 +323,19 @@ impl Handler<IsGameOpen> for Game {
 impl Handler<NewDirector> for Game {
 	type Result = ();
 	fn handle(&mut self, msg: NewDirector, _: &mut Context<Self>) -> Self::Result {
-		if self.directors.read().unwrap().values().any(|x| x.name == msg.username) {
+		if self
+			.directors
+			.read()
+			.unwrap()
+			.values()
+			.any(|x| x.name == msg.username)
+		{
 			return;
 		}
-		self.directors
-			.write()
-			.unwrap()
-			.insert(msg.user_id.clone(), DirectorState::new(msg.username.clone()));
+		self.directors.write().unwrap().insert(
+			msg.user_id.clone(),
+			DirectorState::new(msg.username.clone()),
+		);
 		for elem in self.directors.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
 				addr.do_send(game_to_director::NewParticipant {
@@ -520,11 +543,15 @@ impl Handler<director_to_game::SetOffsets> for Game {
 				}
 			}
 		}
-		// for elem in self.consumers.read().unwrap().values() {
-		// 	if let Some(addr) = &elem.addr {
-		// 		addr.do_send(game_to_participant::NewOffsets {subsidies: msg.subsidies, trending: msg.trending, supply_shock: msg.supply_shock});
-		// 	}
-		// }
+		for elem in self.consumers.read().unwrap().values() {
+			if let Some(addr) = &elem.addr {
+				addr.do_send(game_to_participant::NewOffsets {
+					subsidies: msg.subsidies,
+					trending: msg.trending,
+					supply_shock: msg.supply_shock,
+				});
+			}
+		}
 	}
 }
 

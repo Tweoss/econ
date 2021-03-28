@@ -360,8 +360,8 @@ impl Component for Model {
                         self.error_msg = "".to_string();
                     }
                     ConsumerServerType::NewOffsets => {
-                        let offsets = s.extra_fields.unwrap().offsets.unwrap();
-                        self.graph_data.data(offsets.trending);
+                        self.graph_data
+                            .data(s.extra_fields.unwrap().offsets.unwrap().trending);
                     }
                     ConsumerServerType::TurnInfo => {
                         self.update_producers(s.extra_fields.unwrap().turn_info.unwrap().producers);
@@ -498,7 +498,9 @@ impl Component for Model {
                 false
             }
             Msg::QuantityChange(id, value) => {
-                if let (Some(producer), Ok(float_value)) = (self.producers.get_mut(&id), value.parse::<f64>()) {
+                if let (Some(producer), Ok(float_value)) =
+                    (self.producers.get_mut(&id), value.parse::<f64>())
+                {
                     producer.1 = float_value;
                 }
                 false

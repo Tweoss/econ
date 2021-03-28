@@ -3,9 +3,6 @@ use actix::StreamHandler;
 use actix_web_actors::ws;
 use std::time::Instant;
 
-
-// use crate::application::other_messages;
-
 // use crate::application::app::AppState;
 use crate::application::game_folder::game::Game;
 use crate::application::game_folder::game_to_participant;
@@ -205,6 +202,25 @@ impl Handler<game_to_participant::EndedGame> for Consumer {
 	type Result = ();
 	fn handle(&mut self, _msg: game_to_participant::EndedGame, ctx: &mut Self::Context) -> Self::Result {
 		ctx.stop();
+	}
+}
+
+impl Handler<game_to_participant::NewOffsets> for Consumer {
+	type Result = ();
+	fn handle(&mut self, msg: game_to_participant::NewOffsets, ctx: &mut Self::Context) -> Self::Result {
+		let fields = ServerExtraFields {
+			offsets: Some(consumer_structs::Offsets {
+				trending: msg.trending,
+			}),
+			..Default::default()
+		};
+		ctx.binary(
+			to_vec(&ConsumerServerMsg {
+				msg_type: ConsumerServerType::NewOffsets,
+				extra_fields: Some(fields),
+			})
+			.unwrap(),
+		);
 	}
 }
 
