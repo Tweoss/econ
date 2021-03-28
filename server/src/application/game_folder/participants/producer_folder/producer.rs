@@ -1,10 +1,7 @@
 use actix::prelude::*;
-// use std::sync::Mutex;
 use actix::StreamHandler;
 use actix_web_actors::ws;
 use std::time::Instant;
-
-// use crate::application::other_messages;
 
 use crate::application::game_folder::game::Game;
 use crate::application::game_folder::game_to_participant;
@@ -34,10 +31,11 @@ pub struct ProducerState {
 	pub quantity_produced: f64,
 	pub price: f64,
 	pub addr: Option<Addr<Producer>>,
+	pub name: String,
 }
 
 impl ProducerState {
-	pub fn new() -> ProducerState {
+	pub fn new(name: String) -> ProducerState {
 		ProducerState {
 			is_responsive: true,
 			took_turn: false,
@@ -46,14 +44,15 @@ impl ProducerState {
 			quantity_produced: 0.,
 			price: 0.,
 			addr: None,
+			name,
 		}
 	}
 }
 
 pub struct Producer {
-	pub uuid: String,
-	pub game_id: String,
-	pub game_addr: Addr<Game>,
+	uuid: String,
+	game_id: String,
+	game_addr: Addr<Game>,
 	is_producer_turn: bool,
 	took_turn: bool,
 	subsidies: u8,
