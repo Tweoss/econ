@@ -1,5 +1,5 @@
 {
-  "name": "producer",
+  "name": "consumer",
   "collaborators": [
     "tweoss <hwymonkey@gmail.com>"
   ],

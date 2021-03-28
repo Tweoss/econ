@@ -2,8 +2,8 @@
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
+use web_sys::HtmlInputElement;
 use web_sys::SvggElement;
-use web_sys::HtmlParagraphElement;
 use yew::prelude::*;
 
 extern crate console_error_panic_hook;
@@ -47,26 +47,27 @@ struct Model {
 }
 
 impl Participant {
-    fn render(&self, id: String) -> Html {
+    fn render(&self, id: String, link: ComponentLink<Model>) -> Html {
         html! {
             <div class="seller">
                 <p class="d-flex flex-grow-1 id" style="margin-bottom: 0px;">{&id}<br/></p>
                 <p class="text-center d-xl-flex flex-grow-1 quantity" style="margin-bottom: 0px;">{format!("${:.2}",self.price)}</p>
                 <p class="text-center d-xl-flex flex-grow-1 quantity" style="margin-bottom: 0px;">{format!("{}/{}",self.remaining,self.produced)}</p>
+                <input oninput=link.callback(move |data: InputData| Msg::QuantityChange(id.clone(), data.value)) type="number" class="purchase" style="background: var(--gray-dark);color: var(--white);text-align: center;" placeholder="0" max="100" min="0"/>
             </div>
         }
     }
 }
 
 trait ParticipantCollection {
-    fn render(&self) -> Html;
+    fn render(&self, link: ComponentLink<Model>) -> Html;
 }
 
-impl ParticipantCollection for HashMap<String, Participant> {
-    fn render(&self) -> Html {
+impl ParticipantCollection for HashMap<String, (Participant, f64)> {
+    fn render(&self, link: ComponentLink<Model>) -> Html {
         html! {
             <>
-                {for self.keys().zip(self.values()).map(|tuple| tuple.1.render(tuple.0.to_string()))}
+                {for self.keys().zip(self.values()).map(|tuple| tuple.1.0.render(tuple.0.to_string(), link.clone()))}
             </>
         }
     }
@@ -115,7 +116,7 @@ impl Graphs {
             70.,
             (extra_y + 70).into(),
             80.,
-            (extra_y + 0).into(),
+            extra_y.into(),
         );
         self.consumer_x = 3. * f64::powi(1. - t, 2) * t * 40.
             + 3. * (1. - t) * f64::powi(t, 2) * 70.
@@ -201,17 +202,16 @@ impl Graphs {
         if iterations == 0 {
             return t_0;
         }
-        let t_1 = (t_0+t_2)/2.;
+        let t_1 = (t_0 + t_2) / 2.;
         let x_1 = 3. * f64::powi(1. - t_1, 2) * t_1 * 10.
-        + 3. * (1. - t_1) * f64::powi(t_1, 2) * 45.
-        + f64::powi(t_1, 3) * 80. - x;
+            + 3. * (1. - t_1) * f64::powi(t_1, 2) * 45.
+            + f64::powi(t_1, 3) * 80.
+            - x;
         if x_1 > 0. {
             self.get_t_for_quantity(t_0, t_1, x, iterations - 1)
-        }
-        else if x_1 < 0. {
+        } else if x_1 < 0. {
             self.get_t_for_quantity(t_1, t_2, x, iterations - 1)
-        }
-        else {
+        } else {
             t_1
         }
     }
@@ -229,8 +229,7 @@ enum Msg {
     StartTouch(yew::TouchEvent),
     TouchMove(yew::TouchEvent),
     EndDrag,
-    Quantity(yew::events::InputEvent),
-    Price(yew::html::InputData),
+    QuantityChange(String, String),
     Submit,
 }
 
@@ -238,14 +237,13 @@ impl Model {
     fn update_producers(&mut self, new_list: Vec<(String, Participant)>) {
         self.producers.clear();
         for producer in new_list {
-            self.producers.insert(producer.0, (producer.1,0.));
+            self.producers.insert(producer.0, (producer.1, 0.));
         }
     }
     fn render_submit(&self) -> Html {
-        if self.took_turn || self.turn%2 == 0 {
+        if self.took_turn || self.turn % 2 == 0 {
             html! {<button onclick=self.link.callback(|_| Msg::Submit) class="btn btn-danger disabled btn-block flex-grow-0 flex-shrink-1" type="submit" disabled=true>{"Submit and End Turn"}</button>}
-        }
-        else {
+        } else {
             html! {<button onclick=self.link.callback(|_| Msg::Submit) class="btn btn-danger btn-block flex-grow-0 flex-shrink-1" type="submit">{"Submit and End Turn"}</button>}
         }
     }
@@ -321,8 +319,12 @@ impl Component for Model {
                 match s.msg_type {
                     ConsumerServerType::Info => {
                         let info = s.extra_fields.unwrap().info.unwrap();
-                        ConsoleService::log(&format!("{:?}",info));
-                        self.producers.extend(info.producers.into_iter().map(|tuple| (tuple.0, (tuple.1, 0.))));
+                        ConsoleService::log(&format!("{:?}", info));
+                        self.producers.extend(
+                            info.producers
+                                .into_iter()
+                                .map(|tuple| (tuple.0, (tuple.1, 0.))),
+                        );
                         self.game_id = info.game_id;
                         self.turn = info.turn;
                         self.graph_data.data(info.trending);
@@ -359,9 +361,7 @@ impl Component for Model {
                     }
                     ConsumerServerType::NewOffsets => {
                         let offsets = s.extra_fields.unwrap().offsets.unwrap();
-                        self.graph_data.data(
-                            offsets.trending,
-                        );
+                        self.graph_data.data(offsets.trending);
                     }
                     ConsumerServerType::TurnInfo => {
                         self.update_producers(s.extra_fields.unwrap().turn_info.unwrap().producers);
@@ -369,8 +369,8 @@ impl Component for Model {
                     ConsumerServerType::TurnAdvanced => {
                         self.turn += 1;
                         self.took_turn = false;
-                        if self.turn%2 == 0 {
-                            self.balance = s.extra_fields.unwrap().balance.unwrap();
+                        if self.turn % 2 == 0 {
+                            self.score = s.extra_fields.unwrap().score.unwrap();
                         }
                     }
                     _ => {}
@@ -497,35 +497,10 @@ impl Component for Model {
                 }
                 false
             }
-            Msg::Quantity(event) => {
-				if let Some(target) = event.current_target() {
-                    let element: HtmlParagraphElement = target.dyn_ref::<HtmlParagraphElement>().unwrap().clone();
-					let id = element.id();
-                    // self.graph_data.matrix = Some((
-                    //     matrix.a().into(),
-                    //     matrix.b().into(),
-                    //     matrix.c().into(),
-                    //     matrix.d().into(),
-                    //     matrix.e().into(),
-                    //     matrix.f().into(),
-                    // ));
-                    // let matrix = self.graph_data.matrix.unwrap();
-                    // let temp_x: f64 = event.client_x().into();
-                    // let temp_y: f64 = event.client_y().into();
-                    // let mouse_x = matrix.0 * temp_x + matrix.2 * temp_y + matrix.4;
-                    // let mouse_y = matrix.1 * temp_x + matrix.3 * temp_y + matrix.5;
-                    // self.graph_data.consumer_move(mouse_x, mouse_y);
-                    // self.graph_data.dragging = true;
+            Msg::QuantityChange(id, value) => {
+                if let (Some(producer), Ok(float_value)) = (self.producers.get_mut(&id), value.parse::<f64>()) {
+                    producer.1 = float_value;
                 }
-                // if let Ok(value) = data.value.parse() {
-                //     self.quantity = value;
-                // }
-                false
-            }
-            Msg::Price(data) => {
-                // if let Ok(value) = data.value.parse() {
-                    // self.price = value;
-                // }
                 false
             }
             Msg::Submit => {
@@ -542,9 +517,8 @@ impl Component for Model {
                     // })
                     // .unwrap()));
                 }
-                
                 false
-            },
+            }
         }
     }
 
@@ -564,91 +538,85 @@ impl Component for Model {
         let consumer_touch_start = self.link.callback(Msg::StartTouch);
         let touch_move = self.link.callback(Msg::TouchMove);
         let end_drag = self.link.callback(|_: yew::MouseEvent| Msg::EndDrag);
-        let change_quantity = self.link.callback(|e: yew::events::InputEvent| Msg::Quantity(e));
-        let change_price = self.link.callback(Msg::Price);
 
         html! {
             <>
-                // <div class="container text-center">
-                //     <h1>{"Consumer"}</h1>
-                //     <div class="row" style="margin-right: 0;margin-left: 0;">
-                //         <div class="col-md-6 text-center" style="padding: 0;min-height: 40vmin;">
-                //             <div class="d-flex flex-column" style="height: 100%;width: 100%;">
-                //                 <h2>{"Marginal Utility"}</h2>
-                //                 <div class="d-xl-flex flex-fill justify-content-xl-center align-items-xl-center" style="width: 100%;">
-                //                     <svg viewBox="-5 -5 100 100" preserveAspectRatio="xMidYMid meet" fill="white" >
-                //                         <g id="Consumer Group" transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=consumer_click_down onmousemove=click_move onmouseup=end_drag.clone() onmouseleave=end_drag.clone() ontouchstart=consumer_touch_start ontouchmove=touch_move>
-                //                             <rect width="105" height="105" x="-5" y="-5" fill-opacity="0%"></rect>
+                <div class="container text-center">
+                    <h1>{"Consumer"}</h1>
+                    <div class="row" style="margin-right: 0;margin-left: 0;">
+                        <div class="col-md-6 text-center" style="padding: 0;min-height: 40vmin;">
+                            <div class="d-flex flex-column" style="height: 100%;width: 100%;">
+                                <h2>{"Marginal Utility"}</h2>
+                                <div class="d-xl-flex flex-fill justify-content-xl-center align-items-xl-center" style="width: 100%;">
+                                    <svg viewBox="-5 -5 100 100" preserveAspectRatio="xMidYMid meet" fill="white" >
+                                        <g id="Consumer Group" transform="scale(1,-1) translate(0,-90)" style="cursor:cell" onmousedown=consumer_click_down onmousemove=click_move onmouseup=end_drag.clone() onmouseleave=end_drag.clone() ontouchstart=consumer_touch_start ontouchmove=touch_move>
+                                            <rect width="105" height="105" x="-5" y="-5" fill-opacity="0%"></rect>
 
-				// 							<text x="10" y="-30" style="font: 10px Georgia; " transform="scale(1,-1)">{format!("{:.2}, {:.2}",self.graph_data.consumer_x,self.graph_data.consumer_y)}</text>
-				// 							<path d="M 0 80 C 40 80, 70 70, 80 0" stroke="#6495ED" stroke-width="1" stroke-opacity="60%" fill-opacity="0%" stroke-dasharray="4" />
+                                            <text x="10" y="-30" style="font: 10px Georgia; " transform="scale(1,-1)">{format!("{:.2}, {:.2}",self.graph_data.consumer_x,self.graph_data.consumer_y)}</text>
+                                            <path d="M 0 80 C 40 80, 70 70, 80 0" stroke="#6495ED" stroke-width="1" stroke-opacity="60%" fill-opacity="0%" stroke-dasharray="4" />
 
-                //                             <path d={
-                //                                 let net = self.graph_data.subsidies;
-                //                                 format!("M 0 {} C 40 {}, 70 {}, 80 {}", net+80, net+80, net+70, net)
-                //                             } stroke="white" stroke-width="1" fill="transparent"/>
+                                            <path d={
+                                                let net = self.graph_data.trending;
+                                                format!("M 0 {} C 40 {}, 70 {}, 80 {}", net+80, net+80, net+70, net)
+                                            } stroke="white" stroke-width="1" fill="transparent"/>
 
-				// 							<polygon points="0,95 -5,90 -1,90 -1,-1 90,-1 90,-5 95,0 90,5 90,1 1,1 1,90 5,90" fill="#1F6DDE" />
+                                            <polygon points="0,95 -5,90 -1,90 -1,-1 90,-1 90,-5 95,0 90,5 90,1 1,1 1,90 5,90" fill="#1F6DDE" />
 
-				// 							<line x1="25" x2="25" y1="2" y2="-2" stroke="white" stroke-width="1"/>
-				// 							<line x1="50" x2="50" y1="3" y2="-3" stroke="white" stroke-width="1"/>
-				// 							<line x1="75" x2="75" y1="2" y2="-2" stroke="white" stroke-width="1"/>
-				// 							<text y="-5" x="47" style="font: 5px Georgia; " transform="scale(1,-1)">{"50"}</text>
-											
-				// 							<line y1="25" y2="25" x1="2" x2="-2" stroke="white" stroke-width="1"/>
-				// 							<line y1="50" y2="50" x1="3" x2="-3" stroke="white" stroke-width="1"/>
-				// 							<line y1="75" y2="75" x1="2" x2="-2" stroke="white" stroke-width="1"/>
-				// 							<text x="5" y="-49" style="font: 5px Georgia; " transform="scale(1,-1)">{"50"}</text>
-											
-                //                             <circle cx={format!("{:.2}",self.graph_data.consumer_x)} cy={format!("{:.2}",self.graph_data.consumer_y)} r="3" stroke="white" fill="#F34547" stroke-width="0.2"/>
-                //                         </g>
-                //                     </svg>
-                //                 </div>
-                //                 <div class="d-flex">
-                //                     <p class="text-center text-light mb-auto text-info" style="width: 50%;">{format!("Balance: {}", self.balance)}</p>
-                //                     <p class="text-center text-light mb-auto text-info" style="width: 50%;">{format!("Score: {}", self.score)}</p>
-                //                 </div>
-                //             </div>
-                //         </div>
-                //         <div class="col-md-6 text-center d-flex flex-column" style="padding: 0;min-height: 40vmin;">
-                //             <h2>{"Marketplace"}</h2>
-                //             <p>{format!("Game ID: {}", self.game_id)}</p>
-                //             <p>{format!("Turn: {}", self.turn)}</p>
-                //             <div class="d-flex flex-column flex-grow-1 marketplace">
-                //                 <h4>{"Previous Turn"}</h4>
-                //                 <div class="flex-grow-1 flex-shrink-1 sellers" style="background: var(--dark);border-radius: 6px;border: 2px solid var(--secondary);margin: 8px;">
-                //                     {self.producers.render()}
-                //                 </div>
-                //             </div>
-                //             <form>
-                //                 <div class="form-group" style="width: 45%;"><label for="Quantity" style="width: 40%;">{"Quantity"}</label><input oninput=change_quantity class="form-control" type="number" style="width: 60%;background: var(--secondary);color: var(--white);text-align: center;" placeholder="0" min="0" max="80"/></div>
-                //                 <div class="form-group" style="width: 45%;"><label for="Price"    style="width: 40%;">{"Price"}   </label><input oninput=change_price class="form-control" type="number" style="width: 60%;color: var(--white);background: var(--secondary);text-align: center;" placeholder="0" min="0" max="100"/></div>
-                //             </form>
-                //             <div class="d-flex">
-                //                 <p class="text-center text-danger mb-auto text-info" style="width: 100%;">{&self.error_msg}</p>
-                //             </div>
-                //             {
-                //                 self.render_submit()
-                //             }
-                //         </div>
-                //     </div>
-                //     <footer>
-                //         <p>{"Built by Francis Chua"}</p>
-                //     </footer>
-                //     <button class="btn btn-danger border rounded" id="kick-modal" type="button" data-toggle="modal" data-target="#kicked-modal" hidden=true></button>
-                //     <div class="modal fade" role="dialog" tabindex="-1" id="kicked-modal">
-                //     <div class="modal-dialog" role="document">
-                //         <div class="modal-content">
-                //             <div class="modal-header">
-                //                 <h4 class="modal-title">{"Kicked by Server"}</h4><button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">{"×"}</span></button>
-                //             </div>
-                //             <div class="modal-footer">
-                //                 <a class="btn btn-info active" role="button" href="/login/index.html" id="test">{"Continue"}</a>
-                //         </div>
-                //         </div>
-                //     </div>
-                // </div>
-                // </div>
+                                            <line x1="25" x2="25" y1="2" y2="-2" stroke="white" stroke-width="1"/>
+                                            <line x1="50" x2="50" y1="3" y2="-3" stroke="white" stroke-width="1"/>
+                                            <line x1="75" x2="75" y1="2" y2="-2" stroke="white" stroke-width="1"/>
+                                            <text y="-5" x="47" style="font: 5px Georgia; " transform="scale(1,-1)">{"50"}</text>
+
+                                            <line y1="25" y2="25" x1="2" x2="-2" stroke="white" stroke-width="1"/>
+                                            <line y1="50" y2="50" x1="3" x2="-3" stroke="white" stroke-width="1"/>
+                                            <line y1="75" y2="75" x1="2" x2="-2" stroke="white" stroke-width="1"/>
+                                            <text x="5" y="-49" style="font: 5px Georgia; " transform="scale(1,-1)">{"50"}</text>
+                                            <circle cx={format!("{:.2}",self.graph_data.consumer_x)} cy={format!("{:.2}",self.graph_data.consumer_y)} r="3" stroke="white" fill="#F34547" stroke-width="0.2"/>
+                                        </g>
+                                    </svg>
+                                </div>
+                                <div class="d-flex">
+                                    <p class="text-center text-light mb-auto text-info" style="width: 50%;">{format!("Balance: {}", self.balance)}</p>
+                                    <p class="text-center text-light mb-auto text-info" style="width: 50%;">{format!("Score: {}", self.score)}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 text-center d-flex flex-column" style="padding: 0;min-height: 40vmin;">
+                            <h2>{"Marketplace"}</h2>
+                            <p>{format!("Game ID: {}", self.game_id)}</p>
+                            <p>{format!("Turn: {}", self.turn)}</p>
+                            <div class="d-flex flex-column flex-grow-1 marketplace">
+                                <div class="flex-grow-1 flex-shrink-1 sellers" style="background: var(--dark);border-radius: 6px;border: 2px solid var(--secondary);margin: 8px;">
+                                    {self.producers.render(self.link.clone())}
+                                </div>
+                            </div>
+                            <form>
+                            </form>
+                            <div class="d-flex">
+                                <p class="text-center text-danger mb-auto text-info" style="width: 100%;">{&self.error_msg}</p>
+                            </div>
+                            {
+                                self.render_submit()
+                            }
+                        </div>
+                    </div>
+                    <footer>
+                        <p>{"Built by Francis Chua"}</p>
+                    </footer>
+                    <button class="btn btn-danger border rounded" id="kick-modal" type="button" data-toggle="modal" data-target="#kicked-modal" hidden=true></button>
+                    <div class="modal fade" role="dialog" tabindex="-1" id="kicked-modal">
+                    <div class="modal-dialog" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h4 class="modal-title">{"Kicked by Server"}</h4><button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">{"×"}</span></button>
+                            </div>
+                            <div class="modal-footer">
+                                <a class="btn btn-info active" role="button" href="/login/index.html">{"Continue"}</a>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+                </div>
             </>
         }
     }
