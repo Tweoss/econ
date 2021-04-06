@@ -43,13 +43,13 @@ struct Model {
 }
 
 impl Participant {
-    fn render(&self, id: String, link: ComponentLink<Model>) -> Html {
+    fn render(&self, id: String, quantity: f64, link: ComponentLink<Model>) -> Html {
         html! {
             <div class="seller">
                 <p class="d-flex flex-grow-1 id" style="margin-bottom: 0px;">{&id}<br/></p>
                 <p class="text-center d-xl-flex flex-grow-1 quantity" style="margin-bottom: 0px;">{format!("${:.2}",self.price)}</p>
                 <p class="text-center d-xl-flex flex-grow-1 quantity" style="margin-bottom: 0px;">{format!("{}/{}",self.remaining,self.produced)}</p>
-                <input oninput=link.callback(move |data: InputData| Msg::QuantityChange(id.clone(), data.value)) type="number" class="purchase" style="background: var(--gray-dark);color: var(--white);text-align: center;" placeholder="0" max="100" min="0" value="0"/>
+                <input  value={format!("{}", quantity)} oninput=link.callback(move |data: InputData| Msg::QuantityChange(id.clone(), data.value)) type="number" class="purchase" style="background: var(--gray-dark);color: var(--white);text-align: center;" placeholder="0" max="100" min="0"/>
             </div>
         }
     }
@@ -63,7 +63,7 @@ impl ParticipantCollection for HashMap<String, (Participant, f64)> {
     fn render(&self, link: ComponentLink<Model>) -> Html {
         html! {
             <>
-                {for self.keys().zip(self.values()).map(|tuple| tuple.1.0.render(tuple.0.to_string(), link.clone()))}
+                {for self.keys().zip(self.values()).map(|tuple| tuple.1.0.render(tuple.0.to_string(), tuple.1.1, link.clone()))}
             </>
         }
     }
@@ -378,8 +378,8 @@ impl Component for Model {
                         let targets = s.extra_fields.unwrap().stock_targets.unwrap();
                         for target in targets {
                             if let Some(producer) = self.producers.get_mut(&target.0) {
-                                ConsoleService::log("HI HI LOL");
                                 producer.0.remaining -= &target.1;
+                                producer.1 = 0.;
                             }
                         }
                     }
@@ -600,9 +600,9 @@ impl Component for Model {
                                     </svg>
                                 </div>
                                 <div class="d-flex">
-                                    <p class="text-center text-light mb-auto text-info" style="width: 33%;">{format!("Balance: {}", self.balance)}</p>
-                                    <p class="text-center text-light mb-auto text-info" style="width: 33%;">{format!("Purchased: {}", self.quantity_purchased)}</p>
-                                    <p class="text-center text-light mb-auto text-info" style="width: 33%;">{format!("Score: {}", self.score)}</p>
+                                    <p class="text-center text-light mb-auto text-info" style="width: 33%;">{format!("Balance: {:.2}", self.balance)}</p>
+                                    <p class="text-center text-light mb-auto text-info" style="width: 33%;">{format!("Purchased: {:.2}", self.quantity_purchased)}</p>
+                                    <p class="text-center text-light mb-auto text-info" style="width: 33%;">{format!("Score: {:.2}", self.score)}</p>
                                 </div>
                             </div>
                         </div>
