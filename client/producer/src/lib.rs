@@ -388,6 +388,14 @@ impl Component for Model {
                             self.balance = s.extra_fields.unwrap().balance.unwrap();
                         }
                     }
+                    ProducerServerType::StockReduced => {
+                        let targets = s.extra_fields.unwrap().stock_targets.unwrap();
+                        for target in targets {
+                            if let Some(producer) = self.producers.get_mut(&target.0) {
+                                producer.remaining -= &target.1;
+                            }
+                        }
+                    }
                     _ => {}
                 }
                 true
