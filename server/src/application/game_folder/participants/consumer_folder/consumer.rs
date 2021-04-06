@@ -177,14 +177,6 @@ impl Consumer {
 					- 2. * (a - 2. * b + c) * h)
 				* f64::powi(t, 5)
 			+ (1. / 2.) * (a - 3. * b + 3. * c - d) * (e - 3. * f + 3. * g - h) * f64::powi(t, 6);
-	// 	let new_total = -3.*((a - b)*(e + p)*t - (1./2.)*(b*(-7.*e + 3.*f - 4.*p) + 2.*c*(e + p) + 
-	// 	a*(5.*e - 3.*f + 2.*p))*f64::powi(t,2) + (1./3.)*(9.*c*e - d*e - 6.*c*f + 3.*c*p - d*p - 
-	// 	3.*b*(6.*e - 6.*f + g + p) + a*(10.*e - 12.*f + 3.*g + p))*f64::powi(t,3) - 
-	//   (1./4.)*(3.*(5.*c*e - d*e - 7.*c*f + d*f + 2.*c*g) + a*(10.*e - 18.*f + 9.*g - h) + 
-	// 	b*(-22.*e + 36.*f - 15.*g + h))*f64::powi(t,4) + 
-	//   (1./5.)*(11.*c*e - 3.*d*e - 24.*c*f + 6.*d*f + 15.*c*g - 3.*d*g + 
-	// 	a*(5.*e - 12.*f + 9.*g - 2.*h) - 2.*c*h + b*(-13.*e + 30.*f - 21.*g + 4.*h))*
-	//    f64::powi(t,5) + (1./6.)*(-a + 3.*b - 3.*c + d)*(e - 3.*f + 3.*g - h)*f64::powi(t,6));
 		
 		
 		println!("T = {}, Previous total = {}, utility at endpoint: {}, new_total: {}", t, self.total_utility, f64::powi(1.-t, 3) * e  + 3.*f64::powi(1.-t,2)*t * f + 3.*(1.-t)*f64::powi(t,2) * g + f64::powi(t,3) * h, new_total);
@@ -342,26 +334,29 @@ impl Handler<game_to_consumer::Info> for Consumer {
 impl Handler<game_to_consumer::PurchaseResult> for Consumer {
 	type Result = ();
 	fn handle(&mut self, msg: game_to_consumer::PurchaseResult, ctx: &mut Self::Context) {
-		self.balance = msg.balance;
-		let utility = self.get_utility(msg.purchased);
-		self.quantity_purchased += msg.purchased;
-		self.score += utility;
-		self.total_utility += utility;
-		println!("Consumer says utility: {}, total_utility: {}, score: {}", utility, self.total_utility, self.score);
-		// println!("Utility: {}, purchased: {}", utility, msg.purchased);
-		// println!("Score {}, Balance {}", self.score, self.balance);
-		self.game_addr.do_send(consumer_to_game::NewScoreCalculated {user_id: self.uuid.clone(), new_score: self.score});
-		let fields = ServerExtraFields {
-			balance_score_quantity: Some((self.balance, self.score, self.quantity_purchased)),
-			..Default::default()
-		};
-		ctx.binary(
-			to_vec(&ConsumerServerMsg {
-				msg_type: ConsumerServerType::ChoiceSubmitted,
-				extra_fields: Some(fields),
-			})
-			.unwrap(),
-		);
+		if msg.purchased == 0. {
+
+		}
+		else {
+			self.balance = msg.balance;
+			let utility = self.get_utility(msg.purchased);
+			self.quantity_purchased += msg.purchased;
+			self.score += utility;
+			self.total_utility += utility;
+			println!("Consumer says utility: {}, total_utility: {}, score: {}", utility, self.total_utility, self.score);
+			self.game_addr.do_send(consumer_to_game::NewScoreCalculated {user_id: self.uuid.clone(), new_score: self.score});
+			let fields = ServerExtraFields {
+				balance_score_quantity: Some((self.balance, self.score, self.quantity_purchased)),
+				..Default::default()
+			};
+			ctx.binary(
+				to_vec(&ConsumerServerMsg {
+					msg_type: ConsumerServerType::ChoiceSubmitted,
+					extra_fields: Some(fields),
+				})
+				.unwrap(),
+			);
+		}
 	}
 }
 

@@ -231,6 +231,7 @@ impl Game {
 		let mut expense = 0.;
 		let mut return_targets = Vec::new();
 		for target in targets {
+			// * if they try to purchase negative quantity stop
 			if target.1 <= 0. {
 				break;
 			}
