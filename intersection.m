@@ -21,7 +21,8 @@ function value = calc_pos(t,a,b,c,d)
 endfunction
 
 function output = integrate(t,a,b,c,d,e,f,g,h,p)
-    output = -3*(a - b)*(e + p)*t + (3/2)*(5*a*e - 7*b*e + 2*c*e - 3*a*f + 3*b*f + 2*(a - 2*b + c)*p)*t^2 - (9*c*e - d*e - 6*c*f + 3*c*p - d*p - 3*b*(6*e - 6*f + g + p) + a*(10*e - 12*f + 3*g + p))*t^3 + (3/4)*(3*(5*c*e - d*e - 7*c*f + d*f + 2*c*g) + a*(10*e - 18*f + 9*g - h) + b*(-22*e + 36*f - 15*g + h))*t^4 - (3/5)*(5*a*e - 13*b*e + 11*c*e - 3*d*e - 12*a*f + 30*b*f - 24*c*f + 6*d*f + 9*a*g - 21*b*g + 15*c*g - 3*d*g - 2*(a - 2*b + c)*h)*t^5 + (1/2)*(a - 3*b + 3*c - d)*(e - 3*f + 3*g - h)*t^6;
+    # output = -3*(a - b)*(e + p)*t + (3/2)*(5*a*e - 7*b*e + 2*c*e - 3*a*f + 3*b*f + 2*(a - 2*b + c)*p)*t^2 - (9*c*e - d*e - 6*c*f + 3*c*p - d*p - 3*b*(6*e - 6*f + g + p) + a*(10*e - 12*f + 3*g + p))*t^3 + (3/4)*(3*(5*c*e - d*e - 7*c*f + d*f + 2*c*g) + a*(10*e - 18*f + 9*g - h) + b*(-22*e + 36*f - 15*g + h))*t^4 - (3/5)*(5*a*e - 13*b*e + 11*c*e - 3*d*e - 12*a*f + 30*b*f - 24*c*f + 6*d*f + 9*a*g - 21*b*g + 15*c*g - 3*d*g - 2*(a - 2*b + c)*h)*t^5 + (1/2)*(a - 3*b + 3*c - d)*(e - 3*f + 3*g - h)*t^6;
+    output = -3*((a - b)*(e + p)*t - (1/2)*(b*(-7*e + 3*f - 4*p) + 2*c*(e + p) + a*(5*e - 3*f + 2*p))*t^2 + (1/3)*(9*c*e - d*e - 6*c*f + 3*c*p - d*p - 3*b*(6*e - 6*f + g + p) + a*(10*e - 12*f + 3*g + p))*t^3 - (1/4)*(3*(5*c*e - d*e - 7*c*f + d*f + 2*c*g) + a*(10*e - 18*f + 9*g - h) + b*(-22*e + 36*f - 15*g + h))*t^4 + (1/5)*(11*c*e - 3*d*e - 24*c*f + 6*d*f + 15*c*g - 3*d*g + a*(5*e - 12*f + 9*g - 2*h) - 2*c*h + b*(-13*e + 30*f - 21*g + 4*h))*t^5 + (1/6)*(-a + 3*b - 3*c + d)*(e - 3*f + 3*g - h)*t^6);
 endfunction
 
 function output = producer_surplus(t,a,b,c,d,e,f,g,h,p,x,y)
