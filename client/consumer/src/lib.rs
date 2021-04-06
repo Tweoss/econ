@@ -23,15 +23,13 @@ use stdweb::js;
 mod structs;
 use structs::{
     ClientExtraFields, ConsumerClientMsg, ConsumerClientType, ConsumerServerMsg,
-    ConsumerServerType, Participant/* Offsets,*/
+    ConsumerServerType, Participant, /* Offsets,*/
 };
 
 struct Model {
     link: ComponentLink<Self>,
     ws: Option<WebSocketTask>,
-    // server_data: String, // data received from the server
     fetch_task: Option<fetch::FetchTask>,
-    // client_data: DirectorClientMsg,
     producers: HashMap<String, (Participant, f64)>,
     graph_data: Graphs,
     turn: u64,
@@ -51,7 +49,7 @@ impl Participant {
                 <p class="d-flex flex-grow-1 id" style="margin-bottom: 0px;">{&id}<br/></p>
                 <p class="text-center d-xl-flex flex-grow-1 quantity" style="margin-bottom: 0px;">{format!("${:.2}",self.price)}</p>
                 <p class="text-center d-xl-flex flex-grow-1 quantity" style="margin-bottom: 0px;">{format!("{}/{}",self.remaining,self.produced)}</p>
-                <input oninput=link.callback(move |data: InputData| Msg::QuantityChange(id.clone(), data.value)) type="number" class="purchase" style="background: var(--gray-dark);color: var(--white);text-align: center;" placeholder="0" max="100" min="0"/>
+                <input oninput=link.callback(move |data: InputData| Msg::QuantityChange(id.clone(), data.value)) type="number" class="purchase" style="background: var(--gray-dark);color: var(--white);text-align: center;" placeholder="0" max="100" min="0" value="0"/>
             </div>
         }
     }
@@ -117,7 +115,7 @@ impl Graphs {
             extra_y.into(),
         );
         self.consumer_x = 3. * f64::powi(1. - t, 2) * t * 40.
-            + 3. * (1. - t) * f64::powi(t, 2) * 70.
+            + 3. * (1. - t) * f64::powi(t, 2) * 65.
             + f64::powi(t, 3) * 80.;
         self.consumer_y = f64::powi(1. - t, 3) * 80.
             + 3. * f64::powi(1. - t, 2) * t * 80.
@@ -196,23 +194,6 @@ impl Graphs {
             y3,
         )
     }
-    fn get_t_for_quantity(&self, t_0: f64, t_2: f64, x: f64, iterations: u32) -> f64 {
-        if iterations == 0 {
-            return t_0;
-        }
-        let t_1 = (t_0 + t_2) / 2.;
-        let x_1 = 3. * f64::powi(1. - t_1, 2) * t_1 * 10.
-            + 3. * (1. - t_1) * f64::powi(t_1, 2) * 45.
-            + f64::powi(t_1, 3) * 80.
-            - x;
-        if x_1 > 0. {
-            self.get_t_for_quantity(t_0, t_1, x, iterations - 1)
-        } else if x_1 < 0. {
-            self.get_t_for_quantity(t_1, t_2, x, iterations - 1)
-        } else {
-            t_1
-        }
-    }
 }
 
 enum Msg {
@@ -229,6 +210,7 @@ enum Msg {
     EndDrag,
     QuantityChange(String, String),
     Submit,
+    EndTurn,
 }
 
 impl Model {
@@ -239,10 +221,28 @@ impl Model {
         }
     }
     fn render_submit(&self) -> Html {
-        if self.took_turn || self.turn % 2 == 0 {
-            html! {<button onclick=self.link.callback(|_| Msg::Submit) class="btn btn-danger disabled btn-block flex-grow-0 flex-shrink-1" type="submit" disabled=true>{"Submit and End Turn"}</button>}
+        if self.took_turn || self.turn % 2 == 1 {
+            html! {
+                <>
+                    <button onclick=self.link.callback(|_| Msg::Submit) class="btn btn-primary disabled btn-block flex-grow-0 flex-shrink-1" type="submit" disabled=true>{"Attempt Purchase"}</button>
+                    <button class="btn btn-danger disabled btn-block flex-grow-0 flex-shrink-1" type="submit" disabled=true>{"End Turn"}</button>
+                </>
+            }
         } else {
-            html! {<button onclick=self.link.callback(|_| Msg::Submit) class="btn btn-danger btn-block flex-grow-0 flex-shrink-1" type="submit">{"Submit and End Turn"}</button>}
+            html! {
+                <>
+                    {
+                        if self.balance != 0. {
+                            html! {<button onclick=self.link.callback(|_| Msg::Submit) class="btn btn-primary btn-block flex-grow-0 flex-shrink-1" type="submit">{"Attempt Purchase"}</button>}
+                        }
+                        else {
+                            html! {<button class="btn btn-primary disabled btn-block flex-grow-0 flex-shrink-1" type="submit" disabled=true>{"Attempt Purchase"}</button>}
+                        }
+                    }
+                    <button class="btn btn-danger btn-block flex-grow-0 flex-shrink-1" type="submit">{"End Turn"}</button>
+                </>
+                // <button onclick=self.link.callback(|_| Msg::Submit) class="btn btn-danger btn-block flex-grow-0 flex-shrink-1" type="submit">{"Submit and End Turn"}</button>
+            }
         }
     }
 }
@@ -351,10 +351,10 @@ impl Component for Model {
                         self.error_msg = s.extra_fields.unwrap().fail_info.unwrap();
                     }
                     ConsumerServerType::ChoiceSubmitted => {
-                        let tuple = s.extra_fields.unwrap().submitted_info.unwrap();
-                        self.score = tuple.0;
-                        self.balance = tuple.1;
-                        self.took_turn = true;
+                        let tuple = s.extra_fields.unwrap().balance_score_quantity.unwrap();
+                        self.balance = tuple.0;
+                        self.score = tuple.1;
+                        self.quantity_purchased = tuple.2;
                         self.error_msg = "".to_string();
                     }
                     ConsumerServerType::NewOffsets => {
@@ -368,9 +368,19 @@ impl Component for Model {
                         self.turn += 1;
                         self.took_turn = false;
                         if self.turn % 2 == 0 {
-                            let balance_score = s.extra_fields.unwrap().balance_score.unwrap();
+                            let balance_score = s.extra_fields.unwrap().balance_score_quantity.unwrap();
                             self.balance = balance_score.0;
                             self.score = balance_score.1;
+                            self.quantity_purchased = 0.;
+                        }
+                    }
+                    ConsumerServerType::StockReduced => {
+                        let targets = s.extra_fields.unwrap().stock_targets.unwrap();
+                        for target in targets {
+                            if let Some(producer) = self.producers.get_mut(&target.0) {
+                                ConsoleService::log("HI HI LOL");
+                                producer.0.remaining -= &target.1;
+                            }
                         }
                     }
                     _ => {}
@@ -501,6 +511,8 @@ impl Component for Model {
                 if let (Some(producer), Ok(float_value)) =
                     (self.producers.get_mut(&id), value.parse::<f64>())
                 {
+                    ConsoleService::log("TEST QUANTITY CHANGE");
+                    ConsoleService::log(&format!("{}", float_value));
                     producer.1 = float_value;
                 }
                 false
@@ -508,16 +520,26 @@ impl Component for Model {
             Msg::Submit => {
                 if let Some(ref mut task) = self.ws {
                     ConsoleService::log("Sending Submit");
-                    // let extra_fields = ClientExtraFields {
-                    //     quantity: self.quantity,
-                    //     price: self.price,
-                    //     t: self.graph_data.get_t_for_quantity(0., 1., self.quantity, 50),
-                    // };
-                    // task.send_binary(Ok(to_vec(&ConsumerClientMsg {
-                    //     msg_type: ConsumerClientType::Choice,
-                    //     choice: Some(extra_fields),
-                    // })
-                    // .unwrap()));
+                    let mut elements = Vec::new();
+                    self.producers.iter().for_each(|x| elements.push((x.0.clone(), x.1.1)));
+                    let extra_fields = ClientExtraFields {
+                        elements
+                    };
+                    task.send_binary(Ok(to_vec(&ConsumerClientMsg {
+                        msg_type: ConsumerClientType::Choice,
+                        choice: Some(extra_fields),
+                    })
+                    .unwrap()));
+                }
+                false
+            }
+            Msg::EndTurn => {
+                if let Some(ref mut task) = self.ws {
+                    task.send_binary(Ok(to_vec(&ConsumerClientMsg {
+                        msg_type: ConsumerClientType::EndTurn,
+                        choice: None,
+                    })
+                    .unwrap()));
                 }
                 false
             }
@@ -555,11 +577,11 @@ impl Component for Model {
                                             <rect width="105" height="105" x="-5" y="-5" fill-opacity="0%"></rect>
 
                                             <text x="10" y="-30" style="font: 10px Georgia; " transform="scale(1,-1)">{format!("{:.2}, {:.2}",self.graph_data.consumer_x,self.graph_data.consumer_y)}</text>
-                                            <path d="M 0 80 C 40 80, 70 70, 80 0" stroke="#6495ED" stroke-width="1" stroke-opacity="60%" fill-opacity="0%" stroke-dasharray="4" />
+                                            <path d="M 0 80 C 40 80, 65 70, 80 0" stroke="#6495ED" stroke-width="1" stroke-opacity="60%" fill-opacity="0%" stroke-dasharray="4" />
 
                                             <path d={
                                                 let net = self.graph_data.trending;
-                                                format!("M 0 {} C 40 {}, 70 {}, 80 {}", net+80, net+80, net+70, net)
+                                                format!("M 0 {} C 40 {}, 65 {}, 80 {}", net+80, net+80, net+70, net)
                                             } stroke="white" stroke-width="1" fill="transparent"/>
 
                                             <polygon points="0,95 -5,90 -1,90 -1,-1 90,-1 90,-5 95,0 90,5 90,1 1,1 1,90 5,90" fill="#1F6DDE" />
@@ -578,8 +600,9 @@ impl Component for Model {
                                     </svg>
                                 </div>
                                 <div class="d-flex">
-                                    <p class="text-center text-light mb-auto text-info" style="width: 50%;">{format!("Balance: {}", self.balance)}</p>
-                                    <p class="text-center text-light mb-auto text-info" style="width: 50%;">{format!("Score: {}", self.score)}</p>
+                                    <p class="text-center text-light mb-auto text-info" style="width: 33%;">{format!("Balance: {}", self.balance)}</p>
+                                    <p class="text-center text-light mb-auto text-info" style="width: 33%;">{format!("Purchased: {}", self.quantity_purchased)}</p>
+                                    <p class="text-center text-light mb-auto text-info" style="width: 33%;">{format!("Score: {}", self.score)}</p>
                                 </div>
                             </div>
                         </div>
