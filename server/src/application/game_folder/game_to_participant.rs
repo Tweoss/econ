@@ -20,3 +20,9 @@ pub struct NewOffsets {
 	pub subsidies: u8,
 	pub supply_shock: u8,
 }
+
+#[derive(Message)]
+#[rtype(result="()")]
+pub struct StockReduced {
+	pub targets: Vec<(String, f64)>,
+}

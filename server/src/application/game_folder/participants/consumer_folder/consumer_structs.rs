@@ -14,16 +14,18 @@ pub enum ConsumerServerType {
 	TurnInfo,
 	ChoiceSubmitted,
 	ChoiceFailed,
-	QuantityPurchased,
 	NewOffsets,
 	Ping,
 	ServerKicked,
+	StockReduced,
 	Ignore,
 }
+
 #[derive(Debug, Deserialize, PartialEq)]
 pub enum ConsumerClientType {
 	Pong,	
 	Choice,
+	EndTurn,
 }
 
 #[derive(Debug, Deserialize)]
@@ -54,14 +56,12 @@ pub struct ServerExtraFields {
 	pub info: Option<Info>,
 	pub offsets: Option<Offsets>,
 	pub turn_info: Option<TurnInfo>,
-	// * Remaining balance
-	//* score and balance
-	pub submitted_info: Option<(f64, f64)>,
 	pub fail_info: Option<String>,
 	// * Remaining 
 	pub purchased: Option<(String, f64)>,
 	// * New Score after Turn ends (moves from balance to score)
-	pub balance_score: Option<(f64, f64)>,
+	pub balance_score_quantity: Option<(f64, f64, f64)>,
+	pub stock_targets: Option<Vec<(String, f64)>>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -72,7 +72,6 @@ pub struct Offsets {
 #[derive(Debug, Deserialize, Default)]
 pub struct ClientExtraFields {
 	pub elements: Vec<(String, f64)>,
-	pub t: f64,
 }
 
 // for compatibility with the past_turn game vector

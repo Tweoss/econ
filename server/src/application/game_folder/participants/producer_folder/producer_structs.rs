@@ -18,6 +18,7 @@ pub enum ProducerServerType {
 	QuantityPurchased,
 	Ping,
 	ServerKicked,
+	StockReduced,
 }
 #[derive(Debug, Deserialize, PartialEq)]
 pub enum ProducerClientType {
@@ -61,6 +62,7 @@ pub struct ServerExtraFields {
 	pub purchased: Option<f64>,
 	// * New Balance after Turn ends
 	pub balance: Option<f64>,
+	pub stock_targets: Option<Vec<(String, f64)>>,
 }
 
 #[derive(Debug, Serialize, Clone)]

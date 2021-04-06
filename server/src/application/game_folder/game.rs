@@ -29,7 +29,7 @@ pub struct Game {
 	producers: RwLock<HashMap<String, ProducerState>>,
 	directors: RwLock<HashMap<String, DirectorState>>,
 	viewers: RwLock<HashMap<String, ViewerState>>,
-	past_turn: RwLock<Vec<(String, producer_structs::Participant)>>,
+	past_turn: RwLock<HashMap<String, producer_structs::Participant>>,
 	id_main_director: String,
 	state_main_director: DirectorState,
 	is_open: bool,
@@ -68,7 +68,7 @@ impl Game {
 			consumers: RwLock::new(HashMap::new()),
 			directors: RwLock::new(HashMap::new()),
 			viewers: RwLock::new(HashMap::new()),
-			past_turn: RwLock::new(Vec::new()),
+			past_turn: RwLock::new(HashMap::new()),
 			id_main_director,
 			state_main_director: DirectorState::new(name_main_director),
 			is_open: false,
@@ -184,30 +184,7 @@ impl Game {
 		}
 	}
 	fn get_producer_info(&self, id: String) -> producer_structs::Info {
-		// let mut producers = Vec::new();
-		// for producer in self.past_turn.read().unwrap().iter() {
-		// 	producers.push((producer.0.clone(), producer.1.clone()));
-		// }
-		// // let score = self.producers.read().unwrap().get(&id).unwrap().score;
-		// let turn = self.turn;
-		// let game_id = self.game_id.clone();
-		// let supply_shock = self.supply_shock;
-		// let subsidies = self.subsidies;
-		// let producer = self.producers.read().unwrap();
-		// let balance = producer.get(&id).unwrap().balance;
-		// let score = producer.get(&id).unwrap().score;
-		// let took_turn = producer.get(&id).unwrap().took_turn;
-		// producer_structs::Info {
-		// 	producers,
-		// 	turn,
-		// 	game_id,
-		// 	supply_shock,
-		// 	subsidies,
-		// 	balance,
-		// 	score,
-		// 	took_turn,
-		// }
-		let producers = self.past_turn.read().unwrap().clone();
+		let producers = self.past_turn.read().unwrap().clone().into_iter().collect();
 		let producers_list = self.producers.read().unwrap();
 		let producer = producers_list.get(&id).unwrap();
 		producer_structs::Info {
@@ -222,7 +199,11 @@ impl Game {
 		}
 	}
 	fn get_consumer_info(&self, id: String) -> consumer_structs::Info {
-		let producers = self.past_turn.read().unwrap().clone();
+		let producers = if self.turn%2 == 0 {
+			self.past_turn.read().unwrap().clone().into_iter().collect()
+		} else {
+			Vec::new()
+		};
 		let consumers_list = self.consumers.read().unwrap();
 		let consumer = consumers_list.get(&id).unwrap();
 		consumer_structs::Info {
@@ -236,7 +217,59 @@ impl Game {
 			took_turn: consumer.took_turn,
 		}
 	}
-	// fn next_turn(&self)
+	// * returns purchased, expense, balance
+	// ! balance may be unnecessary for consumer actor to know
+	fn purchase(
+		&self,
+		user_id: &str,
+		targets: Vec<(String, f64)>,
+	) -> (f64, f64, f64, Vec<(String, f64)>) {
+		let mut producers = self.past_turn.write().unwrap();
+		let mut consumers = self.consumers.write().unwrap();
+		let consumer = consumers.get_mut(user_id).unwrap();
+		let mut purchased = 0.;
+		let mut expense = 0.;
+		let mut return_targets = Vec::new();
+		for target in targets {
+			if target.1 <= 0. {
+				break;
+			}
+			if let Some(producer) = producers.get_mut(&target.0) {
+				// * if the consumer has enough money and there is enough quantity
+				if consumer.balance >= target.1 * producer.price && producer.remaining >= target.1 {
+					purchased += target.1;
+					producer.remaining -= target.1;
+					expense += target.1 * producer.price;
+					consumer.balance -= expense;
+					return_targets.push((target.0, target.1));
+				}
+				// * if quantity requested > remaning and there is enough money, purchase all of it
+				else if target.1 > producer.remaining
+					&& consumer.balance >= producer.remaining * producer.price
+				{
+					purchased += producer.remaining;
+					producer.remaining = 0.;
+					expense += producer.remaining * producer.price;
+					consumer.balance -= expense;
+					return_targets.push((target.0, producer.remaining));
+				}
+				// * if there is not enough money but enough quantity, purchase as much as possible given balance
+				else if consumer.balance < target.1 * producer.price
+					&& target.1 < producer.remaining
+				{
+					purchased += consumer.balance / producer.price;
+					producer.remaining -= purchased;
+					expense += consumer.balance;
+					consumer.balance = 0.;
+					return_targets.push((target.0, producer.remaining));
+					break;
+				}
+				// * if there is not enough money AND not enough quantity, probably malicious and trying to exploit. don't do anything
+			}
+		}
+		println!("Game says Purchased: {}, expense: {}, resulting_balance: {}", purchased, expense, consumer.balance);
+		(purchased, expense, consumer.balance, return_targets)
+	}
 }
 
 // ! APPLICATION TO GAME HANDLERS
@@ -561,16 +594,23 @@ impl Handler<director_to_game::ForceTurn> for Game {
 		self.turn += 1;
 		if self.turn % 2 == 0 {
 			let list = self.past_turn.read().unwrap().clone();
-			for elem in self.producers.read().unwrap().values() {
-				if let Some(addr) = &elem.addr {
-					addr.do_send(game_to_producer::TurnList { list: list.clone() });
-				}
-			}
+			// for elem in self.producers.read().unwrap().values() {
+			// }
 			for producer in self.producers.write().unwrap().values_mut() {
+				if let Some(addr) = &producer.addr {
+					addr.do_send(game_to_producer::TurnList {
+						list: list.clone().into_iter().collect(),
+					});
+				}
 				producer.took_turn = false;
 			}
 			for consumer in self.consumers.write().unwrap().values_mut() {
 				consumer.took_turn = false;
+				if let Some(addr) = &consumer.addr {
+					addr.do_send(game_to_consumer::TurnList {
+						list: list.clone().into_iter().collect(),
+					});
+				}
 			}
 			// self.producers.write().unwrap().values_mut().map(|elem| elem.took_turn = false);
 		}
@@ -674,14 +714,14 @@ impl Handler<producer_to_game::NewScoreEndTurn> for Game {
 		// 		});
 		// 	}
 		// }
-		self.past_turn.write().unwrap().push((
+		self.past_turn.write().unwrap().insert(
 			msg.user_id,
 			producer_structs::Participant {
 				produced: msg.produced,
 				remaining: msg.produced,
 				price: msg.price,
 			},
-		));
+		);
 	}
 }
 
@@ -712,6 +752,86 @@ impl Handler<consumer_to_game::RegisterAddressGetInfo> for Game {
 					participant_type: "consumer".to_string(),
 				});
 			}
+		}
+	}
+}
+
+impl Handler<consumer_to_game::NewScoreEndTurn> for Game {
+	type Result = ();
+	fn handle(
+		&mut self,
+		msg: consumer_to_game::NewScoreEndTurn,
+		_: &mut Context<Self>,
+	) -> Self::Result {
+		let mut consumers = self.consumers.write().unwrap();
+		let consumer = consumers.get_mut(&msg.user_id).unwrap();
+		consumer.score = msg.new_score;
+		consumer.balance = 0.;
+		if let Some(addr) = &self.state_main_director.addr {
+			addr.do_send(game_to_director::TurnTaken {
+				id: msg.user_id.clone(),
+				participant_type: "consumer".to_string(),
+			});
+		}
+		for elem in self.directors.read().unwrap().values() {
+			if let Some(addr) = &elem.addr {
+				addr.do_send(game_to_director::TurnTaken {
+					id: msg.user_id.clone(),
+					participant_type: "consumer".to_string(),
+				});
+			}
+		}
+		// for elem in self.viewers.read().unwrap().values() {
+		// 	if let Some(addr) = &elem.addr {
+		// 		addr.do_send(game_to_viewer::NewScoreEndTurn {
+		// 			id: msg.user_id.clone(),
+		// 			participant_type: "producer".to_string(),
+		// 			new_score: msg.new_score,
+		// 		});
+		// 	}
+		// }
+	}
+}
+
+impl Handler<consumer_to_game::TryChoice> for Game {
+	type Result = ();
+	fn handle(&mut self, msg: consumer_to_game::TryChoice, _: &mut Context<Self>) {
+		let (purchased, expense, balance, targets) = self.purchase(&msg.user_id, msg.elements);
+		self.consumers
+			.read()
+			.unwrap()
+			.get(&msg.user_id)
+			.unwrap()
+			.addr
+			.as_ref()
+			.unwrap()
+			.do_send(game_to_consumer::PurchaseResult {
+				expense,
+				balance,
+				purchased,
+			});
+		for elem in self.producers.read().unwrap().values() {
+			if let Some(addr) = &elem.addr {
+				addr.do_send(game_to_participant::StockReduced {
+					targets: targets.clone(),
+				});
+			}
+		}
+		for elem in self.consumers.read().unwrap().values() {
+			if let Some(addr) = &elem.addr {
+				addr.do_send(game_to_participant::StockReduced {
+					targets: targets.clone(),
+				});
+			}
+		}
+	}
+}
+
+impl Handler<consumer_to_game::NewScoreCalculated> for Game {
+	type Result = ();
+	fn handle(&mut self, msg: consumer_to_game::NewScoreCalculated, _: &mut Context<Self>) {
+		if let Some(consumer) = self.consumers.write().unwrap().get_mut(&msg.user_id) {
+			consumer.score = msg.new_score;
 		}
 	}
 }

@@ -5,11 +5,11 @@ use std::time::Instant;
 
 // use crate::application::app::AppState;
 use crate::application::game_folder::game::Game;
-use crate::application::game_folder::game_to_participant;
 use crate::application::game_folder::game_to_consumer;
+use crate::application::game_folder::game_to_participant;
 
-use crate::application::game_folder::participants::participant_to_game;
 use crate::application::game_folder::participants::consumer_folder::consumer_to_game;
+use crate::application::game_folder::participants::participant_to_game;
 use serde_cbor::{from_slice, to_vec};
 
 use crate::application::game_folder::participants::consumer_folder::consumer_structs::{
@@ -58,6 +58,7 @@ pub struct Consumer {
 	trending: u8,
 	balance: f64,
 	quantity_purchased: f64,
+	total_utility: f64,
 	score: f64,
 	hb: Instant,
 	is_unresponsive: bool,
@@ -97,6 +98,7 @@ impl Consumer {
 			balance: 0.,
 			took_turn: false,
 			quantity_purchased: 0.,
+			total_utility: 0.,
 			score: 0.,
 			hb: Instant::now(),
 			is_unresponsive: false,
@@ -144,51 +146,98 @@ impl Consumer {
 			self.is_unresponsive = false;
 		}
 	}
+	#[allow(clippy::many_single_char_names)]
+	// * determine how much utility would be gained by purchasing
+	fn get_utility(&mut self, quantity: f64) -> f64 {
+		// * doing t_2 = 2. just in case quantity is out of bounds
+		let t = self.get_t_for_quantity(0., 2., quantity + self.quantity_purchased, 50);
+		let p = f64::from(self.trending);
+		let (a, b, c, d) = (0., 40., 65., 80.);
+		let (e, f, g, h) = (80., 80., 70., 0.);
+
+		let new_total = -3. * (a - b) * (e + p) * t
+			+ (3. / 2.)
+				* (5. * a * e - 7. * b * e + 2. * c * e - 3. * a * f
+					+ 3. * b * f + 2. * (a - 2. * b + c) * p)
+				* f64::powi(t, 2)
+			- (9. * c * e - d * e - 6. * c * f + 3. * c * p
+				- d * p - 3. * b * (6. * e - 6. * f + g + p)
+				+ a * (10. * e - 12. * f + 3. * g + p))
+				* f64::powi(t, 3)
+			+ (3. / 4.)
+				* (3. * (5. * c * e - d * e - 7. * c * f + d * f + 2. * c * g)
+					+ a * (10. * e - 18. * f + 9. * g - h)
+					+ b * (-22. * e + 36. * f - 15. * g + h))
+				* f64::powi(t, 4)
+			- (3. / 5.)
+				* (5. * a * e - 13. * b * e + 11. * c * e - 3. * d * e - 12. * a * f + 30. * b * f
+					- 24. * c * f + 6. * d * f
+					+ 9. * a * g - 21. * b * g
+					+ 15. * c * g - 3. * d * g
+					- 2. * (a - 2. * b + c) * h)
+				* f64::powi(t, 5)
+			+ (1. / 2.) * (a - 3. * b + 3. * c - d) * (e - 3. * f + 3. * g - h) * f64::powi(t, 6);
+	// 	let new_total = -3.*((a - b)*(e + p)*t - (1./2.)*(b*(-7.*e + 3.*f - 4.*p) + 2.*c*(e + p) + 
+	// 	a*(5.*e - 3.*f + 2.*p))*f64::powi(t,2) + (1./3.)*(9.*c*e - d*e - 6.*c*f + 3.*c*p - d*p - 
+	// 	3.*b*(6.*e - 6.*f + g + p) + a*(10.*e - 12.*f + 3.*g + p))*f64::powi(t,3) - 
+	//   (1./4.)*(3.*(5.*c*e - d*e - 7.*c*f + d*f + 2.*c*g) + a*(10.*e - 18.*f + 9.*g - h) + 
+	// 	b*(-22.*e + 36.*f - 15.*g + h))*f64::powi(t,4) + 
+	//   (1./5.)*(11.*c*e - 3.*d*e - 24.*c*f + 6.*d*f + 15.*c*g - 3.*d*g + 
+	// 	a*(5.*e - 12.*f + 9.*g - 2.*h) - 2.*c*h + b*(-13.*e + 30.*f - 21.*g + 4.*h))*
+	//    f64::powi(t,5) + (1./6.)*(-a + 3.*b - 3.*c + d)*(e - 3.*f + 3.*g - h)*f64::powi(t,6));
+		
+		
+		println!("T = {}, Previous total = {}, utility at endpoint: {}, new_total: {}", t, self.total_utility, f64::powi(1.-t, 3) * e  + 3.*f64::powi(1.-t,2)*t * f + 3.*(1.-t)*f64::powi(t,2) * g + f64::powi(t,3) * h, new_total);
+		new_total - self.total_utility
+	}
+	fn get_t_for_quantity(&self, t_0: f64, t_2: f64, x: f64, iterations: u32) -> f64 {
+		if iterations == 0 {
+			println!("Last iteration t_0: {}, t_2: {}", t_0, t_2);
+			return t_0;
+		}
+		let t_1 = (t_0 + t_2) / 2.;
+		let x_1 = 3. * f64::powi(1. - t_1, 2) * t_1 * 40.
+			+ 3. * (1. - t_1) * f64::powi(t_1, 2) * 65.
+			+ f64::powi(t_1, 3) * 80.
+			- x;
+		if x_1 > 0. {
+			println!(" iteration {}, t_0: {}, t_1: {}", iterations, t_0, t_1);
+			self.get_t_for_quantity(t_0, t_1, x, iterations - 1)
+		} else if x_1 < 0. {
+			println!(" iteration {}, t_1: {}, t_2: {}", iterations, t_1, t_2);
+			self.get_t_for_quantity(t_1, t_2, x, iterations - 1)
+		} else {
+			println!("!!!!!!!! iteration {}, t_1: {},", iterations, t_1);
+			t_1
+		}
+	}
 }
 
 /// Handler for ws::Message message
 impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Consumer {
-	fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
+	fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, _ctx: &mut Self::Context) {
 		if let Ok(ws::Message::Binary(bin)) = msg {
 			if let Ok(message) = from_slice::<ConsumerClientMsg>(&bin.to_vec()) {
 				println!("{:?}", message);
 				match message.msg_type {
 					ConsumerClientType::Choice => {
 						if !self.took_turn && !self.is_producer_turn {
-							let choice = message.choice.unwrap();
-							// match self.try_produce(choice.quantity, choice.t, choice.price) {
-							// 	Ok(score) => {
-							// 		let extra_fields = Some(ServerExtraFields {
-							// 			submitted_info: Some((score, self.balance)),
-							// 			..Default::default()
-							// 		});
-							// 		ctx.binary(
-							// 			to_vec(&ProducerServerMsg {
-							// 				msg_type: ProducerServerType::ChoiceSubmitted,
-							// 				extra_fields,
-							// 			})
-							// 			.unwrap(),
-							// 		);
-							// 		self.took_turn = true;
-							// 	}
-							// 	Err(msg) => {
-							// 		let extra_fields = Some(ServerExtraFields {
-							// 			fail_info: Some(msg),
-							// 			..Default::default()
-							// 		});
-							// 		ctx.binary(
-							// 			to_vec(&ProducerServerMsg {
-							// 				msg_type: ProducerServerType::ChoiceFailed,
-							// 				extra_fields,
-							// 			})
-							// 			.unwrap(),
-							// 		);
-							// 	}
-							// }
+							// * send the message to game. game calculates purchased quantity and returns the expense, remaining balance, and total purchased quantity
+							self.game_addr.do_send(consumer_to_game::TryChoice {
+								user_id: self.uuid.clone(),
+								elements: message.choice.unwrap().elements,
+							});
 						}
 					}
 					ConsumerClientType::Pong => (),
-					// _ => (),
+					ConsumerClientType::EndTurn => {
+						self.score += self.balance;
+						self.balance = 0.;
+						self.game_addr.do_send(consumer_to_game::NewScoreEndTurn {
+							user_id: self.uuid.clone(),
+							new_score: self.score,
+						});
+					}
 				}
 			} else {
 				println!("Invalid structure received");
@@ -200,14 +249,22 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Consumer {
 
 impl Handler<game_to_participant::EndedGame> for Consumer {
 	type Result = ();
-	fn handle(&mut self, _msg: game_to_participant::EndedGame, ctx: &mut Self::Context) -> Self::Result {
+	fn handle(
+		&mut self,
+		_msg: game_to_participant::EndedGame,
+		ctx: &mut Self::Context,
+	) -> Self::Result {
 		ctx.stop();
 	}
 }
 
 impl Handler<game_to_participant::NewOffsets> for Consumer {
 	type Result = ();
-	fn handle(&mut self, msg: game_to_participant::NewOffsets, ctx: &mut Self::Context) -> Self::Result {
+	fn handle(
+		&mut self,
+		msg: game_to_participant::NewOffsets,
+		ctx: &mut Self::Context,
+	) -> Self::Result {
 		let fields = ServerExtraFields {
 			offsets: Some(consumer_structs::Offsets {
 				trending: msg.trending,
@@ -236,8 +293,9 @@ impl Handler<game_to_participant::TurnAdvanced> for Consumer {
 		if !self.is_producer_turn {
 			self.score += self.balance;
 			self.balance = INITIAL_BALANCE;
+			self.total_utility = 0.;
 			let fields = ServerExtraFields {
-				balance_score: Some((INITIAL_BALANCE, self.score)),
+				balance_score_quantity: Some((INITIAL_BALANCE, self.score, 0.)),
 				..Default::default()
 			};
 			ctx.binary(
@@ -275,6 +333,69 @@ impl Handler<game_to_consumer::Info> for Consumer {
 			to_vec(&ConsumerServerMsg {
 				msg_type: ConsumerServerType::Info,
 				extra_fields: Some(extra_fields),
+			})
+			.unwrap(),
+		);
+	}
+}
+
+impl Handler<game_to_consumer::PurchaseResult> for Consumer {
+	type Result = ();
+	fn handle(&mut self, msg: game_to_consumer::PurchaseResult, ctx: &mut Self::Context) {
+		self.balance = msg.balance;
+		let utility = self.get_utility(msg.purchased);
+		self.quantity_purchased += msg.purchased;
+		self.score += utility;
+		self.total_utility += utility;
+		println!("Consumer says utility: {}, total_utility: {}, score: {}", utility, self.total_utility, self.score);
+		// println!("Utility: {}, purchased: {}", utility, msg.purchased);
+		// println!("Score {}, Balance {}", self.score, self.balance);
+		self.game_addr.do_send(consumer_to_game::NewScoreCalculated {user_id: self.uuid.clone(), new_score: self.score});
+		let fields = ServerExtraFields {
+			balance_score_quantity: Some((self.balance, self.score, self.quantity_purchased)),
+			..Default::default()
+		};
+		ctx.binary(
+			to_vec(&ConsumerServerMsg {
+				msg_type: ConsumerServerType::ChoiceSubmitted,
+				extra_fields: Some(fields),
+			})
+			.unwrap(),
+		);
+	}
+}
+
+impl Handler<game_to_consumer::TurnList> for Consumer {
+	type Result = ();
+	fn handle(&mut self, msg: game_to_consumer::TurnList, ctx: &mut Self::Context) -> Self::Result {
+		let fields = ServerExtraFields {
+			turn_info: Some(consumer_structs::TurnInfo {
+				producers: msg.list,
+			}),
+			..Default::default()
+		};
+		ctx.binary(
+			to_vec(&ConsumerServerMsg {
+				msg_type: ConsumerServerType::TurnInfo,
+				extra_fields: Some(fields),
+			})
+			.unwrap(),
+		);
+	}
+}
+
+
+impl Handler<game_to_participant::StockReduced> for Consumer {
+	type Result = ();
+	fn handle(&mut self, msg: game_to_participant::StockReduced, ctx: &mut Self::Context) {
+		let fields = ServerExtraFields {
+			stock_targets: Some(msg.targets),
+			..Default::default()
+		};
+		ctx.binary(
+			to_vec(&ConsumerServerMsg {
+				msg_type: ConsumerServerType::StockReduced,
+				extra_fields: Some(fields),
 			})
 			.unwrap(),
 		);

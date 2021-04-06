@@ -342,6 +342,23 @@ impl Handler<game_to_participant::TurnAdvanced> for Producer {
 	}
 }
 
+impl Handler<game_to_participant::StockReduced> for Producer {
+	type Result = ();
+	fn handle(&mut self, msg: game_to_participant::StockReduced, ctx: &mut Self::Context) {
+		let fields = ServerExtraFields {
+			stock_targets: Some(msg.targets),
+			..Default::default()
+		};
+		ctx.binary(
+			to_vec(&ProducerServerMsg {
+				msg_type: ProducerServerType::StockReduced,
+				extra_fields: Some(fields),
+			})
+			.unwrap(),
+		);
+	}
+}
+
 impl Handler<game_to_producer::Info> for Producer {
 	type Result = ();
 	fn handle(&mut self, msg: game_to_producer::Info, ctx: &mut Self::Context) -> Self::Result {
