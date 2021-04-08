@@ -265,7 +265,7 @@ impl Game {
 					return_targets.push((target.0, producer.remaining));
 					break;
 				}
-				// * if there is not enough money AND not enough quantity, probably malicious and trying to exploit. don't do anything
+				// * if there is not enough money AND not enough quantity, probably trying to exploit. don't do anything
 			}
 		}
 		println!("Game says Purchased: {}, expense: {}, resulting_balance: {}", purchased, expense, consumer.balance);

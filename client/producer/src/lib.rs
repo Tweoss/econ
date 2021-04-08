@@ -603,7 +603,7 @@ impl Component for Model {
                                 </div>
                                 <div class="d-flex">
                                     <p class="text-center text-light mb-auto text-info" style="width: 50%;">{format!("Balance: {}", self.balance)}</p>
-                                    <p class="text-center text-light mb-auto text-info" style="width: 50%;">{format!("Score: {}", self.score)}</p>
+                                    <p class="text-center text-light mb-auto text-info" style="width: 50%;">{format!("Score: {:.2}", self.score)}</p>
                                 </div>
                             </div>
                         </div>

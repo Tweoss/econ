@@ -326,7 +326,7 @@ impl Handler<game_to_consumer::PurchaseResult> for Consumer {
 	type Result = ();
 	fn handle(&mut self, msg: game_to_consumer::PurchaseResult, ctx: &mut Self::Context) {
 		if msg.purchased == 0. {
-			println!("Attempted to negative purchase");
+			// println!("No purchase");
 		} else {
 			self.balance = msg.balance;
 			let utility = self.get_utility(msg.purchased);
