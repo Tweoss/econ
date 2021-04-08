@@ -347,35 +347,33 @@ impl Component for Model {
                             document.getElementById("kick-modal").click();
                         }
                     }
-                    ConsumerServerType::ChoiceFailed => {
-                        self.error_msg = s.extra_fields.unwrap().fail_info.unwrap();
+                    ConsumerServerType::ChoiceFailed(error_msg) => {
+                        self.error_msg = error_msg;
                     }
-                    ConsumerServerType::ChoiceSubmitted => {
-                        let tuple = s.extra_fields.unwrap().balance_score_quantity.unwrap();
+                    ConsumerServerType::ChoiceSubmitted(tuple) => {
                         self.balance = tuple.0;
                         self.score = tuple.1;
                         self.quantity_purchased = tuple.2;
                         self.error_msg = "".to_string();
                     }
-                    ConsumerServerType::NewOffsets => {
+                    ConsumerServerType::NewOffsets(offsets) => {
                         self.graph_data
-                            .data(s.extra_fields.unwrap().offsets.unwrap().trending);
+                            .data(offsets.trending);
                     }
-                    ConsumerServerType::TurnInfo => {
-                        self.update_producers(s.extra_fields.unwrap().turn_info.unwrap().producers);
+                    ConsumerServerType::TurnInfo(turn_info) => {
+                        self.update_producers(turn_info.producers);
                     }
-                    ConsumerServerType::TurnAdvanced => {
+                    ConsumerServerType::TurnAdvanced(balance_score_quantity) => {
                         self.turn += 1;
                         self.took_turn = false;
                         if self.turn % 2 == 0 {
-                            let balance_score = s.extra_fields.unwrap().balance_score_quantity.unwrap();
-                            self.balance = balance_score.0;
-                            self.score = balance_score.1;
+                            self.balance = balance_score_quantity.0;
+                            self.score = balance_score_quantity.1;
                             self.quantity_purchased = 0.;
                         }
                     }
-                    ConsumerServerType::StockReduced => {
-                        let targets = s.extra_fields.unwrap().stock_targets.unwrap();
+                    ConsumerServerType::StockReduced(targets) => {
+                        // let targets = s.extra_fields.unwrap().stock_targets.unwrap();
                         for target in targets {
                             if let Some(producer) = self.producers.get_mut(&target.0) {
                                 producer.0.remaining -= &target.1;

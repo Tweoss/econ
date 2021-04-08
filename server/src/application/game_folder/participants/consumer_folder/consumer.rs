@@ -14,7 +14,6 @@ use serde_cbor::{from_slice, to_vec};
 
 use crate::application::game_folder::participants::consumer_folder::consumer_structs::{
 	self, ConsumerClientMsg, ConsumerClientType, ConsumerServerMsg, ConsumerServerType,
-	ServerExtraFields,
 };
 
 use crate::application::game_folder::participants::json::{
@@ -116,7 +115,6 @@ impl Consumer {
 					ctx.binary(
 						to_vec(&ConsumerServerMsg {
 							msg_type: ConsumerServerType::ServerKicked,
-							extra_fields: None,
 						})
 						.unwrap(),
 					);
@@ -130,7 +128,6 @@ impl Consumer {
 			}
 			let ping = to_vec(&ConsumerServerMsg {
 				msg_type: ConsumerServerType::Ping,
-				extra_fields: None,
 			})
 			.unwrap();
 			ctx.binary(ping);
@@ -250,16 +247,11 @@ impl Handler<game_to_participant::NewOffsets> for Consumer {
 		msg: game_to_participant::NewOffsets,
 		ctx: &mut Self::Context,
 	) -> Self::Result {
-		let fields = ServerExtraFields {
-			offsets: Some(consumer_structs::Offsets {
-				trending: msg.trending,
-			}),
-			..Default::default()
-		};
 		ctx.binary(
 			to_vec(&ConsumerServerMsg {
-				msg_type: ConsumerServerType::NewOffsets,
-				extra_fields: Some(fields),
+				msg_type: ConsumerServerType::NewOffsets(consumer_structs::Offsets {
+					trending: msg.trending,
+				}),
 			})
 			.unwrap(),
 		);
@@ -279,22 +271,16 @@ impl Handler<game_to_participant::TurnAdvanced> for Consumer {
 			self.score += self.balance;
 			self.balance = INITIAL_BALANCE;
 			self.total_utility = 0.;
-			let fields = ServerExtraFields {
-				balance_score_quantity: Some((INITIAL_BALANCE, self.score, 0.)),
-				..Default::default()
-			};
 			ctx.binary(
 				to_vec(&ConsumerServerMsg {
-					msg_type: ConsumerServerType::TurnAdvanced,
-					extra_fields: Some(fields),
+					msg_type: ConsumerServerType::TurnAdvanced((INITIAL_BALANCE, self.score, 0.)),
 				})
 				.unwrap(),
 			);
 		} else {
 			ctx.binary(
 				to_vec(&ConsumerServerMsg {
-					msg_type: ConsumerServerType::TurnAdvanced,
-					extra_fields: None,
+					msg_type: ConsumerServerType::TurnAdvanced((0., 0., 0.)),
 				})
 				.unwrap(),
 			);
@@ -310,14 +296,9 @@ impl Handler<game_to_consumer::Info> for Consumer {
 		self.score = msg.info.score;
 		self.took_turn = msg.info.took_turn;
 		self.is_producer_turn = msg.info.turn % 2 == 1;
-		// let extra_fields = consumer_structs::ServerExtraFields {
-		// 	info: Some(msg.info),
-		// 	..Default::default()
-		// };
 		ctx.binary(
 			to_vec(&ConsumerServerMsg {
 				msg_type: ConsumerServerType::Info(msg.info),
-				extra_fields: None,
 			})
 			.unwrap(),
 		);
@@ -329,23 +310,28 @@ impl Handler<game_to_consumer::PurchaseResult> for Consumer {
 	fn handle(&mut self, msg: game_to_consumer::PurchaseResult, ctx: &mut Self::Context) {
 		if msg.purchased == 0. {
 			println!("Attempted to negative purchase");
-		}
-		else {
+		} else {
 			self.balance = msg.balance;
 			let utility = self.get_utility(msg.purchased);
 			self.quantity_purchased += msg.purchased;
 			self.score += utility;
 			self.total_utility += utility;
-			println!("Consumer says utility: {}, total_utility: {}, score: {}", utility, self.total_utility, self.score);
-			self.game_addr.do_send(consumer_to_game::NewScoreCalculated {user_id: self.uuid.clone(), new_score: self.score});
-			let fields = ServerExtraFields {
-				balance_score_quantity: Some((self.balance, self.score, self.quantity_purchased)),
-				..Default::default()
-			};
+			println!(
+				"Consumer says utility: {}, total_utility: {}, score: {}",
+				utility, self.total_utility, self.score
+			);
+			self.game_addr
+				.do_send(consumer_to_game::NewScoreCalculated {
+					user_id: self.uuid.clone(),
+					new_score: self.score,
+				});
 			ctx.binary(
 				to_vec(&ConsumerServerMsg {
-					msg_type: ConsumerServerType::ChoiceSubmitted,
-					extra_fields: Some(fields),
+					msg_type: ConsumerServerType::ChoiceSubmitted((
+						self.balance,
+						self.score,
+						self.quantity_purchased,
+					)),
 				})
 				.unwrap(),
 			);
@@ -356,16 +342,11 @@ impl Handler<game_to_consumer::PurchaseResult> for Consumer {
 impl Handler<game_to_consumer::TurnList> for Consumer {
 	type Result = ();
 	fn handle(&mut self, msg: game_to_consumer::TurnList, ctx: &mut Self::Context) -> Self::Result {
-		let fields = ServerExtraFields {
-			turn_info: Some(consumer_structs::TurnInfo {
-				producers: msg.list,
-			}),
-			..Default::default()
-		};
 		ctx.binary(
 			to_vec(&ConsumerServerMsg {
-				msg_type: ConsumerServerType::TurnInfo,
-				extra_fields: Some(fields),
+				msg_type: ConsumerServerType::TurnInfo(consumer_structs::TurnInfo {
+					producers: msg.list,
+					}),
 			})
 			.unwrap(),
 		);
@@ -375,14 +356,9 @@ impl Handler<game_to_consumer::TurnList> for Consumer {
 impl Handler<game_to_participant::StockReduced> for Consumer {
 	type Result = ();
 	fn handle(&mut self, msg: game_to_participant::StockReduced, ctx: &mut Self::Context) {
-		let fields = ServerExtraFields {
-			stock_targets: Some(msg.targets),
-			..Default::default()
-		};
 		ctx.binary(
 			to_vec(&ConsumerServerMsg {
-				msg_type: ConsumerServerType::StockReduced,
-				extra_fields: Some(fields),
+				msg_type: ConsumerServerType::StockReduced(msg.targets),
 			})
 			.unwrap(),
 		);
