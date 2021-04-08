@@ -11,6 +11,7 @@ pub enum ConsumerServerType {
 	GameEnded,
 	TurnAdvanced((f64, f64, f64)),
 	TurnInfo(TurnInfo),
+	TurnEnded,
 	ChoiceSubmitted((f64, f64, f64)),
 	ChoiceFailed(String),
 	NewOffsets(Offsets),
@@ -19,6 +20,7 @@ pub enum ConsumerServerType {
 	StockReduced(Vec<(String, f64)>),
 	Ignore,
 }
+
 #[derive(Debug, Serialize, PartialEq)]
 pub enum ConsumerClientType {
 	Pong,	

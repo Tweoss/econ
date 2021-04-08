@@ -21,7 +21,6 @@ use crate::application::game_folder::participants::json::{
 };
 
 const INITIAL_BALANCE: f64 = 4000.;
-const CLIENT_T_CALCULATION_FREEDOM: f64 = 0.0001;
 
 pub struct ConsumerState {
 	pub is_responsive: bool,
@@ -197,7 +196,7 @@ impl Consumer {
 
 /// Handler for ws::Message message
 impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Consumer {
-	fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, _ctx: &mut Self::Context) {
+	fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
 		if let Ok(ws::Message::Binary(bin)) = msg {
 			if let Ok(message) = from_slice::<ConsumerClientMsg>(&bin.to_vec()) {
 				println!("{:?}", message);
@@ -215,10 +214,27 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Consumer {
 					ConsumerClientType::EndTurn => {
 						self.score += self.balance;
 						self.balance = 0.;
+						self.took_turn = true;
 						self.game_addr.do_send(consumer_to_game::NewScoreEndTurn {
 							user_id: self.uuid.clone(),
 							new_score: self.score,
 						});
+						ctx.binary(
+							to_vec(&ConsumerServerMsg {
+								msg_type: ConsumerServerType::ChoiceSubmitted((
+									self.balance,
+									self.score,
+									self.quantity_purchased,
+								)),
+							})
+							.unwrap(),
+						);
+						ctx.binary(
+							to_vec(&ConsumerServerMsg {
+								msg_type: ConsumerServerType::TurnEnded,
+							})
+							.unwrap(),
+						);
 					}
 				}
 			} else {
@@ -271,6 +287,7 @@ impl Handler<game_to_participant::TurnAdvanced> for Consumer {
 			self.score += self.balance;
 			self.balance = INITIAL_BALANCE;
 			self.total_utility = 0.;
+			self.quantity_purchased = 0.;
 			ctx.binary(
 				to_vec(&ConsumerServerMsg {
 					msg_type: ConsumerServerType::TurnAdvanced((INITIAL_BALANCE, self.score, 0.)),
@@ -346,7 +363,7 @@ impl Handler<game_to_consumer::TurnList> for Consumer {
 			to_vec(&ConsumerServerMsg {
 				msg_type: ConsumerServerType::TurnInfo(consumer_structs::TurnInfo {
 					producers: msg.list,
-					}),
+				}),
 			})
 			.unwrap(),
 		);

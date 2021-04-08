@@ -2,7 +2,6 @@
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-use web_sys::HtmlInputElement;
 use web_sys::SvggElement;
 use yew::prelude::*;
 
@@ -224,7 +223,7 @@ impl Model {
         if self.took_turn || self.turn % 2 == 1 {
             html! {
                 <>
-                    <button onclick=self.link.callback(|_| Msg::Submit) class="btn btn-primary disabled btn-block flex-grow-0 flex-shrink-1" type="submit" disabled=true>{"Attempt Purchase"}</button>
+                    <button class="btn btn-primary disabled btn-block flex-grow-0 flex-shrink-1" type="submit" disabled=true>{"Attempt Purchase"}</button>
                     <button class="btn btn-danger disabled btn-block flex-grow-0 flex-shrink-1" type="submit" disabled=true>{"End Turn"}</button>
                 </>
             }
@@ -239,7 +238,7 @@ impl Model {
                             html! {<button class="btn btn-primary disabled btn-block flex-grow-0 flex-shrink-1" type="submit" disabled=true>{"Attempt Purchase"}</button>}
                         }
                     }
-                    <button class="btn btn-danger btn-block flex-grow-0 flex-shrink-1" type="submit">{"End Turn"}</button>
+                    <button onclick=self.link.callback(|_| Msg::EndTurn) class="btn btn-danger btn-block flex-grow-0 flex-shrink-1" type="submit">{"End Turn"}</button>
                 </>
                 // <button onclick=self.link.callback(|_| Msg::Submit) class="btn btn-danger btn-block flex-grow-0 flex-shrink-1" type="submit">{"Submit and End Turn"}</button>
             }
@@ -539,6 +538,7 @@ impl Component for Model {
                     })
                     .unwrap()));
                 }
+                self.took_turn = true;
                 false
             }
         }
