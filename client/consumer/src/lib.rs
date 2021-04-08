@@ -315,8 +315,8 @@ impl Component for Model {
             Msg::Ignore => false,
             Msg::Received(Ok(s)) => {
                 match s.msg_type {
-                    ConsumerServerType::Info => {
-                        let info = s.extra_fields.unwrap().info.unwrap();
+                    ConsumerServerType::Info(info) => {
+                        // let info = s.extra_fields.unwrap().info.unwrap();
                         ConsoleService::log(&format!("{:?}", info));
                         self.producers.extend(
                             info.producers

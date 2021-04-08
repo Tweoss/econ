@@ -8,7 +8,7 @@ pub struct ConsumerServerMsg {
 
 #[derive(Debug, Serialize, PartialEq)]
 pub enum ConsumerServerType {
-	Info,
+	Info(Info),
 	GameEnded,
 	TurnAdvanced,
 	TurnInfo,
@@ -34,7 +34,7 @@ pub struct ConsumerClientMsg {
 	pub choice: Option<ClientExtraFields>,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Clone, PartialEq)]
 pub struct Info {
 	pub producers: Vec<(String, Participant)>,
 	pub turn: u64,
@@ -53,7 +53,7 @@ pub struct TurnInfo {
 
 #[derive(Debug, Serialize, Clone, Default)]
 pub struct ServerExtraFields {
-	pub info: Option<Info>,
+	// pub info: Option<Info>,
 	pub offsets: Option<Offsets>,
 	pub turn_info: Option<TurnInfo>,
 	pub fail_info: Option<String>,

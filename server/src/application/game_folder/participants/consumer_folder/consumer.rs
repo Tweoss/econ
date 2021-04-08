@@ -177,14 +177,10 @@ impl Consumer {
 					- 2. * (a - 2. * b + c) * h)
 				* f64::powi(t, 5)
 			+ (1. / 2.) * (a - 3. * b + 3. * c - d) * (e - 3. * f + 3. * g - h) * f64::powi(t, 6);
-		
-		
-		println!("T = {}, Previous total = {}, utility at endpoint: {}, new_total: {}", t, self.total_utility, f64::powi(1.-t, 3) * e  + 3.*f64::powi(1.-t,2)*t * f + 3.*(1.-t)*f64::powi(t,2) * g + f64::powi(t,3) * h, new_total);
 		new_total - self.total_utility
 	}
 	fn get_t_for_quantity(&self, t_0: f64, t_2: f64, x: f64, iterations: u32) -> f64 {
 		if iterations == 0 {
-			println!("Last iteration t_0: {}, t_2: {}", t_0, t_2);
 			return t_0;
 		}
 		let t_1 = (t_0 + t_2) / 2.;
@@ -193,13 +189,10 @@ impl Consumer {
 			+ f64::powi(t_1, 3) * 80.
 			- x;
 		if x_1 > 0. {
-			println!(" iteration {}, t_0: {}, t_1: {}", iterations, t_0, t_1);
 			self.get_t_for_quantity(t_0, t_1, x, iterations - 1)
 		} else if x_1 < 0. {
-			println!(" iteration {}, t_1: {}, t_2: {}", iterations, t_1, t_2);
 			self.get_t_for_quantity(t_1, t_2, x, iterations - 1)
 		} else {
-			println!("!!!!!!!! iteration {}, t_1: {},", iterations, t_1);
 			t_1
 		}
 	}
@@ -317,14 +310,14 @@ impl Handler<game_to_consumer::Info> for Consumer {
 		self.score = msg.info.score;
 		self.took_turn = msg.info.took_turn;
 		self.is_producer_turn = msg.info.turn % 2 == 1;
-		let extra_fields = consumer_structs::ServerExtraFields {
-			info: Some(msg.info),
-			..Default::default()
-		};
+		// let extra_fields = consumer_structs::ServerExtraFields {
+		// 	info: Some(msg.info),
+		// 	..Default::default()
+		// };
 		ctx.binary(
 			to_vec(&ConsumerServerMsg {
-				msg_type: ConsumerServerType::Info,
-				extra_fields: Some(extra_fields),
+				msg_type: ConsumerServerType::Info(msg.info),
+				extra_fields: None,
 			})
 			.unwrap(),
 		);
@@ -335,7 +328,7 @@ impl Handler<game_to_consumer::PurchaseResult> for Consumer {
 	type Result = ();
 	fn handle(&mut self, msg: game_to_consumer::PurchaseResult, ctx: &mut Self::Context) {
 		if msg.purchased == 0. {
-
+			println!("Attempted to negative purchase");
 		}
 		else {
 			self.balance = msg.balance;
@@ -378,7 +371,6 @@ impl Handler<game_to_consumer::TurnList> for Consumer {
 		);
 	}
 }
-
 
 impl Handler<game_to_participant::StockReduced> for Consumer {
 	type Result = ();

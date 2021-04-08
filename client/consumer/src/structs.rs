@@ -8,7 +8,7 @@ pub struct ConsumerServerMsg {
 
 #[derive(Debug, Deserialize, PartialEq)]
 pub enum ConsumerServerType {
-	Info,
+	Info(Info),
 	GameEnded,
 	TurnAdvanced,
 	TurnInfo,
@@ -23,6 +23,7 @@ pub enum ConsumerServerType {
 #[derive(Debug, Serialize, PartialEq)]
 pub enum ConsumerClientType {
 	Pong,	
+	// Choice(Vec<(String, f64)>),
 	Choice,
 	EndTurn,
 }
@@ -33,7 +34,7 @@ pub struct ConsumerClientMsg {
 	pub choice: Option<ClientExtraFields>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, PartialEq)]
 pub struct Info {
 	pub producers: Vec<(String, Participant)>,
 	pub turn: u64,
@@ -52,7 +53,7 @@ pub struct TurnInfo {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ServerExtraFields {
-	pub info: Option<Info>,
+	// pub info: Option<Info>,
 	pub offsets: Option<Offsets>,
 	pub turn_info: Option<TurnInfo>,
 	pub fail_info: Option<String>,
@@ -73,7 +74,7 @@ pub struct ClientExtraFields {
 	pub elements: Vec<(String, f64)>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, PartialEq)]
 pub struct Participant {
 	pub produced: f64,
 	pub price: f64, 

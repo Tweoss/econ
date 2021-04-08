@@ -78,7 +78,7 @@ pub struct ClientExtraFields {
 	pub t: f64,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Clone, PartialEq)]
 pub struct Participant {
 	pub produced: f64,
 	pub price: f64, 
