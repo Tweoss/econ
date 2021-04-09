@@ -25,7 +25,7 @@ use super::director_structs::ParticipantType;
 
 use serde_cbor::{from_slice, to_vec};
 
-use crate::application::game_folder::participants::json::{CLIENT_TERMINATE, CLIENT_TIMEOUT, HEARTBEAT_INTERVAL};
+use crate::application::game_folder::participants::heartbeat::{CLIENT_TERMINATE, CLIENT_TIMEOUT, HEARTBEAT_INTERVAL};
 
 pub struct DirectorState {
 	pub is_responsive: bool,

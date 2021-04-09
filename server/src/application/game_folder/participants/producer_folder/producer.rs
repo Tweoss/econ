@@ -16,7 +16,7 @@ use crate::application::game_folder::participants::producer_folder::producer_str
 	ServerExtraFields,
 };
 
-use crate::application::game_folder::participants::json::{
+use crate::application::game_folder::participants::heartbeat::{
 	CLIENT_TERMINATE, CLIENT_TIMEOUT, HEARTBEAT_INTERVAL,
 };
 

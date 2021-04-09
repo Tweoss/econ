@@ -16,7 +16,7 @@ use crate::application::game_folder::participants::consumer_folder::consumer_str
 	self, ConsumerClientMsg, ConsumerClientType, ConsumerServerMsg, ConsumerServerType,
 };
 
-use crate::application::game_folder::participants::json::{
+use crate::application::game_folder::participants::heartbeat::{
 	CLIENT_TERMINATE, CLIENT_TIMEOUT, HEARTBEAT_INTERVAL,
 };
 
