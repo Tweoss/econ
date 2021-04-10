@@ -25,7 +25,7 @@ use stdweb::js;
 
 mod structs;
 use structs::{
-    ClientExtraFields, DirectorClientMsg, DirectorClientType, DirectorServerMsg,
+    DirectorClientMsg, DirectorClientType, DirectorServerMsg,
     DirectorServerType, Offsets,
 };
 
@@ -415,8 +415,7 @@ impl Component for Model {
             Msg::Ignore => false,
             Msg::Received(Ok(s)) => {
                 match s.msg_type {
-                    DirectorServerType::Info => {
-                        let info = s.extra_fields.unwrap().info.unwrap();
+                    DirectorServerType::Info(info) => {
                         if info.is_open {
                             self.is_open = "Close".to_string();
                         } else {
@@ -436,49 +435,43 @@ impl Component for Model {
                             ConsoleService::log("Sending Pong");
                             task.send_binary(Ok(to_vec(&DirectorClientMsg {
                                 msg_type: DirectorClientType::Pong,
-                                extra_fields: None,
                             })
                             .unwrap()));
                         }
                         return false;
                     }
-                    DirectorServerType::NewConsumer => {
-                        let extra_fields = s.extra_fields.unwrap();
+                    DirectorServerType::NewConsumer(id, name) => {
                         self.consumers.insert(
-                            extra_fields.target.unwrap(),
-                            Participant::new(true, extra_fields.name.unwrap()),
+                            id,
+                            Participant::new(true, name),
                         );
                     }
-                    DirectorServerType::NewProducer => {
-                        let extra_fields = s.extra_fields.unwrap();
+                    DirectorServerType::NewProducer(id, name) => {
                         self.producers.insert(
-                            extra_fields.target.unwrap(),
-                            Participant::new(true, extra_fields.name.unwrap()),
+                            id,
+                            Participant::new(true, name),
                         );
                     }
-                    DirectorServerType::NewDirector => {
-                        let extra_fields = s.extra_fields.unwrap();
+                    DirectorServerType::NewDirector(id, name) => {
                         self.directors.insert(
-                            extra_fields.target.unwrap(),
-                            Participant::new(false, extra_fields.name.unwrap()),
+                            id,
+                            Participant::new(false, name),
                         );
                     }
-                    DirectorServerType::NewViewer => {
-                        let extra_fields = s.extra_fields.unwrap();
+                    DirectorServerType::NewViewer(id, name) => {
                         self.viewers.insert(
-                            extra_fields.target.unwrap(),
-                            Participant::new(false, extra_fields.name.unwrap()),
+                            id,
+                            Participant::new(false, name),
                         );
                     }
-                    DirectorServerType::ParticipantKicked => {
-                        let target = s.extra_fields.unwrap().target;
+                    DirectorServerType::ParticipantKicked(target) => {
                         ConsoleService::log("Received Message to kick: ");
-                        ConsoleService::log(&target.clone().unwrap());
+                        ConsoleService::log(&target);
                         //* remove any references to this id
-                        self.producers.remove(target.as_ref().unwrap());
-                        self.consumers.remove(target.as_ref().unwrap());
-                        self.directors.remove(target.as_ref().unwrap());
-                        self.viewers.remove(target.as_ref().unwrap());
+                        self.producers.remove(&target);
+                        self.consumers.remove(&target);
+                        self.directors.remove(&target);
+                        self.viewers.remove(&target);
                     }
                     DirectorServerType::GameOpened => {
                         self.is_open = "Close".to_owned();
@@ -486,8 +479,7 @@ impl Component for Model {
                     DirectorServerType::GameClosed => {
                         self.is_open = "Open".to_owned();
                     }
-                    DirectorServerType::NewOffsets => {
-                        let offsets = s.extra_fields.unwrap().offsets.unwrap();
+                    DirectorServerType::NewOffsets(offsets) => {
                         self.graph_data.data(
                             offsets.trending,
                             offsets.supply_shock,
@@ -503,9 +495,8 @@ impl Component for Model {
                             consumer.took_turn = Some(false);
                         }
                     }
-                    DirectorServerType::DisconnectedPlayer => {
-                        let target = s.extra_fields.clone().unwrap().target.unwrap();
-                        match s.extra_fields.unwrap().participant_type.unwrap().as_str() {
+                    DirectorServerType::DisconnectedPlayer(target, participant_type) => {
+                        match participant_type.as_str() {
                             "consumer" => self
                                 .consumers
                                 .update_status(&target, PlayerState::Disconnected),
@@ -521,9 +512,8 @@ impl Component for Model {
                             _ => (),
                         }
                     }
-                    DirectorServerType::UnresponsivePlayer => {
-                        let target = s.extra_fields.clone().unwrap().target.unwrap();
-                        match s.extra_fields.unwrap().participant_type.unwrap().as_str() {
+                    DirectorServerType::UnresponsivePlayer(target, participant_type) => {
+                        match participant_type.as_str() {
                             "consumer" => self
                                 .consumers
                                 .update_status(&target, PlayerState::Unresponsive),
@@ -539,9 +529,8 @@ impl Component for Model {
                             _ => (),
                         }
                     }
-                    DirectorServerType::ConnectedPlayer => {
-                        let target = s.extra_fields.clone().unwrap().target.unwrap();
-                        match s.extra_fields.unwrap().participant_type.unwrap().as_str() {
+                    DirectorServerType::ConnectedPlayer(target, participant_type) => {
+                        match participant_type.as_str() {
                             "consumer" => self
                                 .consumers
                                 .update_status(&target, PlayerState::Connected),
@@ -561,9 +550,8 @@ impl Component for Model {
                             document.getElementById("kick-modal").click();
                         }
                     }
-                    DirectorServerType::TurnTaken => {
-                        let target = s.extra_fields.clone().unwrap().target.unwrap();
-                        match s.extra_fields.unwrap().participant_type.unwrap().as_str() {
+                    DirectorServerType::TurnTaken(target, participant_type) => {
+                        match participant_type.as_str() {
                             "consumer" => self.consumers.took_turn(&target),
                             "producer" => self.producers.took_turn(&target),
                             _ => (),
@@ -607,7 +595,6 @@ impl Component for Model {
                 if let Some(ref mut task) = self.ws {
                     task.send_binary(Ok(to_vec(&DirectorClientMsg {
                         msg_type: DirectorClientType::EndGame,
-                        extra_fields: None,
                     })
                     .unwrap()));
                     true
@@ -620,17 +607,11 @@ impl Component for Model {
                     if let Some(target) = possible_target {
                         if let Some(element) = target.dyn_ref::<HtmlParagraphElement>() {
                             if element.id() != self.personal_id {
-                                let extra_fields = ClientExtraFields {
-                                    target: Some(element.id()),
-                                    ..Default::default()
-                                };
-
                                 match element.class_name().as_ref() {
                                     "kickable live" | "kickable unresponsive" | "kickable" => {
                                         element.set_class_name("kicked");
                                         task.send_binary(Ok(to_vec(&DirectorClientMsg {
-                                            msg_type: DirectorClientType::Kick,
-                                            extra_fields: Some(extra_fields),
+                                            msg_type: DirectorClientType::Kick(element.id()),
                                         })
                                         .unwrap()));
                                         return true;
@@ -648,13 +629,11 @@ impl Component for Model {
                     if self.is_open == "Open" {
                         task.send_binary(Ok(to_vec(&DirectorClientMsg {
                             msg_type: DirectorClientType::OpenGame,
-                            extra_fields: None,
                         })
                         .unwrap()));
                     } else {
                         task.send_binary(Ok(to_vec(&DirectorClientMsg {
                             msg_type: DirectorClientType::CloseGame,
-                            extra_fields: None,
                         })
                         .unwrap()));
                     }
@@ -810,11 +789,7 @@ impl Component for Model {
                 }
                 if let Some(ref mut task) = self.ws {
                     task.send_binary(Ok(to_vec(&DirectorClientMsg {
-                        msg_type: DirectorClientType::NewOffsets,
-                        extra_fields: Some(ClientExtraFields {
-                            target: None,
-                            offsets: Some(offsets),
-                        }),
+                        msg_type: DirectorClientType::NewOffsets(offsets),
                     })
                     .unwrap()));
                 }
@@ -824,7 +799,6 @@ impl Component for Model {
                 if let Some(ref mut task) = self.ws {
                     task.send_binary(Ok(to_vec(&DirectorClientMsg {
                         msg_type: DirectorClientType::NextTurn,
-                        extra_fields: None,
                     })
                     .unwrap()));
                 }
