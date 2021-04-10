@@ -24,15 +24,13 @@ pub enum ConsumerServerType {
 #[derive(Debug, Serialize, PartialEq)]
 pub enum ConsumerClientType {
 	Pong,	
-	// Choice(Vec<(String, f64)>),
-	Choice,
+	Choice(Vec<(String, f64)>),
 	EndTurn,
 }
 
 #[derive(Debug, Serialize)]
 pub struct ConsumerClientMsg {
 	pub msg_type: ConsumerClientType,
-	pub choice: Option<ClientExtraFields>,
 }
 
 #[derive(Debug, Deserialize, Clone, PartialEq)]
@@ -55,11 +53,6 @@ pub struct TurnInfo {
 #[derive(Debug, Deserialize, Clone, PartialEq)]
 pub struct Offsets {
 	pub trending: u8,
-}
-
-#[derive(Debug, Serialize, Default)]
-pub struct ClientExtraFields {
-	pub elements: Vec<(String, f64)>,
 }
 
 #[derive(Debug, Deserialize, Clone, PartialEq)]

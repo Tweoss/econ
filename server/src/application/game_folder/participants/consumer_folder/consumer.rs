@@ -201,12 +201,12 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Consumer {
 			if let Ok(message) = from_slice::<ConsumerClientMsg>(&bin.to_vec()) {
 				println!("{:?}", message);
 				match message.msg_type {
-					ConsumerClientType::Choice => {
+					ConsumerClientType::Choice(elements) => {
 						if !self.took_turn && !self.is_producer_turn {
 							// * send the message to game. game calculates purchased quantity and returns the expense, remaining balance, and total purchased quantity
 							self.game_addr.do_send(consumer_to_game::TryChoice {
 								user_id: self.uuid.clone(),
-								elements: message.choice.unwrap().elements,
+								elements
 							});
 						}
 					}

@@ -21,7 +21,7 @@ use stdweb::js;
 
 mod structs;
 use structs::{
-    ClientExtraFields, ConsumerClientMsg, ConsumerClientType, ConsumerServerMsg,
+    ConsumerClientMsg, ConsumerClientType, ConsumerServerMsg,
     ConsumerServerType, Participant, /* Offsets,*/
 };
 
@@ -334,7 +334,6 @@ impl Component for Model {
                             ConsoleService::log("Sending Pong");
                             task.send_binary(Ok(to_vec(&ConsumerClientMsg {
                                 msg_type: ConsumerClientType::Pong,
-                                choice: None,
                             })
                             .unwrap()));
                         }
@@ -517,14 +516,9 @@ impl Component for Model {
             Msg::Submit => {
                 if let Some(ref mut task) = self.ws {
                     ConsoleService::log("Sending Submit");
-                    let mut elements = Vec::new();
-                    self.producers.iter().for_each(|x| elements.push((x.0.clone(), x.1.1)));
-                    let extra_fields = ClientExtraFields {
-                        elements
-                    };
+                    let elements = self.producers.iter().clone().map(|x| (x.0.clone(), x.1.1)).collect();
                     task.send_binary(Ok(to_vec(&ConsumerClientMsg {
-                        msg_type: ConsumerClientType::Choice,
-                        choice: Some(extra_fields),
+                        msg_type: ConsumerClientType::Choice(elements),
                     })
                     .unwrap()));
                 }
@@ -534,7 +528,6 @@ impl Component for Model {
                 if let Some(ref mut task) = self.ws {
                     task.send_binary(Ok(to_vec(&ConsumerClientMsg {
                         msg_type: ConsumerClientType::EndTurn,
-                        choice: None,
                     })
                     .unwrap()));
                 }
