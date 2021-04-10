@@ -4,7 +4,6 @@ use actix::prelude::*;
 // use crate::application::app::AppState;
 use crate::application::game_folder::game::Game;
 
-
 /// Check if a game exists
 /// ```
 /// #[rtype(bool)]
@@ -15,7 +14,7 @@ use crate::application::game_folder::game::Game;
 #[derive(Message)]
 #[rtype(bool)]
 pub struct DoesGameExist {
-	pub game_id: String,
+    pub game_id: String,
 }
 
 /// Check if a game is open to players joining
@@ -28,7 +27,7 @@ pub struct DoesGameExist {
 #[derive(Message)]
 #[rtype(bool)]
 pub struct IsGameOpen {
-	pub game_id: String,
+    pub game_id: String,
 }
 
 /// Check if this is the Right Director Password
@@ -41,7 +40,7 @@ pub struct IsGameOpen {
 #[derive(Message)]
 #[rtype(bool)]
 pub struct IsRightPswd {
-	pub pswd: String,
+    pub pswd: String,
 }
 
 /// Register a new player's ID in a game
@@ -71,7 +70,7 @@ pub struct NewPlayer {
 /// }
 /// ```
 #[derive(Message)]
-#[rtype(result="()")]
+#[rtype(result = "()")]
 pub struct NewDirector {
     pub user_id: String,
     pub game_id: String,
@@ -88,7 +87,7 @@ pub struct NewDirector {
 /// }
 /// ```
 #[derive(Message)]
-#[rtype(result="()")]
+#[rtype(result = "()")]
 pub struct NewGame {
     pub user_id: String,
     pub username: String,
@@ -113,7 +112,7 @@ pub struct IsMainDirector {
 
 /// See if a director with this ID was previously authenticated and if so, return the correct game address
 #[derive(Message)]
-#[rtype(result="Option<Addr<Game>>")]
+#[rtype(result = "Option<Addr<Game>>")]
 pub struct IsRegisteredDirector {
     pub user_id: String,
     pub game_id: String,
@@ -121,8 +120,8 @@ pub struct IsRegisteredDirector {
 
 /// See if producer or consumer with this ID was previously authenticated and if so, return the correct game address
 #[derive(Message)]
-#[rtype(result="Option<Addr<Game>>")]
-pub struct IsRegisteredPlayer{
+#[rtype(result = "Option<Addr<Game>>")]
+pub struct IsRegisteredPlayer {
     pub user_id: String,
     pub game_id: String,
 }

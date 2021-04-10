@@ -11,7 +11,7 @@ mod application;
 use crate::application::app::AppState;
 
 mod html_handlers;
-use html_handlers::{get_html, redirect, set_cookies, assets, inline};
+use html_handlers::{assets, get_html, inline, redirect, set_cookies};
 
 mod ws_handler;
 use ws_handler::{handle_prep, handle_ws};

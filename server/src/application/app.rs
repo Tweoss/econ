@@ -4,16 +4,14 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::RwLock;
 
-
 use crate::application::game_folder::game::Game;
 // use super::super::handle_to_app;
 // use super::super::ws_handler;
 use crate::application::app_to_game;
-use crate::handle_to_app::*;
 use crate::application::game_folder::game_to_app;
+use crate::handle_to_app::*;
 
 // use crate::application::player::Player;
-
 
 // //* App State can receive messages about a new Game, the end of a Game, getting a Game (to operate on)
 
@@ -79,7 +77,13 @@ impl Handler<NewPlayer> for AppState {
     type Result = ResponseFuture<String>;
     fn handle(&mut self, msg: NewPlayer, _: &mut Context<Self>) -> Self::Result {
         // let game_addr = self.game_map.read().unwrap().iter().find(|&x| x.0 == msg.game_id).unwrap().1.clone();
-        let game_addr = self.game_map.read().unwrap().get(&msg.game_id).unwrap().clone();
+        let game_addr = self
+            .game_map
+            .read()
+            .unwrap()
+            .get(&msg.game_id)
+            .unwrap()
+            .clone();
         Box::pin(async move {
             game_addr
                 .send(app_to_game::NewPlayer {
@@ -96,7 +100,13 @@ impl Handler<IsGameOpen> for AppState {
     type Result = ResponseFuture<bool>;
     fn handle(&mut self, msg: IsGameOpen, _: &mut Context<Self>) -> Self::Result {
         // let game_addr = self.game_map.read().unwrap().iter().find(|&x| x.0 == msg.game_id).unwrap().1.clone();
-        let game_addr = self.game_map.read().unwrap().get(&msg.game_id).unwrap().clone();
+        let game_addr = self
+            .game_map
+            .read()
+            .unwrap()
+            .get(&msg.game_id)
+            .unwrap()
+            .clone();
         Box::pin(async move { game_addr.send(app_to_game::IsGameOpen {}).await.unwrap() })
     }
 }
@@ -129,12 +139,17 @@ impl Handler<NewDirector> for AppState {
 impl Handler<NewGame> for AppState {
     type Result = ();
     fn handle(&mut self, msg: NewGame, context: &mut Context<Self>) -> Self::Result {
-        let game = Game::new(context.address(), msg.user_id, msg.username, msg.game_id.clone());
+        let game = Game::new(
+            context.address(),
+            msg.user_id,
+            msg.username,
+            msg.game_id.clone(),
+        );
         self.game_map
             .write()
             .unwrap()
             .insert(msg.game_id.clone(), game.start());
-            // .insert(0, (msg.game_id.clone(), game.start()));
+        // .insert(0, (msg.game_id.clone(), game.start()));
         println!("Inserted a new game id {}", msg.game_id);
     }
 }
@@ -143,13 +158,13 @@ impl Handler<IsMainDirector> for AppState {
     type Result = ResponseFuture<bool>;
     fn handle(&mut self, msg: IsMainDirector, _context: &mut Context<Self>) -> Self::Result {
         if let Some(game_addr) = self
-        // if let Some(game_id) = self
+            // if let Some(game_id) = self
             .game_map
             .read()
             .unwrap()
             .get(&msg.game_id)
-            // .iter()
-            // .find(|&x| x.0 == msg.game_id)
+        // .iter()
+        // .find(|&x| x.0 == msg.game_id)
         {
             let game_addr_clone = game_addr.clone();
             // let game_addr = game_id.1.clone();
@@ -172,19 +187,11 @@ impl Handler<IsMainDirector> for AppState {
 /// Creates a New Game with specified main director
 impl Handler<IsRegisteredDirector> for AppState {
     type Result = ResponseFuture<Option<Addr<Game>>>;
-    fn handle(
-        &mut self,
-        msg: IsRegisteredDirector,
-        _context: &mut Context<Self>,
-    ) -> Self::Result {
+    fn handle(&mut self, msg: IsRegisteredDirector, _context: &mut Context<Self>) -> Self::Result {
         println!("Msg::IsRegisteredDirector");
-        if let Some(addr) = self
-            .game_map
-            .read()
-            .unwrap()
-            .get(&msg.game_id)
-            // .iter()
-            // .find(|&x| x.0 == msg.game_id)
+        if let Some(addr) = self.game_map.read().unwrap().get(&msg.game_id)
+        // .iter()
+        // .find(|&x| x.0 == msg.game_id)
         {
             let async_addr = addr.clone();
             // let async_addr = addr.1.clone();
@@ -209,21 +216,12 @@ impl Handler<IsRegisteredDirector> for AppState {
     }
 }
 
-
 impl Handler<IsRegisteredPlayer> for AppState {
     type Result = ResponseFuture<Option<Addr<Game>>>;
-    fn handle(
-        &mut self,
-        msg: IsRegisteredPlayer,
-        _context: &mut Context<Self>,
-    ) -> Self::Result {
-        if let Some(addr) = self
-            .game_map
-            .read()
-            .unwrap()
-            .get(&msg.game_id)
-            // .iter()
-            // .find(|&x| x.0 == msg.game_id)
+    fn handle(&mut self, msg: IsRegisteredPlayer, _context: &mut Context<Self>) -> Self::Result {
+        if let Some(addr) = self.game_map.read().unwrap().get(&msg.game_id)
+        // .iter()
+        // .find(|&x| x.0 == msg.game_id)
         {
             let async_addr = addr.clone();
             // let async_addr = addr.1.clone();
@@ -247,7 +245,6 @@ impl Handler<IsRegisteredPlayer> for AppState {
         }
     }
 }
-
 
 impl Handler<game_to_app::EndGame> for AppState {
     type Result = ();

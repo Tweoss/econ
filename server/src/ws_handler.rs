@@ -4,8 +4,8 @@ use actix_web::{http, web, Error, HttpRequest, HttpResponse};
 use actix_web_actors::ws;
 
 use crate::application::app::AppState;
-use crate::application::game_folder::participants::director_folder::director::Director;
 use crate::application::game_folder::participants::consumer_folder::consumer::Consumer;
+use crate::application::game_folder::participants::director_folder::director::Director;
 use crate::application::game_folder::participants::producer_folder::producer::Producer;
 
 use crate::handle_to_app;

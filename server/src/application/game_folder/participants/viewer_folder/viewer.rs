@@ -1,10 +1,6 @@
 use actix::prelude::*;
-// use std::sync::Mutex;
 use actix::StreamHandler;
 use actix_web_actors::ws;
-
-// use crate::application::other_messages;
-
 use crate::application::game_folder::game::Game;
 use crate::application::game_folder::game_to_participant;
 

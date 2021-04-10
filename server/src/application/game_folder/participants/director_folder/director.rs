@@ -171,9 +171,8 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Director {
 							// self.hb = Instant::now();
 						}
 						DirectorClientType::Kick(target) => {
-							self.game_addr.do_send(director_to_game::KickParticipant {
-								user_id: target,
-							});
+							self.game_addr
+								.do_send(director_to_game::KickParticipant { user_id: target });
 						}
 						DirectorClientType::NewOffsets(offsets) => {
 							let offsets = offsets;
@@ -330,7 +329,7 @@ impl Handler<game_to_director::GameOpened> for Director {
 	type Result = ();
 	fn handle(
 		&mut self,
-		msg: game_to_director::GameOpened,
+		_msg: game_to_director::GameOpened,
 		ctx: &mut Self::Context,
 	) -> Self::Result {
 		ctx.binary(
@@ -346,7 +345,7 @@ impl Handler<game_to_director::GameClosed> for Director {
 	type Result = ();
 	fn handle(
 		&mut self,
-		msg: game_to_director::GameClosed,
+		_msg: game_to_director::GameClosed,
 		ctx: &mut Self::Context,
 	) -> Self::Result {
 		ctx.binary(

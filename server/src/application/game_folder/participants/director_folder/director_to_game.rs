@@ -1,8 +1,8 @@
-use actix::prelude::*;
 use crate::application::game_folder::participants::director_folder::director::Director;
+use actix::prelude::*;
 
 #[derive(Message)]
-#[rtype(result="()")]
+#[rtype(result = "()")]
 pub struct RegisterAddressGetInfo {
 	pub user_id: String,
 	pub addr: Addr<Director>,
@@ -37,39 +37,36 @@ pub struct IsViewer {
 
 /// Try to Kick a player. returns if succeeded
 #[derive(Message)]
-#[rtype(result="()")]
+#[rtype(result = "()")]
 pub struct KickParticipant {
 	pub user_id: String,
 }
 
 /// End Game
 #[derive(Message)]
-#[rtype(result="()")]
+#[rtype(result = "()")]
 pub struct EndGame {}
 
 /// Open Game
 #[derive(Message)]
-#[rtype(result="()")]
-pub struct OpenGame {
-}
+#[rtype(result = "()")]
+pub struct OpenGame {}
 
 /// Close Game
 #[derive(Message)]
-#[rtype(result="()")]
-pub struct CloseGame {
-}
+#[rtype(result = "()")]
+pub struct CloseGame {}
 
 /// Set the Subsidies, Trending, Supply Shock
 #[derive(Message)]
-#[rtype(result="()")]
+#[rtype(result = "()")]
 pub struct SetOffsets {
 	pub trending: u8,
 	pub subsidies: u8,
 	pub supply_shock: u8,
 }
 
-/// Force the next turn 
+/// Force the next turn
 #[derive(Message)]
-#[rtype(result="()")]
+#[rtype(result = "()")]
 pub struct ForceTurn {}
-

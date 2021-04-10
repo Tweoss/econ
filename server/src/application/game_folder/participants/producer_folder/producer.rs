@@ -263,13 +263,6 @@ impl Handler<game_to_participant::EndedGame> for Producer {
 impl Handler<game_to_participant::NewOffsets> for Producer {
 	type Result = ();
 	fn handle(&mut self, msg: game_to_participant::NewOffsets, ctx: &mut Self::Context) {
-		let fields = ServerExtraFields {
-			offsets: Some(producer_structs::Offsets {
-				subsidies: msg.subsidies,
-				supply_shock: msg.supply_shock,
-			}),
-			..Default::default()
-		};
 		ctx.binary(
 			to_vec(&ProducerServerMsg {
 				msg_type: ProducerServerType::NewOffsets(producer_structs::Offsets {
@@ -360,10 +353,11 @@ impl Handler<game_to_producer::Info> for Producer {
 impl Handler<game_to_producer::TurnList> for Producer {
 	type Result = ();
 	fn handle(&mut self, msg: game_to_producer::TurnList, ctx: &mut Self::Context) -> Self::Result {
-
 		ctx.binary(
 			to_vec(&ProducerServerMsg {
-				msg_type: ProducerServerType::TurnInfo(producer_structs::TurnInfo {producers: msg.list}),
+				msg_type: ProducerServerType::TurnInfo(producer_structs::TurnInfo {
+					producers: msg.list,
+				}),
 			})
 			.unwrap(),
 		);

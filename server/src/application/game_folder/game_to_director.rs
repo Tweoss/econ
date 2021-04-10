@@ -3,7 +3,8 @@ use actix::prelude::*;
 #[derive(Message)]
 #[rtype(result = "()")]
 pub struct Info {
-	pub info: crate::application::game_folder::participants::director_folder::director_structs::Info,
+	pub info:
+		crate::application::game_folder::participants::director_folder::director_structs::Info,
 }
 
 #[derive(Message)]
@@ -50,7 +51,7 @@ pub struct GameOpened {}
 pub struct GameClosed {}
 
 #[derive(Message)]
-#[rtype(result="()")]
+#[rtype(result = "()")]
 pub struct TurnTaken {
 	pub id: String,
 	pub participant_type: String,

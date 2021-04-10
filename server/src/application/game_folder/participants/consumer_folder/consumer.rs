@@ -206,7 +206,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Consumer {
 							// * send the message to game. game calculates purchased quantity and returns the expense, remaining balance, and total purchased quantity
 							self.game_addr.do_send(consumer_to_game::TryChoice {
 								user_id: self.uuid.clone(),
-								elements
+								elements,
 							});
 						}
 					}

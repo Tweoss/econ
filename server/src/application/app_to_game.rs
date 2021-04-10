@@ -10,7 +10,7 @@ pub struct NewPlayer {
 
 /// Registering a new director
 #[derive(Message)]
-#[rtype(result="()")]
+#[rtype(result = "()")]
 pub struct NewDirector {
 	pub user_id: String,
 	pub username: String,
@@ -21,13 +21,11 @@ pub struct NewDirector {
 #[rtype(bool)]
 pub struct IsGameOpen {}
 
-
 #[derive(Message)]
 #[rtype(bool)]
 pub struct IsDirector {
 	pub user_id: String,
 }
-
 
 #[derive(Message)]
 #[rtype(bool)]

@@ -1,7 +1,7 @@
 use actix::prelude::*;
 
 #[derive(Message)]
-#[rtype(result="()")]
+#[rtype(result = "()")]
 pub struct EndGame {
     pub game_id: String,
 }

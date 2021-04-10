@@ -8,7 +8,7 @@ pub struct Info {
 }
 
 #[derive(Message)]
-#[rtype(result="()")]
+#[rtype(result = "()")]
 pub struct PurchaseResult {
 	pub expense: f64,
 	pub balance: f64,

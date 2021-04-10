@@ -199,7 +199,7 @@ impl Game {
 		}
 	}
 	fn get_consumer_info(&self, id: String) -> consumer_structs::Info {
-		let producers = if self.turn%2 == 0 {
+		let producers = if self.turn % 2 == 0 {
 			self.past_turn.read().unwrap().clone().into_iter().collect()
 		} else {
 			Vec::new()
@@ -268,7 +268,10 @@ impl Game {
 				// * if there is not enough money AND not enough quantity, probably trying to exploit. don't do anything
 			}
 		}
-		println!("Game says Purchased: {}, expense: {}, resulting_balance: {}", purchased, expense, consumer.balance);
+		println!(
+			"Game says Purchased: {}, expense: {}, resulting_balance: {}",
+			purchased, expense, consumer.balance
+		);
 		(purchased, expense, consumer.balance, return_targets)
 	}
 }

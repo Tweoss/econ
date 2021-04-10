@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize)]
 pub struct ConsumerServerMsg {
@@ -23,7 +23,7 @@ pub enum ConsumerServerType {
 
 #[derive(Debug, Deserialize)]
 pub enum ConsumerClientType {
-	Pong,	
+	Pong,
 	Choice(Vec<(String, f64)>),
 	EndTurn,
 }
