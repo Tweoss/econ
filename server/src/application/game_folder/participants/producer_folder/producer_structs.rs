@@ -11,7 +11,7 @@ pub enum ProducerServerType {
 	GameEnded,
 	TurnAdvanced(f64),
 	TurnInfo(TurnInfo),
-	ChoiceSubmitted((f64,f64)),
+	ChoiceSubmitted(f64,f64),
 	ChoiceFailed(String),
 	NewOffsets(Offsets),
 	Ping,

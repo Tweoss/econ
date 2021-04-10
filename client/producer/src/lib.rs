@@ -362,9 +362,8 @@ impl Component for Model {
                     ProducerServerType::ChoiceFailed(fail_info) => {
                         self.error_msg = fail_info;
                     }
-                    ProducerServerType::ChoiceSubmitted(tuple) => {
-                        self.score = tuple.0;
-                        self.balance = tuple.1;
+                    ProducerServerType::ChoiceSubmitted(a, b) => {
+                        self.score = a; self.balance = b;
                         self.took_turn = true;
                         self.error_msg = "".to_string();
                     }

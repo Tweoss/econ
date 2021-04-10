@@ -218,10 +218,10 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Producer {
 								Ok(score) => {
 									ctx.binary(
 										to_vec(&ProducerServerMsg {
-											msg_type: ProducerServerType::ChoiceSubmitted((
+											msg_type: ProducerServerType::ChoiceSubmitted(
 												score,
 												self.balance,
-											)),
+											),
 										})
 										.unwrap(),
 									);
