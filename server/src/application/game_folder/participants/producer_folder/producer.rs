@@ -117,7 +117,6 @@ impl Producer {
 					ctx.binary(
 						to_vec(&ProducerServerMsg {
 							msg_type: ProducerServerType::ServerKicked,
-							extra_fields: None,
 						})
 						.unwrap(),
 					);
@@ -131,7 +130,6 @@ impl Producer {
 			}
 			let ping = to_vec(&ProducerServerMsg {
 				msg_type: ProducerServerType::Ping,
-				extra_fields: None,
 			})
 			.unwrap();
 			ctx.binary(ping);
@@ -214,33 +212,25 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Producer {
 			if let Ok(message) = from_slice::<ProducerClientMsg>(&bin.to_vec()) {
 				println!("{:?}", message);
 				match message.msg_type {
-					ProducerClientType::Choice => {
+					ProducerClientType::Choice(choice) => {
 						if !self.took_turn && self.is_producer_turn {
-							let choice = message.choice.unwrap();
 							match self.try_produce(choice.quantity, choice.t, choice.price) {
 								Ok(score) => {
-									let extra_fields = Some(ServerExtraFields {
-										submitted_info: Some((score, self.balance)),
-										..Default::default()
-									});
 									ctx.binary(
 										to_vec(&ProducerServerMsg {
-											msg_type: ProducerServerType::ChoiceSubmitted,
-											extra_fields,
+											msg_type: ProducerServerType::ChoiceSubmitted((
+												score,
+												self.balance,
+											)),
 										})
 										.unwrap(),
 									);
 									self.took_turn = true;
 								}
 								Err(msg) => {
-									let extra_fields = Some(ServerExtraFields {
-										fail_info: Some(msg),
-										..Default::default()
-									});
 									ctx.binary(
 										to_vec(&ProducerServerMsg {
-											msg_type: ProducerServerType::ChoiceFailed,
-											extra_fields,
+											msg_type: ProducerServerType::ChoiceFailed(msg),
 										})
 										.unwrap(),
 									);
@@ -282,8 +272,10 @@ impl Handler<game_to_participant::NewOffsets> for Producer {
 		};
 		ctx.binary(
 			to_vec(&ProducerServerMsg {
-				msg_type: ProducerServerType::NewOffsets,
-				extra_fields: Some(fields),
+				msg_type: ProducerServerType::NewOffsets(producer_structs::Offsets {
+					subsidies: msg.subsidies,
+					supply_shock: msg.supply_shock,
+				}),
 			})
 			.unwrap(),
 		);
@@ -300,7 +292,6 @@ impl Handler<game_to_participant::Kicked> for Producer {
 		ctx.binary(
 			to_vec(&ProducerServerMsg {
 				msg_type: ProducerServerType::ServerKicked,
-				extra_fields: None,
 			})
 			.unwrap(),
 		);
@@ -317,24 +308,18 @@ impl Handler<game_to_participant::TurnAdvanced> for Producer {
 	) -> Self::Result {
 		self.took_turn = false;
 		self.is_producer_turn = !self.is_producer_turn;
-		let fields = ServerExtraFields {
-			balance: Some(INITIAL_BALANCE),
-			..Default::default()
-		};
 		if self.is_producer_turn {
 			self.balance = INITIAL_BALANCE;
 			ctx.binary(
 				to_vec(&ProducerServerMsg {
-					msg_type: ProducerServerType::TurnAdvanced,
-					extra_fields: Some(fields),
+					msg_type: ProducerServerType::TurnAdvanced(INITIAL_BALANCE),
 				})
 				.unwrap(),
 			);
 		} else {
 			ctx.binary(
 				to_vec(&ProducerServerMsg {
-					msg_type: ProducerServerType::TurnAdvanced,
-					extra_fields: None,
+					msg_type: ProducerServerType::TurnAdvanced(0.),
 				})
 				.unwrap(),
 			);
@@ -345,14 +330,9 @@ impl Handler<game_to_participant::TurnAdvanced> for Producer {
 impl Handler<game_to_participant::StockReduced> for Producer {
 	type Result = ();
 	fn handle(&mut self, msg: game_to_participant::StockReduced, ctx: &mut Self::Context) {
-		let fields = ServerExtraFields {
-			stock_targets: Some(msg.targets),
-			..Default::default()
-		};
 		ctx.binary(
 			to_vec(&ProducerServerMsg {
-				msg_type: ProducerServerType::StockReduced,
-				extra_fields: Some(fields),
+				msg_type: ProducerServerType::StockReduced(msg.targets),
 			})
 			.unwrap(),
 		);
@@ -368,14 +348,9 @@ impl Handler<game_to_producer::Info> for Producer {
 		self.score = msg.info.score;
 		self.took_turn = msg.info.took_turn;
 		self.is_producer_turn = msg.info.turn % 2 == 1;
-		let extra_fields = producer_structs::ServerExtraFields {
-			info: Some(msg.info),
-			..Default::default()
-		};
 		ctx.binary(
 			to_vec(&ProducerServerMsg {
-				msg_type: ProducerServerType::Info,
-				extra_fields: Some(extra_fields),
+				msg_type: ProducerServerType::Info(msg.info),
 			})
 			.unwrap(),
 		);
@@ -385,16 +360,10 @@ impl Handler<game_to_producer::Info> for Producer {
 impl Handler<game_to_producer::TurnList> for Producer {
 	type Result = ();
 	fn handle(&mut self, msg: game_to_producer::TurnList, ctx: &mut Self::Context) -> Self::Result {
-		let fields = ServerExtraFields {
-			turn_info: Some(producer_structs::TurnInfo {
-				producers: msg.list,
-			}),
-			..Default::default()
-		};
+
 		ctx.binary(
 			to_vec(&ProducerServerMsg {
-				msg_type: ProducerServerType::TurnInfo,
-				extra_fields: Some(fields),
+				msg_type: ProducerServerType::TurnInfo(producer_structs::TurnInfo {producers: msg.list}),
 			})
 			.unwrap(),
 		);

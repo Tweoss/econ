@@ -11,38 +11,35 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Deserialize)]
 pub struct ProducerServerMsg {
 	pub msg_type: ProducerServerType,
-	pub extra_fields: Option<ServerExtraFields>,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 pub enum ProducerServerType {
-	Info,
+	Info(Info),
 	GameEnded,
-	TurnAdvanced,
-	TurnInfo,
-	ChoiceSubmitted,
-	ChoiceFailed,
-	QuantityPurchased,
-	NewOffsets,
+	TurnAdvanced(f64),
+	TurnInfo(TurnInfo),
+	ChoiceSubmitted((f64,f64)),
+	ChoiceFailed(String),
+	NewOffsets(Offsets),
 	Ping,
 	ServerKicked,
-	StockReduced,
+	StockReduced(Vec<(String, f64)>),
 	Ignore,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
 pub enum ProducerClientType {
 	Pong,	
-	Choice,
+	Choice(ClientExtraFields),
 }
 
 #[derive(Debug, Serialize)]
 pub struct ProducerClientMsg {
 	pub msg_type: ProducerClientType,
-	pub choice: Option<ClientExtraFields>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, PartialEq)]
 pub struct Info {
 	pub producers: Vec<(String, Participant)>,
 	pub turn: u64,
@@ -59,21 +56,21 @@ pub struct TurnInfo {
 	pub producers: Vec<(String, Participant)>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
-pub struct ServerExtraFields {
-	pub info: Option<Info>,
-	pub offsets: Option<Offsets>,
-	pub turn_info: Option<TurnInfo>,
-	// * Remaining balance
-	//* score and balance
-	pub submitted_info: Option<(f64, f64)>,
-	pub fail_info: Option<String>,
-	// * New score
-	pub purchased: Option<f64>,
-	// * New Balance after Turn ends
-	pub balance: Option<f64>,
-	pub stock_targets: Option<Vec<(String, f64)>>,
-}
+// #[derive(Debug, Deserialize, Clone)]
+// pub struct ServerExtraFields {
+// 	pub info: Option<Info>,
+// 	pub offsets: Option<Offsets>,
+// 	pub turn_info: Option<TurnInfo>,
+// 	// * Remaining balance
+// 	//* score and balance
+// 	pub submitted_info: Option<(f64, f64)>,
+// 	pub fail_info: Option<String>,
+// 	// * New score
+// 	pub purchased: Option<f64>,
+// 	// * New Balance after Turn ends
+// 	pub balance: Option<f64>,
+// 	pub stock_targets: Option<Vec<(String, f64)>>,
+// }
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Offsets {
@@ -81,14 +78,14 @@ pub struct Offsets {
 	pub subsidies: u8,
 }
 
-#[derive(Debug, Serialize, Default)]
+#[derive(Debug, Serialize, Default, PartialEq)]
 pub struct ClientExtraFields {
 	pub quantity: f64,
 	pub price: f64,
 	pub t: f64,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, PartialEq)]
 pub struct Participant {
 	pub produced: f64,
 	pub price: f64, 

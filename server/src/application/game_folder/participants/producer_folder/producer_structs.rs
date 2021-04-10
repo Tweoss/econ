@@ -3,33 +3,31 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize)]
 pub struct ProducerServerMsg {
 	pub msg_type: ProducerServerType,
-	pub extra_fields: Option<ServerExtraFields>,
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize)]
 pub enum ProducerServerType {
-	Info,
+	Info(Info),
 	GameEnded,
-	TurnAdvanced,
-	NewOffsets,
-	TurnInfo,
-	ChoiceSubmitted,
-	ChoiceFailed,
-	QuantityPurchased,
+	TurnAdvanced(f64),
+	TurnInfo(TurnInfo),
+	ChoiceSubmitted((f64,f64)),
+	ChoiceFailed(String),
+	NewOffsets(Offsets),
 	Ping,
 	ServerKicked,
-	StockReduced,
+	StockReduced(Vec<(String, f64)>),
+	Ignore,
 }
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 pub enum ProducerClientType {
 	Pong,	
-	Choice,
+	Choice(ClientExtraFields),
 }
 
 #[derive(Debug, Deserialize)]
 pub struct ProducerClientMsg {
 	pub msg_type: ProducerClientType,
-	pub choice: Option<ClientExtraFields>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -78,7 +76,7 @@ pub struct ClientExtraFields {
 	pub t: f64,
 }
 
-#[derive(Debug, Serialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Clone)]
 pub struct Participant {
 	pub produced: f64,
 	pub price: f64, 

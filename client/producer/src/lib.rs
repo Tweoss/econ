@@ -333,8 +333,7 @@ impl Component for Model {
             Msg::Ignore => false,
             Msg::Received(Ok(s)) => {
                 match s.msg_type {
-                    ProducerServerType::Info => {
-                        let info = s.extra_fields.unwrap().info.unwrap();
+                    ProducerServerType::Info(info) => {
                         ConsoleService::log(&format!("{:?}",info));
                         self.producers.extend(info.producers.into_iter());
                         self.game_id = info.game_id;
@@ -349,7 +348,6 @@ impl Component for Model {
                             ConsoleService::log("Sending Pong");
                             task.send_binary(Ok(to_vec(&ProducerClientMsg {
                                 msg_type: ProducerClientType::Pong,
-                                choice: None,
                             })
                             .unwrap()));
                         }
@@ -361,35 +359,32 @@ impl Component for Model {
                             document.getElementById("kick-modal").click();
                         }
                     }
-                    ProducerServerType::ChoiceFailed => {
-                        self.error_msg = s.extra_fields.unwrap().fail_info.unwrap();
+                    ProducerServerType::ChoiceFailed(fail_info) => {
+                        self.error_msg = fail_info;
                     }
-                    ProducerServerType::ChoiceSubmitted => {
-                        let tuple = s.extra_fields.unwrap().submitted_info.unwrap();
+                    ProducerServerType::ChoiceSubmitted(tuple) => {
                         self.score = tuple.0;
                         self.balance = tuple.1;
                         self.took_turn = true;
                         self.error_msg = "".to_string();
                     }
-                    ProducerServerType::NewOffsets => {
-                        let offsets = s.extra_fields.unwrap().offsets.unwrap();
+                    ProducerServerType::NewOffsets(offsets) => {
                         self.graph_data.data(
                             offsets.supply_shock,
                             offsets.subsidies,
                         );
                     }
-                    ProducerServerType::TurnInfo => {
-                        self.update_producers(s.extra_fields.unwrap().turn_info.unwrap().producers);
+                    ProducerServerType::TurnInfo(turn_info) => {
+                        self.update_producers(turn_info.producers);
                     }
-                    ProducerServerType::TurnAdvanced => {
+                    ProducerServerType::TurnAdvanced(balance) => {
                         self.turn += 1;
                         self.took_turn = false;
                         if self.turn%2 == 1 {
-                            self.balance = s.extra_fields.unwrap().balance.unwrap();
+                            self.balance = balance;
                         }
                     }
-                    ProducerServerType::StockReduced => {
-                        let targets = s.extra_fields.unwrap().stock_targets.unwrap();
+                    ProducerServerType::StockReduced(targets) => {
                         for target in targets {
                             if let Some(producer) = self.producers.get_mut(&target.0) {
                                 producer.remaining -= &target.1;
@@ -535,14 +530,13 @@ impl Component for Model {
             Msg::Submit => {
                 if let Some(ref mut task) = self.ws {
                     ConsoleService::log("Sending Submit");
-                    let extra_fields = ClientExtraFields {
+                    let choice = ClientExtraFields {
                         quantity: self.quantity,
                         price: self.price,
                         t: self.graph_data.get_t_for_quantity(0., 1., self.quantity, 50),
                     };
                     task.send_binary(Ok(to_vec(&ProducerClientMsg {
-                        msg_type: ProducerClientType::Choice,
-                        choice: Some(extra_fields),
+                        msg_type: ProducerClientType::Choice(choice),
                     })
                     .unwrap()));
                 }
