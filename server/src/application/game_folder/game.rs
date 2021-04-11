@@ -22,6 +22,8 @@ use crate::application::game_folder::game_to_app;
 use std::collections::HashMap;
 use std::sync::RwLock;
 
+const INITIAL_BALANCE: f64 = 4000.;
+
 pub struct Game {
 	// is_connected, i64: score in dollars
 	consumers: RwLock<HashMap<String, ConsumerState>>,
@@ -613,8 +615,6 @@ impl Handler<director_to_game::ForceTurn> for Game {
 		self.turn += 1;
 		if self.turn % 2 == 0 {
 			let list = self.past_turn.read().unwrap().clone();
-			// for elem in self.producers.read().unwrap().values() {
-			// }
 			for producer in self.producers.write().unwrap().values_mut() {
 				if let Some(addr) = &producer.addr {
 					addr.do_send(game_to_producer::TurnList {
@@ -622,6 +622,8 @@ impl Handler<director_to_game::ForceTurn> for Game {
 					});
 				}
 				producer.took_turn = false;
+				producer.score += producer.balance;
+				producer.balance = INITIAL_BALANCE;
 			}
 			for consumer in self.consumers.write().unwrap().values_mut() {
 				consumer.took_turn = false;
@@ -632,6 +634,12 @@ impl Handler<director_to_game::ForceTurn> for Game {
 				}
 			}
 			// self.producers.write().unwrap().values_mut().map(|elem| elem.took_turn = false);
+		}
+		else {
+			for consumer in self.consumers.write().unwrap().values_mut() {
+				consumer.score += consumer.balance;
+				consumer.balance = INITIAL_BALANCE;
+			}
 		}
 		if let Some(addr) = &self.state_main_director.addr {
 			addr.do_send(game_to_participant::TurnAdvanced {});

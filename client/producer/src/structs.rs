@@ -17,7 +17,7 @@ pub struct ProducerServerMsg {
 pub enum ProducerServerType {
 	Info(Info),
 	GameEnded,
-	TurnAdvanced(f64),
+	TurnAdvanced(f64, f64),
 	TurnInfo(TurnInfo),
 	ChoiceSubmitted(f64,f64),
 	ChoiceFailed(String),

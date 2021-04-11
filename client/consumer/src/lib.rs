@@ -21,8 +21,8 @@ use stdweb::js;
 
 mod structs;
 use structs::{
-    ConsumerClientMsg, ConsumerClientType, ConsumerServerMsg,
-    ConsumerServerType, Participant, /* Offsets,*/
+    ConsumerClientMsg, ConsumerClientType, ConsumerServerMsg, ConsumerServerType,
+    Participant, /* Offsets,*/
 };
 
 struct Model {
@@ -348,26 +348,28 @@ impl Component for Model {
                     ConsumerServerType::ChoiceFailed(error_msg) => {
                         self.error_msg = error_msg;
                     }
-                    ConsumerServerType::ChoiceSubmitted(tuple) => {
-                        self.balance = tuple.0;
-                        self.score = tuple.1;
-                        self.quantity_purchased = tuple.2;
+                    ConsumerServerType::ChoiceSubmitted(balance, score, quantity) => {
+                        self.balance = balance;
+                        self.score = score;
+                        self.quantity_purchased = quantity;
                         self.error_msg = "".to_string();
                     }
                     ConsumerServerType::NewOffsets(offsets) => {
-                        self.graph_data
-                            .data(offsets.trending);
+                        self.graph_data.data(offsets.trending);
                     }
                     ConsumerServerType::TurnInfo(turn_info) => {
                         self.update_producers(turn_info.producers);
                     }
-                    ConsumerServerType::TurnAdvanced(balance_score_quantity) => {
+                    ConsumerServerType::TurnAdvanced(balance, score) => {
                         self.turn += 1;
                         self.took_turn = false;
-                        if self.turn % 2 == 0 {
-                            self.balance = balance_score_quantity.0;
-                            self.score = balance_score_quantity.1;
+                        // * if going to producer turn, update score
+                        if self.turn % 2 == 1 {
+                            self.balance = 0.;
+                            self.score = score;
                             self.quantity_purchased = 0.;
+                        } else {
+                            self.balance = balance;
                         }
                     }
                     ConsumerServerType::StockReduced(targets) => {
@@ -521,7 +523,12 @@ impl Component for Model {
             Msg::Submit => {
                 if let Some(ref mut task) = self.ws {
                     ConsoleService::log("Sending Submit");
-                    let elements = self.producers.iter().clone().map(|x| (x.0.clone(), x.1.1)).collect();
+                    let elements = self
+                        .producers
+                        .iter()
+                        .clone()
+                        .map(|x| (x.0.clone(), x.1 .1))
+                        .collect();
                     task.send_binary(Ok(to_vec(&ConsumerClientMsg {
                         msg_type: ConsumerClientType::Choice(elements),
                     })

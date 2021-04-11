@@ -306,19 +306,21 @@ impl Handler<game_to_participant::TurnAdvanced> for Producer {
 	) -> Self::Result {
 		self.took_turn = false;
 		self.is_producer_turn = !self.is_producer_turn;
-		if self.is_producer_turn {
+		// * if going to consumer turn, update score
+		if !self.is_producer_turn {
 			self.score += self.balance;
-			self.balance = INITIAL_BALANCE;
+			self.balance = 0.;
 			ctx.binary(
 				to_vec(&ProducerServerMsg {
-					msg_type: ProducerServerType::TurnAdvanced(INITIAL_BALANCE),
+					msg_type: ProducerServerType::TurnAdvanced(0., self.score),
 				})
 				.unwrap(),
 			);
 		} else {
+			self.balance = INITIAL_BALANCE;
 			ctx.binary(
 				to_vec(&ProducerServerMsg {
-					msg_type: ProducerServerType::TurnAdvanced(0.),
+					msg_type: ProducerServerType::TurnAdvanced(self.balance, 0.),
 				})
 				.unwrap(),
 			);

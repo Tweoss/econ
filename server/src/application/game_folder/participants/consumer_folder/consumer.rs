@@ -221,11 +221,11 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Consumer {
 						});
 						ctx.binary(
 							to_vec(&ConsumerServerMsg {
-								msg_type: ConsumerServerType::ChoiceSubmitted((
+								msg_type: ConsumerServerType::ChoiceSubmitted(
 									self.balance,
 									self.score,
 									self.quantity_purchased,
-								)),
+								),
 							})
 							.unwrap(),
 						);
@@ -289,21 +289,23 @@ impl Handler<game_to_participant::TurnAdvanced> for Consumer {
 	) -> Self::Result {
 		self.took_turn = false;
 		self.is_producer_turn = !self.is_producer_turn;
-		if !self.is_producer_turn {
+		// * if going to producer turn, update score
+		if self.is_producer_turn {
 			self.score += self.balance;
-			self.balance = INITIAL_BALANCE;
+			self.balance = 0.;
 			self.total_utility = 0.;
 			self.quantity_purchased = 0.;
 			ctx.binary(
 				to_vec(&ConsumerServerMsg {
-					msg_type: ConsumerServerType::TurnAdvanced((INITIAL_BALANCE, self.score, 0.)),
+					msg_type: ConsumerServerType::TurnAdvanced(0., self.score),
 				})
 				.unwrap(),
 			);
 		} else {
+			self.balance = INITIAL_BALANCE;
 			ctx.binary(
 				to_vec(&ConsumerServerMsg {
-					msg_type: ConsumerServerType::TurnAdvanced((0., 0., 0.)),
+					msg_type: ConsumerServerType::TurnAdvanced(self.balance, 0.),
 				})
 				.unwrap(),
 			);
@@ -350,11 +352,11 @@ impl Handler<game_to_consumer::PurchaseResult> for Consumer {
 				});
 			ctx.binary(
 				to_vec(&ConsumerServerMsg {
-					msg_type: ConsumerServerType::ChoiceSubmitted((
+					msg_type: ConsumerServerType::ChoiceSubmitted(
 						self.balance,
 						self.score,
 						self.quantity_purchased,
-					)),
+					),
 				})
 				.unwrap(),
 			);

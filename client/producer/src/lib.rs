@@ -376,10 +376,14 @@ impl Component for Model {
                     ProducerServerType::TurnInfo(turn_info) => {
                         self.update_producers(turn_info.producers);
                     }
-                    ProducerServerType::TurnAdvanced(balance) => {
+                    ProducerServerType::TurnAdvanced(balance,score) => {
                         self.turn += 1;
                         self.took_turn = false;
-                        if self.turn%2 == 1 {
+                        if self.turn%2 == 0 {
+                            self.balance = 0.;
+                            self.score = score;
+                        }
+                        else {
                             self.balance = balance;
                         }
                     }

@@ -9,10 +9,10 @@ pub struct ConsumerServerMsg {
 pub enum ConsumerServerType {
 	Info(Info),
 	GameEnded,
-	TurnAdvanced((f64, f64, f64)),
+	TurnAdvanced(f64, f64),
 	TurnInfo(TurnInfo),
 	TurnEnded,
-	ChoiceSubmitted((f64, f64, f64)),
+	ChoiceSubmitted(f64, f64, f64),
 	ChoiceFailed(String),
 	NewOffsets(Offsets),
 	Ping,
