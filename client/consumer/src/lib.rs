@@ -379,6 +379,11 @@ impl Component for Model {
                             }
                         }
                     }
+                    ConsumerServerType::GameEnded => {
+                        js! {
+                            document.getElementById("end-modal").click();
+                        }
+                    }
                     _ => {}
                 }
                 true
@@ -621,17 +626,33 @@ impl Component for Model {
                     </footer>
                     <button class="btn btn-danger border rounded" id="kick-modal" type="button" data-toggle="modal" data-target="#kicked-modal" hidden=true></button>
                     <div class="modal fade" role="dialog" tabindex="-1" id="kicked-modal">
-                    <div class="modal-dialog" role="document">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h4 class="modal-title">{"Kicked by Server"}</h4><button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">{"×"}</span></button>
+                        <div class="modal-dialog" role="document">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h4 class="modal-title">{"Kicked by Server"}</h4><button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">{"×"}</span></button>
+                                </div>
+                                <div class="modal-footer">
+                                    <a class="btn btn-info active" role="button" href="/login/index.html">{"Continue"}</a>
+                                </div>
                             </div>
-                            <div class="modal-footer">
-                                <a class="btn btn-info active" role="button" href="/login/index.html">{"Continue"}</a>
-                        </div>
                         </div>
                     </div>
-                </div>
+                    <button class="btn btn-danger border rounded" id="end-modal" type="button" data-toggle="modal" data-target="#ended-modal" hidden=true></button>
+                    <div role="dialog" tabindex="-1" class="modal fade" id="ended-modal">
+                        <div class="modal-dialog" role="document">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h4 class="modal-title">{"Game Ended"}</h4><button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">{"×"}</span></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>{"This game has been ended by a Director."}</p>
+                                </div>
+                                <div class="modal-footer">
+                                    <a class="btn btn-info active" role="button" href="/login/index.html">{"Continue to Login"}</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </>
         }

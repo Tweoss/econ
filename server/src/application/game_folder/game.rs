@@ -431,6 +431,21 @@ impl Handler<director_to_game::EndGame> for Game {
 				addr.do_send(game_to_participant::EndedGame {});
 			}
 		}
+		for consumer in self.consumers.read().unwrap().values() {
+			if let Some(addr) = &consumer.addr {
+				addr.do_send(game_to_participant::EndedGame {});
+			}
+		}
+		for producer in self.producers.read().unwrap().values() {
+			if let Some(addr) = &producer.addr {
+				addr.do_send(game_to_participant::EndedGame {});
+			}
+		}
+		// for director in self.directors.read().unwrap().values() {
+		// 	if let Some(addr) = &director.addr {
+		// 		addr.do_send(game_to_participant::EndedGame {});
+		// 	}
+		// }
 		self.app_addr.do_send(game_to_app::EndGame {
 			game_id: self.game_id.clone(),
 		});

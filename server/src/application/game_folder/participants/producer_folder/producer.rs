@@ -13,7 +13,6 @@ use serde_cbor::{from_slice, to_vec};
 
 use crate::application::game_folder::participants::producer_folder::producer_structs::{
 	self, ProducerClientMsg, ProducerClientType, ProducerServerMsg, ProducerServerType,
-	ServerExtraFields,
 };
 
 use crate::application::game_folder::participants::heartbeat::{
@@ -256,6 +255,12 @@ impl Handler<game_to_participant::EndedGame> for Producer {
 		_msg: game_to_participant::EndedGame,
 		ctx: &mut Self::Context,
 	) -> Self::Result {
+		ctx.binary(
+			to_vec(&ProducerServerMsg {
+				msg_type: ProducerServerType::GameEnded,
+			})
+			.unwrap(),
+		);
 		ctx.stop();
 	}
 }

@@ -364,6 +364,12 @@ impl Handler<game_to_participant::EndedGame> for Director {
 		_msg: game_to_participant::EndedGame,
 		ctx: &mut Self::Context,
 	) -> Self::Result {
+		ctx.binary(
+			to_vec(&DirectorServerMsg {
+				msg_type: DirectorServerType::GameEnded,
+			})
+			.unwrap(),
+		);
 		ctx.stop()
 	}
 }

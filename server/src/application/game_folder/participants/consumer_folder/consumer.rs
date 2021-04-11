@@ -252,6 +252,12 @@ impl Handler<game_to_participant::EndedGame> for Consumer {
 		_msg: game_to_participant::EndedGame,
 		ctx: &mut Self::Context,
 	) -> Self::Result {
+		ctx.binary(
+			to_vec(&ConsumerServerMsg {
+				msg_type: ConsumerServerType::GameEnded,
+			})
+			.unwrap(),
+		);
 		ctx.stop();
 	}
 }

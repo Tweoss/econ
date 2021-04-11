@@ -48,21 +48,6 @@ pub struct TurnInfo {
 	pub producers: Vec<(String, Participant)>,
 }
 
-#[derive(Debug, Default, Serialize, Clone)]
-pub struct ServerExtraFields {
-	pub info: Option<Info>,
-	pub offsets: Option<Offsets>,
-	pub turn_info: Option<TurnInfo>,
-	// * Remaining balance
-	pub submitted_info: Option<(f64, f64)>,
-	pub fail_info: Option<String>,
-	// * New score
-	pub purchased: Option<f64>,
-	// * New Balance after Turn ends
-	pub balance: Option<f64>,
-	pub stock_targets: Option<Vec<(String, f64)>>,
-}
-
 #[derive(Debug, Serialize, Clone)]
 pub struct Offsets {
 	pub supply_shock: u8,
