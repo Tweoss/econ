@@ -307,6 +307,7 @@ impl Handler<game_to_participant::TurnAdvanced> for Producer {
 		self.took_turn = false;
 		self.is_producer_turn = !self.is_producer_turn;
 		if self.is_producer_turn {
+			self.score += self.balance;
 			self.balance = INITIAL_BALANCE;
 			ctx.binary(
 				to_vec(&ProducerServerMsg {
