@@ -32,7 +32,6 @@ pub enum DirectorServerType {
 	NewProducer(String, String),
 	NewViewer(String, String),
 	NewOffsets(Offsets),
-	Ignore,
 }
 
 #[derive(Debug, Deserialize)]
@@ -84,5 +83,4 @@ pub enum PlayerState {
 	Unresponsive,
 	Connected,
 	Disconnected,
-	Kicked,
 }

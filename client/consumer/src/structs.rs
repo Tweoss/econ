@@ -13,12 +13,10 @@ pub enum ConsumerServerType {
 	TurnInfo(TurnInfo),
 	TurnEnded,
 	ChoiceSubmitted(f64, f64, f64),
-	ChoiceFailed(String),
 	NewOffsets(Offsets),
 	Ping,
 	ServerKicked,
 	StockReduced(Vec<(String, f64)>),
-	Ignore,
 }
 
 #[derive(Debug, Serialize, PartialEq)]

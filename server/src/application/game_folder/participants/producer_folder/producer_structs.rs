@@ -17,7 +17,6 @@ pub enum ProducerServerType {
 	Ping,
 	ServerKicked,
 	StockReduced(Vec<(String, f64)>),
-	Ignore,
 }
 #[derive(Debug, Deserialize)]
 pub enum ProducerClientType {

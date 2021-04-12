@@ -37,7 +37,6 @@ struct Model {
     score: f64,
     balance: f64,
     took_turn: bool,
-    error_msg: String,
     // personal_id: String,
 }
 
@@ -240,7 +239,6 @@ impl Model {
                     }
                     <button onclick=self.link.callback(|_| Msg::EndTurn) class="btn btn-danger btn-block flex-grow-0 flex-shrink-1" type="submit">{"End Turn"}</button>
                 </>
-                // <button onclick=self.link.callback(|_| Msg::Submit) class="btn btn-danger btn-block flex-grow-0 flex-shrink-1" type="submit">{"Submit and End Turn"}</button>
             }
         }
     }
@@ -262,7 +260,6 @@ impl Component for Model {
             score: 0.,
             quantity_purchased: 0.,
             took_turn: false,
-            error_msg: String::new(),
         }
     }
 
@@ -345,14 +342,10 @@ impl Component for Model {
                             document.getElementById("kick-modal").click();
                         }
                     }
-                    ConsumerServerType::ChoiceFailed(error_msg) => {
-                        self.error_msg = error_msg;
-                    }
                     ConsumerServerType::ChoiceSubmitted(balance, score, quantity) => {
                         self.balance = balance;
                         self.score = score;
                         self.quantity_purchased = quantity;
-                        self.error_msg = "".to_string();
                     }
                     ConsumerServerType::NewOffsets(offsets) => {
                         self.graph_data.data(offsets.trending);
