@@ -613,9 +613,6 @@ impl Component for Model {
                             </div>
                             <form>
                             </form>
-                            <div class="d-flex">
-                                <p class="text-center text-danger mb-auto text-info" style="width: 100%;">{&self.error_msg}</p>
-                            </div>
                             {
                                 self.render_submit()
                             }
