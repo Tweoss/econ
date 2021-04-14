@@ -96,6 +96,29 @@ impl Handler<NewPlayer> for AppState {
     }
 }
 
+impl Handler<NewViewer> for AppState {
+    type Result = ResponseFuture<bool>;
+    fn handle(&mut self, msg: NewViewer, _: &mut Context<Self>) -> Self::Result {
+        // let game_addr = self.game_map.read().unwrap().iter().find(|&x| x.0 == msg.game_id).unwrap().1.clone();
+        let game_addr = self
+            .game_map
+            .read()
+            .unwrap()
+            .get(&msg.game_id)
+            .unwrap()
+            .clone();
+        Box::pin(async move {
+            game_addr
+                .send(app_to_game::NewViewer {
+                    user_id: msg.user_id,
+                    username: msg.username,
+                })
+                .await
+                .unwrap()
+        })
+    }
+}
+
 impl Handler<IsGameOpen> for AppState {
     type Result = ResponseFuture<bool>;
     fn handle(&mut self, msg: IsGameOpen, _: &mut Context<Self>) -> Self::Result {
@@ -183,8 +206,6 @@ impl Handler<IsMainDirector> for AppState {
 }
 
 /// Handler for IsRegisteredDirector
-///
-/// Creates a New Game with specified main director
 impl Handler<IsRegisteredDirector> for AppState {
     type Result = ResponseFuture<Option<Addr<Game>>>;
     fn handle(&mut self, msg: IsRegisteredDirector, _context: &mut Context<Self>) -> Self::Result {
@@ -211,6 +232,31 @@ impl Handler<IsRegisteredDirector> for AppState {
             })
         } else {
             println!("Could not find with ID {}", msg.game_id);
+            Box::pin(async move { None })
+        }
+    }
+}
+
+impl Handler<IsRegisteredViewer> for AppState {
+    type Result = ResponseFuture<Option<Addr<Game>>>;
+    fn handle(&mut self, msg: IsRegisteredViewer, _context: &mut Context<Self>) -> Self::Result {
+        if let Some(addr) = self.game_map.read().unwrap().get(&msg.game_id) {
+            let async_addr = addr.clone();
+            Box::pin(async move {
+                if async_addr
+                    .clone()
+                    .send(app_to_game::IsViewer {
+                        user_id: msg.user_id,
+                    })
+                    .await
+                    .unwrap()
+                {
+                    Some(async_addr)
+                } else {
+                    None
+                }
+            })
+        } else {
             Box::pin(async move { None })
         }
     }

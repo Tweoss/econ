@@ -2,7 +2,7 @@ use super::participants::{
 	consumer_folder::{consumer::ConsumerState, consumer_structs},
 	director_folder::{director::DirectorState, director_structs},
 	producer_folder::{producer::ProducerState, producer_structs},
-	viewer_folder::viewer::ViewerState,
+	viewer_folder::{viewer::ViewerState, viewer_structs},
 };
 // use crate::application::game_folder::participants::director_folder::director_structs;
 use actix::prelude::*;
@@ -14,6 +14,7 @@ use crate::application::game_folder::game_to_director;
 use crate::application::game_folder::game_to_participant;
 use crate::application::game_folder::game_to_producer;
 use crate::application::game_folder::participants::consumer_folder::consumer_to_game;
+use crate::application::game_folder::participants::viewer_folder::viewer_to_game;
 use crate::application::game_folder::participants::director_folder::director_to_game;
 use crate::application::game_folder::participants::participant_to_game;
 use crate::application::game_folder::participants::producer_folder::producer_to_game;
@@ -25,9 +26,7 @@ use std::sync::RwLock;
 const INITIAL_BALANCE: f64 = 4000.;
 
 pub struct Game {
-	// is_connected, i64: score in dollars
 	consumers: RwLock<HashMap<String, ConsumerState>>,
-	// is_connected, i64: score in dollars, u64 is price, u64 is quantity
 	producers: RwLock<HashMap<String, ProducerState>>,
 	directors: RwLock<HashMap<String, DirectorState>>,
 	viewers: RwLock<HashMap<String, ViewerState>>,
@@ -394,6 +393,43 @@ impl Handler<NewDirector> for Game {
 	}
 }
 
+/// Register an additional viewer
+impl Handler<NewViewer> for Game {
+	type Result = bool;
+	fn handle(&mut self, msg: NewViewer, _: &mut Context<Self>) -> Self::Result {
+		if self
+			.viewers
+			.read()
+			.unwrap()
+			.values()
+			.any(|x| x.name == msg.username)
+		{
+			return false;
+		}
+		self.viewers.write().unwrap().insert(
+			msg.user_id.clone(),
+			ViewerState::new(msg.username.clone()),
+		);
+		for elem in self.directors.read().unwrap().values() {
+			if let Some(addr) = &elem.addr {
+				addr.do_send(game_to_director::NewParticipant {
+					id: msg.user_id.clone(),
+					name: msg.username.clone(),
+					participant_type: director_structs::ParticipantType::Viewer,
+				});
+			}
+		}
+		if let Some(addr) = &self.state_main_director.addr {
+			addr.do_send(game_to_director::NewParticipant {
+				id: msg.user_id,
+				name: msg.username,
+				participant_type: director_structs::ParticipantType::Viewer,
+			});
+		}
+		return true;
+	}
+}
+
 /// Check if this director is registered
 impl Handler<IsDirector> for Game {
 	type Result = bool;
@@ -410,6 +446,13 @@ impl Handler<IsPlayer> for Game {
 	fn handle(&mut self, msg: IsPlayer, _: &mut Context<Self>) -> Self::Result {
 		self.consumers.read().unwrap().contains_key(&msg.user_id)
 			|| self.producers.read().unwrap().contains_key(&msg.user_id)
+	}
+}
+
+impl Handler<IsViewer> for Game {
+	type Result = bool;
+	fn handle(&mut self, msg: IsViewer, _: &mut Context<Self>) -> Self::Result {
+		self.viewers.read().unwrap().contains_key(&msg.user_id)
 	}
 }
 
@@ -633,9 +676,8 @@ impl Handler<director_to_game::ForceTurn> for Game {
 					});
 				}
 			}
-			// self.producers.write().unwrap().values_mut().map(|elem| elem.took_turn = false);
-		}
-		else {
+		// self.producers.write().unwrap().values_mut().map(|elem| elem.took_turn = false);
+		} else {
 			for consumer in self.consumers.write().unwrap().values_mut() {
 				consumer.score += consumer.balance;
 				consumer.balance = INITIAL_BALANCE;
@@ -859,6 +901,33 @@ impl Handler<consumer_to_game::NewScoreCalculated> for Game {
 	fn handle(&mut self, msg: consumer_to_game::NewScoreCalculated, _: &mut Context<Self>) {
 		if let Some(consumer) = self.consumers.write().unwrap().get_mut(&msg.user_id) {
 			consumer.score = msg.new_score;
+		}
+	}
+}
+
+impl Handler<viewer_to_game::RegisterAddressGetInfo> for Game {
+	// type Result = MessageResult<director_structs::Info>;
+	type Result = ();
+	fn handle(
+		&mut self,
+		msg: viewer_to_game::RegisterAddressGetInfo,
+		_: &mut Context<Self>,
+	) -> Self::Result {
+		self.viewers.write().unwrap().insert(
+			msg.user_id.clone(),
+			ViewerState {
+				is_responsive: true,
+				addr: Some(msg.addr.clone()),
+				name: msg.user_id.clone(),
+			},
+		);
+		for elem in self.directors.read().unwrap().values() {
+			if let Some(addr) = &elem.addr {
+				addr.do_send(game_to_director::Connected {
+					id: msg.user_id.clone(),
+					participant_type: "viewer".to_string(),
+				});
+			}
 		}
 	}
 }

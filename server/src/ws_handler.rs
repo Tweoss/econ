@@ -7,6 +7,7 @@ use crate::application::app::AppState;
 use crate::application::game_folder::participants::consumer_folder::consumer::Consumer;
 use crate::application::game_folder::participants::director_folder::director::Director;
 use crate::application::game_folder::participants::producer_folder::producer::Producer;
+use crate::application::game_folder::participants::viewer_folder::viewer::Viewer;
 
 use crate::handle_to_app;
 
@@ -79,9 +80,20 @@ pub async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpRes
 			// resp;
 		}
 		"viewer" => {
-			// let resp = ws::start(Director::new(uuid.to_string(), game_id.to_string(), addr), &req, stream);
-			// println!("{:?}", resp);
-			// resp;
+			println!("Asking for Viewer");
+			if let Some(game_addr) = addr
+				.send(handle_to_app::IsRegisteredViewer {
+					user_id: uuid.clone(),
+					game_id: game_id.clone(),
+				})
+				.await
+				.unwrap()
+			{
+				let viewer_ws = Viewer::new(uuid.to_string(), game_id.to_string(), game_addr);
+				let resp = ws::start(viewer_ws, &req, stream);
+				println!("{:?}", resp);
+				return resp;
+			}
 		}
 		_ => {
 			return Ok(HttpResponse::build(http::StatusCode::OK).body("Invalid Viewtype"));

@@ -159,6 +159,28 @@ pub async fn set_cookies(cookie_info: web::Json<CookieInfo>, req: HttpRequest) -
 						.body("Invalid Password")
 				}
 			}
+			"viewer" => {
+				if addr
+					.send(handle_to_app::NewViewer {
+						user_id: temp_uuid,
+						game_id,
+						username: username.clone(),
+					})
+					.await
+					.unwrap()
+				{
+					HttpResponse::build(http::StatusCode::OK)
+						.cookie(id_cookie)
+						.cookie(name_cookie)
+						.cookie(game_id_cookie)
+						.content_type("plain/text")
+						.body("Success")
+				} else {
+					HttpResponse::Ok()
+						.content_type("plain/text")
+						.body("Name taken")
+				}
+			}
 			_ => {
 				println!("SMTH BAD HAPPENED");
 				HttpResponse::Ok()
@@ -278,6 +300,14 @@ pub async fn redirect(req: HttpRequest) -> impl Responder {
 						.header(
 							http::header::LOCATION,
 							format!("play/producer/{}/index.html", game_id.value()),
+						)
+						.finish()
+				}
+				"viewer" => {
+					return HttpResponse::build(http::StatusCode::FOUND)
+						.header(
+							http::header::LOCATION,
+							format!("view/viewer/{}/index.html", game_id.value()),
 						)
 						.finish()
 				}

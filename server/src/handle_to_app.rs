@@ -77,6 +77,14 @@ pub struct NewDirector {
     pub username: String,
 }
 
+#[derive(Message)]
+#[rtype(bool)]
+pub struct NewViewer {
+    pub user_id: String,
+    pub game_id: String,
+    pub username: String,
+}
+
 /// Create a new game
 /// ```
 /// #[rtype(result="()")]
@@ -122,6 +130,13 @@ pub struct IsRegisteredDirector {
 #[derive(Message)]
 #[rtype(result = "Option<Addr<Game>>")]
 pub struct IsRegisteredPlayer {
+    pub user_id: String,
+    pub game_id: String,
+}
+
+#[derive(Message)]
+#[rtype(result = "Option<Addr<Game>>")]
+pub struct IsRegisteredViewer {
     pub user_id: String,
     pub game_id: String,
 }

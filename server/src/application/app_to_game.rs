@@ -16,6 +16,14 @@ pub struct NewDirector {
 	pub username: String,
 }
 
+/// Registering a new director
+#[derive(Message)]
+#[rtype(bool)]
+pub struct NewViewer {
+	pub user_id: String,
+	pub username: String,
+}
+
 /// Check if Game is open to players
 #[derive(Message)]
 #[rtype(bool)]
@@ -30,6 +38,12 @@ pub struct IsDirector {
 #[derive(Message)]
 #[rtype(bool)]
 pub struct IsPlayer {
+	pub user_id: String,
+}
+
+#[derive(Message)]
+#[rtype(bool)]
+pub struct IsViewer {
 	pub user_id: String,
 }
 
