@@ -137,7 +137,7 @@ impl Consumer {
 		if self.is_unresponsive {
 			self.game_addr.do_send(participant_to_game::Responsive {
 				id: self.uuid.clone(),
-				participant_type: "producer".to_string(),
+				participant_type: "consumer".to_string(),
 			});
 			self.is_unresponsive = false;
 		}
@@ -384,6 +384,18 @@ impl Handler<game_to_participant::StockReduced> for Consumer {
 		ctx.binary(
 			to_vec(&ConsumerServerMsg {
 				msg_type: ConsumerServerType::StockReduced(msg.targets),
+			})
+			.unwrap(),
+		);
+	}
+}
+
+impl Handler<game_to_participant::Kicked> for Consumer {
+	type Result = ();
+	fn handle(&mut self, _msg: game_to_participant::Kicked, ctx: &mut Self::Context) {
+		ctx.binary(
+			to_vec(&ConsumerServerMsg {
+				msg_type: ConsumerServerType::ServerKicked,
 			})
 			.unwrap(),
 		);

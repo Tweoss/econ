@@ -378,6 +378,14 @@ impl Handler<NewPlayer> for Game {
 					});
 				}
 			}
+			for elem in self.viewers.read().unwrap().values() {
+				if let Some(addr) = &elem.addr {
+					addr.do_send(game_to_viewer::NewParticipant {
+						name: msg.username.clone(),
+						is_consumer: false,
+					});
+				}
+			}
 			if let Some(addr) = &self.state_main_director.addr {
 				addr.do_send(game_to_director::NewParticipant {
 					id: msg.user_id,
@@ -580,7 +588,15 @@ impl Handler<director_to_game::KickParticipant> for Game {
 		msg: director_to_game::KickParticipant,
 		_: &mut Context<Self>,
 	) -> Self::Result {
-		self.consumers.write().unwrap().remove(&msg.user_id);
+
+		self.consumers
+			.write()
+			.unwrap()
+			.remove_entry(&msg.user_id)
+			.map(|x| {
+				x.1.addr
+					.map(|addr| addr.do_send(game_to_participant::Kicked {}))
+			});
 		self.producers
 			.write()
 			.unwrap()
@@ -589,7 +605,6 @@ impl Handler<director_to_game::KickParticipant> for Game {
 				x.1.addr
 					.map(|addr| addr.do_send(game_to_participant::Kicked {}))
 			});
-		// self.producers.write().unwrap().remove(&msg.user_id);
 		self.directors
 			.write()
 			.unwrap()
@@ -691,14 +706,23 @@ impl Handler<director_to_game::SetOffsets> for Game {
 					});
 				}
 			}
-		}
-		for elem in self.consumers.read().unwrap().values() {
-			if let Some(addr) = &elem.addr {
-				addr.do_send(game_to_participant::NewOffsets {
-					subsidies: msg.subsidies,
-					trending: msg.trending,
-					supply_shock: msg.supply_shock,
-				});
+			for elem in self.consumers.read().unwrap().values() {
+				if let Some(addr) = &elem.addr {
+					addr.do_send(game_to_participant::NewOffsets {
+						subsidies: msg.subsidies,
+						trending: msg.trending,
+						supply_shock: msg.supply_shock,
+					});
+				}
+			}
+			for elem in self.viewers.read().unwrap().values() {
+				if let Some(addr) = &elem.addr {
+					addr.do_send(game_to_participant::NewOffsets {
+						subsidies: msg.subsidies,
+						trending: msg.trending,
+						supply_shock: msg.supply_shock,
+					});
+				}
 			}
 		}
 	}
@@ -722,10 +746,11 @@ impl Handler<director_to_game::ForceTurn> for Game {
 				if producer.balance != 0. {
 					new_scores.push((producer.name.clone(), producer.score));
 				}
-				producer.balance = INITIAL_BALANCE;
+				producer.balance = 0.;
 			}
 			for consumer in self.consumers.write().unwrap().values_mut() {
 				consumer.took_turn = false;
+				consumer.balance = INITIAL_BALANCE;
 				if let Some(addr) = &consumer.addr {
 					addr.do_send(game_to_consumer::TurnList {
 						list: list.clone().into_iter().collect(),
@@ -739,7 +764,11 @@ impl Handler<director_to_game::ForceTurn> for Game {
 				if consumer.balance != 0. {
 					new_scores.push((consumer.name.clone(), consumer.score));
 				}
-				consumer.balance = INITIAL_BALANCE;
+				consumer.balance = 0.;
+			}
+			for producer in self.producers.write().unwrap().values_mut() {
+				producer.took_turn = false;
+				producer.balance = INITIAL_BALANCE
 			}
 		}
 		if let Some(addr) = &self.state_main_director.addr {
@@ -763,10 +792,11 @@ impl Handler<director_to_game::ForceTurn> for Game {
 		for elem in self.viewers.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
 				addr.do_send(game_to_participant::TurnAdvanced {});
-				addr.do_send(game_to_viewer::NewScores {list: new_scores.clone()});
+				addr.do_send(game_to_viewer::NewScores {
+					list: new_scores.clone(),
+				});
 			}
 		}
-
 	}
 }
 
@@ -840,15 +870,13 @@ impl Handler<producer_to_game::NewScoreEndTurn> for Game {
 				});
 			}
 		}
-		// for elem in self.viewers.read().unwrap().values() {
-		// 	if let Some(addr) = &elem.addr {
-		// 		addr.do_send(game_to_viewer::NewScoreEndTurn {
-		// 			id: msg.user_id.clone(),
-		// 			participant_type: "producer".to_string(),
-		// 			new_score: msg.new_score,
-		// 		});
-		// 	}
-		// }
+		for elem in self.viewers.read().unwrap().values() {
+			if let Some(addr) = &elem.addr {
+				addr.do_send(game_to_viewer::NewScores {
+					list: vec![(msg.user_id.clone(), msg.new_score)],
+				});
+			}
+		}
 		self.past_turn.write().unwrap().insert(
 			msg.user_id,
 			producer_structs::Participant {
@@ -916,15 +944,13 @@ impl Handler<consumer_to_game::NewScoreEndTurn> for Game {
 				});
 			}
 		}
-		// for elem in self.viewers.read().unwrap().values() {
-		// 	if let Some(addr) = &elem.addr {
-		// 		addr.do_send(game_to_viewer::NewScoreEndTurn {
-		// 			id: msg.user_id.clone(),
-		// 			participant_type: "producer".to_string(),
-		// 			new_score: msg.new_score,
-		// 		});
-		// 	}
-		// }
+		for elem in self.viewers.read().unwrap().values() {
+			if let Some(addr) = &elem.addr {
+				addr.do_send(game_to_viewer::NewScores {
+					list: vec![(msg.user_id.clone(), msg.new_score)],
+				});
+			}
+		}
 	}
 }
 
@@ -967,6 +993,13 @@ impl Handler<consumer_to_game::NewScoreCalculated> for Game {
 	fn handle(&mut self, msg: consumer_to_game::NewScoreCalculated, _: &mut Context<Self>) {
 		if let Some(consumer) = self.consumers.write().unwrap().get_mut(&msg.user_id) {
 			consumer.score = msg.new_score;
+		}
+		for elem in self.viewers.read().unwrap().values() {
+			if let Some(addr) = &elem.addr {
+				addr.do_send(game_to_viewer::NewScores {
+					list: vec![(msg.user_id.clone(), msg.new_score)],
+				});
+			}
 		}
 	}
 }

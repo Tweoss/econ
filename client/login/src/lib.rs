@@ -33,7 +33,6 @@ struct Model {
 }
 
 enum Msg {
-	Ignore,              // ignore this message
 	GameIDInput(String), // text was input in the input box
 	NameInput(String),   // text was input in the input box
 	SendReq,
@@ -58,7 +57,6 @@ impl Component for Model {
 
 	fn update(&mut self, msg: Self::Message) -> ShouldRender {
 		match msg {
-			Msg::Ignore => false,
 			Msg::GameIDInput(e) => {
 				self.game_id = e; // note input box value
 				true
