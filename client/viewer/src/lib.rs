@@ -1,4 +1,5 @@
 #![recursion_limit = "2048"]
+use std::convert::TryFrom;
 use wasm_bindgen::prelude::*;
 use yew::prelude::*;
 
@@ -11,7 +12,7 @@ use yew::html::ComponentLink;
 use yew::services::fetch;
 use yew::services::websocket::{WebSocketService, WebSocketStatus, WebSocketTask};
 use yew::services::ConsoleService;
-use yew::services::{IntervalService, interval::IntervalTask};
+use yew::services::{interval::IntervalTask, IntervalService};
 
 use serde_cbor::{from_slice, to_vec};
 
@@ -19,8 +20,8 @@ use stdweb::js;
 
 mod structs;
 use structs::{
-    ViewerClientMsg, ViewerClientType, ViewerServerMsg, ViewerServerType,
     Participant, /* Offsets,*/
+    ViewerClientMsg, ViewerClientType, ViewerServerMsg, ViewerServerType,
 };
 
 struct Model {
@@ -39,47 +40,69 @@ struct Model {
 }
 
 impl Participant {
-    fn render(&self, id: String, quantity: f64, link: ComponentLink<Model>) -> Html {
+    fn render(&self, index: usize, height: i32) -> Html {
+        let offset = (i32::try_from(self.next_index).unwrap() - i32::try_from(index).unwrap()) * height;
+        let string = if self.is_consumer {
+            "Consumer"
+        }
+        else {
+            "Producer"
+        };
         html! {
-            <>
-            </>
+            <tr style={&format!("transform: translateY({}px);", offset)}>
+                <td>{self.next_index}</td>
+                <td>{&self.name}</td>
+                <td>{format!("{:.2}", self.score)}</td>
+                <td>{string}</td>
+            </tr>
         }
     }
 }
 
 trait ParticipantCollection {
     fn render(&self) -> Html;
-    fn animate(&self) -> Html;
+    fn sort(&mut self);
 }
 
 impl ParticipantCollection for Vec<Participant> {
     fn render(&self) -> Html {
-        html! {
-            <>
-            </>
+        let document = web_sys::window().unwrap().document().unwrap();
+        if let Ok(Some(first_row)) = document.query_selector("thead>tr") {
+            let height = first_row.scroll_height();
+            html! {
+                <>
+                    {for self.iter().enumerate().map(|(i, p)| p.render(i, height))}
+                    
+                </>
+            }
+        }
+        else {
+            html! {
+                <>
+                </>
+            }
         }
     }
-    fn animate(&self) -> Html {
-        html! {
-            <>
-            </>
+    fn sort(&mut self) {
+        let mut temp_vec: Vec<(f64, usize)> = self
+            .iter()
+            .enumerate()
+            .map(|(index, participant)| (participant.score, index))
+            .collect();
+        temp_vec.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        for (new_index,elem) in temp_vec.iter().enumerate() {
+            self[elem.1].next_index = new_index;
         }
     }
 }
 
 enum Msg {
-    Connect(Vec<String>),                       // connect to websocket server
-    Disconnected,                               // disconnected from server
-    Ignore,                                     // ignore this message
+    Connect(Vec<String>),                     // connect to websocket server
+    Disconnected,                             // disconnected from server
+    Ignore,                                   // ignore this message
     Received(Result<ViewerServerMsg, Error>), // data received from server
     PrepWsConnect,
     IntervalNotif,
-}
-
-impl Model {
-    fn add_participant(&mut self, mut new_participants: Vec<Participant>) {
-        self.participants.append(&mut new_participants);
-    }
 }
 
 impl Component for Model {
@@ -159,7 +182,11 @@ impl Component for Model {
                         self.trending = info.trending;
                         self.subsidies = info.subsidies;
                         self.supply_shock = info.supply_shock;
-                        self.interval_task = Some(IntervalService::spawn(std::time::Duration::from_secs(1), self.link.callback(|_| Msg::IntervalNotif)));
+                        self.is_unsorted = true;
+                        self.interval_task = Some(IntervalService::spawn(
+                            std::time::Duration::from_secs(1),
+                            self.link.callback(|_| Msg::IntervalNotif),
+                        ));
                     }
                     ViewerServerType::Ping => {
                         if let Some(ref mut task) = self.ws {
@@ -181,8 +208,11 @@ impl Component for Model {
                             document.getElementById("end-modal").click();
                         }
                     }
-                    ViewerServerType::GameToggledOpen => {
-                        self.is_open = !self.is_open;
+                    ViewerServerType::GameOpened => {
+                        self.is_open = true;
+                    }
+                    ViewerServerType::GameClosed => {
+                        self.is_open = false;
                     }
                     ViewerServerType::TurnAdvanced => {
                         self.turn += 1;
@@ -193,7 +223,15 @@ impl Component for Model {
                         self.supply_shock = offsets.supply_shock;
                     }
                     ViewerServerType::NewScores(vector) => {
-                        // vector.iter().for_each(|x: (String, f64)| self.participants.iter_mut().position(|&participant| participant.));
+                        vector.iter().for_each(|x: &(String, f64)| {
+                            if let Some(p) = self
+                                .participants
+                                .iter_mut()
+                                .find(|participant| participant.name == x.0)
+                            {
+                                p.score = x.1
+                            }
+                        });
                         self.is_unsorted = true;
                     }
                     ViewerServerType::NewParticipant(participant) => {
@@ -231,10 +269,10 @@ impl Component for Model {
             }
             Msg::IntervalNotif => {
                 if self.ws.is_some() && self.is_unsorted {
-                    self.participants.animate();
+                    self.participants.sort();
+                    self.is_unsorted = false;
                     true
-                }
-                else {
+                } else {
                     false
                 }
             }
@@ -250,10 +288,54 @@ impl Component for Model {
     }
 
     fn view(&self) -> Html {
-
+        let open = if self.is_open {
+            "OPEN"
+        }
+        else {
+            "CLOSED"
+        };
         html! {
             <>
-
+                <div class="container text-center flex-column" style="min-height: 100vh;width: 100vw;">
+                    <h1>{"Viewer"}</h1>
+                    <div class="row">
+                        <div class="col-md-2">
+                            <h2>{"Info"}</h2>
+                            <p>{"Game ID:&nbsp;"}<strong>{&self.game_id}</strong></p>
+                            <p>{"Game is&nbsp;"}<strong>{open}</strong></p>
+                            <p>{"Turn:&nbsp;"}<strong>{&format!("{}", self.turn)}</strong></p>
+                        </div>
+                        <div class="col-md-8 d-flex flex-column">
+                            <h2>{"Scoreboard"}</h2>
+                            <div class="border rounded" id="list" style="max-height: 60vh;">
+                                <div class="table-responsive" style="height: 100%;">
+                                    <table class="table table-hover table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>{"Rank"}</th>
+                                                <th>{"Name"}</th>
+                                                <th>{"Score"}</th>
+                                                <th>{"Type"}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {self.participants.render()}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <h2>{"Offset"}</h2>
+                            <p>{"Trending:&nbsp;"}<strong>{&format!("{}", self.trending)}</strong></p>
+                            <p>{"Subsidies:&nbsp;"}<strong>{&format!("{}", self.subsidies)}</strong></p>
+                            <p>{"Supply Shock:&nbsp;"}<strong>{&format!("{}", self.supply_shock)}</strong></p>
+                        </div>
+                    </div>
+                    <footer>
+                        <p>{"Built by Francis Chua"}</p>
+                    </footer>
+                </div>
             </>
         }
     }

@@ -160,6 +160,7 @@ pub async fn set_cookies(cookie_info: web::Json<CookieInfo>, req: HttpRequest) -
 				}
 			}
 			"viewer" => {
+				viewtype_cookie.set_value("viewer");
 				if addr
 					.send(handle_to_app::NewViewer {
 						user_id: temp_uuid,
@@ -172,6 +173,7 @@ pub async fn set_cookies(cookie_info: web::Json<CookieInfo>, req: HttpRequest) -
 					HttpResponse::build(http::StatusCode::OK)
 						.cookie(id_cookie)
 						.cookie(name_cookie)
+						.cookie(viewtype_cookie)
 						.cookie(game_id_cookie)
 						.content_type("plain/text")
 						.body("Success")

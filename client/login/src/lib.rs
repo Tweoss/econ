@@ -152,11 +152,6 @@ impl Component for Model {
 	}
 }
 
-// fn main() {
-// 	yew::initialize();
-// 	App::<Model>::new().mount_to_body();
-// 	yew::run_loop();
-// }
 #[wasm_bindgen(start)]
 pub fn run_app() {
 	panic::set_hook(Box::new(console_error_panic_hook::hook));

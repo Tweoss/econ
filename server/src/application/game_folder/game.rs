@@ -13,11 +13,12 @@ use crate::application::game_folder::game_to_consumer;
 use crate::application::game_folder::game_to_director;
 use crate::application::game_folder::game_to_participant;
 use crate::application::game_folder::game_to_producer;
+use crate::application::game_folder::game_to_viewer;
 use crate::application::game_folder::participants::consumer_folder::consumer_to_game;
-use crate::application::game_folder::participants::viewer_folder::viewer_to_game;
 use crate::application::game_folder::participants::director_folder::director_to_game;
 use crate::application::game_folder::participants::participant_to_game;
 use crate::application::game_folder::participants::producer_folder::producer_to_game;
+use crate::application::game_folder::participants::viewer_folder::viewer_to_game;
 
 use crate::application::game_folder::game_to_app;
 use std::collections::HashMap;
@@ -218,6 +219,38 @@ impl Game {
 			took_turn: consumer.took_turn,
 		}
 	}
+	fn get_viewer_info(&self) -> viewer_structs::Info {
+		let participants: Vec<viewer_structs::Participant> = self
+			.consumers
+			.read()
+			.unwrap()
+			.iter()
+			.map(|(name, state)| viewer_structs::Participant {
+				name: name.clone(),
+				is_consumer: true,
+				score: state.score,
+				next_index: 0,
+			})
+			.chain(self.producers.read().unwrap().iter().map(|(name, state)| {
+				viewer_structs::Participant {
+					name: name.clone(),
+					is_consumer: false,
+					score: state.score,
+					next_index: 0,
+				}
+			}))
+			.collect::<Vec<viewer_structs::Participant>>();
+
+		viewer_structs::Info {
+			participants,
+			turn: self.turn,
+			game_id: self.game_id.clone(),
+			is_open: self.is_open,
+			trending: self.trending,
+			subsidies: self.subsidies,
+			supply_shock: self.supply_shock,
+		}
+	}
 	// * returns purchased, expense, balance
 	// ! balance may be unnecessary for consumer actor to know
 	fn purchase(
@@ -315,6 +348,14 @@ impl Handler<NewPlayer> for Game {
 					});
 				}
 			}
+			for elem in self.viewers.read().unwrap().values() {
+				if let Some(addr) = &elem.addr {
+					addr.do_send(game_to_viewer::NewParticipant {
+						name: msg.username.clone(),
+						is_consumer: true,
+					});
+				}
+			}
 			if let Some(addr) = &self.state_main_director.addr {
 				addr.do_send(game_to_director::NewParticipant {
 					id: msg.user_id,
@@ -404,29 +445,30 @@ impl Handler<NewViewer> for Game {
 			.values()
 			.any(|x| x.name == msg.username)
 		{
-			return false;
-		}
-		self.viewers.write().unwrap().insert(
-			msg.user_id.clone(),
-			ViewerState::new(msg.username.clone()),
-		);
-		for elem in self.directors.read().unwrap().values() {
-			if let Some(addr) = &elem.addr {
+			false
+		} else {
+			self.viewers
+				.write()
+				.unwrap()
+				.insert(msg.user_id.clone(), ViewerState::new(msg.username.clone()));
+			for elem in self.directors.read().unwrap().values() {
+				if let Some(addr) = &elem.addr {
+					addr.do_send(game_to_director::NewParticipant {
+						id: msg.user_id.clone(),
+						name: msg.username.clone(),
+						participant_type: director_structs::ParticipantType::Viewer,
+					});
+				}
+			}
+			if let Some(addr) = &self.state_main_director.addr {
 				addr.do_send(game_to_director::NewParticipant {
-					id: msg.user_id.clone(),
-					name: msg.username.clone(),
+					id: msg.user_id,
+					name: msg.username,
 					participant_type: director_structs::ParticipantType::Viewer,
 				});
 			}
+			true
 		}
-		if let Some(addr) = &self.state_main_director.addr {
-			addr.do_send(game_to_director::NewParticipant {
-				id: msg.user_id,
-				name: msg.username,
-				participant_type: director_structs::ParticipantType::Viewer,
-			});
-		}
-		return true;
 	}
 }
 
@@ -486,11 +528,11 @@ impl Handler<director_to_game::EndGame> for Game {
 				addr.do_send(game_to_participant::EndedGame {});
 			}
 		}
-		// for director in self.directors.read().unwrap().values() {
-		// 	if let Some(addr) = &director.addr {
-		// 		addr.do_send(game_to_participant::EndedGame {});
-		// 	}
-		// }
+		for viewer in self.viewers.read().unwrap().values() {
+			if let Some(addr) = &viewer.addr {
+				addr.do_send(game_to_participant::EndedGame {});
+			}
+		}
 		self.app_addr.do_send(game_to_app::EndGame {
 			game_id: self.game_id.clone(),
 		});
@@ -580,6 +622,11 @@ impl Handler<director_to_game::OpenGame> for Game {
 				addr.do_send(game_to_director::GameOpened {});
 			}
 		}
+		for viewer in self.viewers.read().unwrap().values() {
+			if let Some(addr) = &viewer.addr {
+				addr.do_send(game_to_viewer::GameOpened {});
+			}
+		}
 		if let Some(addr) = &self.state_main_director.addr {
 			addr.do_send(game_to_director::GameOpened {});
 		}
@@ -593,6 +640,11 @@ impl Handler<director_to_game::CloseGame> for Game {
 		for elem in self.directors.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
 				addr.do_send(game_to_director::GameClosed {});
+			}
+		}
+		for viewer in self.viewers.read().unwrap().values() {
+			if let Some(addr) = &viewer.addr {
+				addr.do_send(game_to_viewer::GameClosed {});
 			}
 		}
 		if let Some(addr) = &self.state_main_director.addr {
@@ -656,6 +708,7 @@ impl Handler<director_to_game::ForceTurn> for Game {
 	type Result = ();
 	fn handle(&mut self, _: director_to_game::ForceTurn, _: &mut Context<Self>) -> Self::Result {
 		self.turn += 1;
+		let mut new_scores: Vec<(String, f64)> = Vec::new();
 		if self.turn % 2 == 0 {
 			let list = self.past_turn.read().unwrap().clone();
 			for producer in self.producers.write().unwrap().values_mut() {
@@ -666,6 +719,9 @@ impl Handler<director_to_game::ForceTurn> for Game {
 				}
 				producer.took_turn = false;
 				producer.score += producer.balance;
+				if producer.balance != 0. {
+					new_scores.push((producer.name.clone(), producer.score));
+				}
 				producer.balance = INITIAL_BALANCE;
 			}
 			for consumer in self.consumers.write().unwrap().values_mut() {
@@ -680,6 +736,9 @@ impl Handler<director_to_game::ForceTurn> for Game {
 		} else {
 			for consumer in self.consumers.write().unwrap().values_mut() {
 				consumer.score += consumer.balance;
+				if consumer.balance != 0. {
+					new_scores.push((consumer.name.clone(), consumer.score));
+				}
 				consumer.balance = INITIAL_BALANCE;
 			}
 		}
@@ -701,6 +760,13 @@ impl Handler<director_to_game::ForceTurn> for Game {
 				addr.do_send(game_to_participant::TurnAdvanced {});
 			}
 		}
+		for elem in self.viewers.read().unwrap().values() {
+			if let Some(addr) = &elem.addr {
+				addr.do_send(game_to_participant::TurnAdvanced {});
+				addr.do_send(game_to_viewer::NewScores {list: new_scores.clone()});
+			}
+		}
+
 	}
 }
 
@@ -929,6 +995,9 @@ impl Handler<viewer_to_game::RegisterAddressGetInfo> for Game {
 				});
 			}
 		}
+		msg.addr.do_send(game_to_viewer::Info {
+			info: self.get_viewer_info(),
+		});
 	}
 }
 

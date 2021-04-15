@@ -5,11 +5,12 @@ pub struct ViewerServerMsg {
 	pub msg_type: ViewerServerType,
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize)]
 pub enum ViewerServerType {
 	Info(Info),
 	GameEnded,
-	GameToggledOpen,
+	GameOpened,
+	GameClosed,
 	TurnAdvanced,
 	NewOffsets(Offsets),
 	NewScores(Vec<(String, f64)>),
@@ -18,7 +19,7 @@ pub enum ViewerServerType {
 	ServerKicked,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 pub enum ViewerClientType {
 	Pong,
 }
@@ -28,7 +29,7 @@ pub struct ViewerClientMsg {
 	pub msg_type: ViewerClientType,
 }
 
-#[derive(Debug, Serialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Clone)]
 pub struct Info {
 	pub participants: Vec<Participant>,
 	pub turn: u64,
@@ -39,14 +40,14 @@ pub struct Info {
 	pub supply_shock: u8,
 }
 
-#[derive(Debug, Serialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Clone)]
 pub struct Offsets {
 	pub trending: u8,
 	pub subsidies: u8,
 	pub supply_shock: u8,
 }
 
-#[derive(Debug, Serialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Clone)]
 pub struct Participant {
 	pub name: String,
 	pub is_consumer: bool,

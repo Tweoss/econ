@@ -122,12 +122,12 @@ impl Viewer {
 
 /// Handler for ws::Message message
 impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Viewer {
-	fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
+	fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, _ctx: &mut Self::Context) {
 		if let Ok(ws::Message::Binary(bin)) = msg {
 			if let Ok(message) = from_slice::<ViewerClientMsg>(&bin.to_vec()) {
 				println!("{:?}", message);
 				match message.msg_type {
-					ViewerClientType::Pong => ()
+					ViewerClientType::Pong => (),
 				}
 			} else {
 				println!("Invalid structure received");
@@ -190,12 +190,92 @@ impl Handler<game_to_participant::TurnAdvanced> for Viewer {
 	}
 }
 
+impl Handler<game_to_participant::Kicked> for Viewer {
+	type Result = ();
+	fn handle(
+		&mut self,
+		_msg: game_to_participant::Kicked,
+		ctx: &mut Self::Context,
+	) -> Self::Result {
+		ctx.binary(
+			to_vec(&ViewerServerMsg {
+				msg_type: ViewerServerType::ServerKicked,
+			})
+			.unwrap(),
+		);
+		ctx.terminate();
+	}
+}
+
 impl Handler<game_to_viewer::Info> for Viewer {
 	type Result = ();
 	fn handle(&mut self, msg: game_to_viewer::Info, ctx: &mut Self::Context) -> Self::Result {
 		ctx.binary(
 			to_vec(&ViewerServerMsg {
 				msg_type: ViewerServerType::Info(msg.info),
+			})
+			.unwrap(),
+		);
+	}
+}
+
+impl Handler<game_to_viewer::GameOpened> for Viewer {
+	type Result = ();
+	fn handle(
+		&mut self,
+		_msg: game_to_viewer::GameOpened,
+		ctx: &mut Self::Context,
+	) -> Self::Result {
+		ctx.binary(
+			to_vec(&ViewerServerMsg {
+				msg_type: ViewerServerType::GameOpened,
+			})
+			.unwrap(),
+		);
+	}
+}
+
+impl Handler<game_to_viewer::GameClosed> for Viewer {
+	type Result = ();
+	fn handle(
+		&mut self,
+		_msg: game_to_viewer::GameClosed,
+		ctx: &mut Self::Context,
+	) -> Self::Result {
+		ctx.binary(
+			to_vec(&ViewerServerMsg {
+				msg_type: ViewerServerType::GameClosed,
+			})
+			.unwrap(),
+		);
+	}
+}
+
+impl Handler<game_to_viewer::NewScores> for Viewer {
+	type Result = ();
+	fn handle(&mut self, msg: game_to_viewer::NewScores, ctx: &mut Self::Context) -> Self::Result {
+		ctx.binary(
+			to_vec(&ViewerServerMsg {
+				msg_type: ViewerServerType::NewScores(msg.list),
+			})
+			.unwrap(),
+		);
+	}
+}
+
+impl Handler<game_to_viewer::NewParticipant> for Viewer {
+	type Result = ();
+	fn handle(&mut self, msg: game_to_viewer::NewParticipant, ctx: &mut Self::Context) -> Self::Result {
+		ctx.binary(
+			to_vec(&ViewerServerMsg {
+				msg_type: ViewerServerType::NewParticipant(
+					viewer_structs::Participant {
+						name: msg.name,
+						is_consumer: msg.is_consumer,
+						score: 0.,
+						next_index: 0,
+					}
+				),
 			})
 			.unwrap(),
 		);

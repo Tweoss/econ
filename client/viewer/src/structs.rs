@@ -9,7 +9,8 @@ pub struct ViewerServerMsg {
 pub enum ViewerServerType {
 	Info(Info),
 	GameEnded,
-	GameToggledOpen,
+	GameOpened,
+	GameClosed,
 	TurnAdvanced,
 	NewOffsets(Offsets),
 	NewScores(Vec<(String, f64)>),

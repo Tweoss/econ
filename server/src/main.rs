@@ -22,8 +22,6 @@ async fn index_404(_req: HttpRequest) -> actix_web::Result<NamedFile> {
 	Ok(NamedFile::open("../client/404/static/index.html")?)
 }
 
-//* set the auth cookies MAKE SURE TO CHECK COOKIES AT LOGIN AND AT PLAY URL
-
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
 	let _guard = sentry::init((
@@ -40,26 +38,12 @@ async fn main() -> std::io::Result<()> {
 	let app_addr = AppState::new().start();
 	HttpServer::new(move || {
 		let path: String = "../client/".to_owned();
-		// let path: String = "/home/runner/rust-server-wrapper/client/".to_owned();
 
 		App::new()
 			.wrap(middleware::Logger::default())
 			.data(app_addr.clone())
-			// .route("/ws", web::get().to(handle_ws))
 			.route("/cookies", web::post().to(set_cookies))
 			.route("/redirect", web::get().to(redirect))
-			// .service(
-			// 	Files::new("/director/index", path.clone() + "/director_auth/static/")
-			// 		.index_file("index.html"),
-			// )
-			.service(
-				Files::new("/director/{gameid}", path.clone() + "director_auth/static/")
-					.index_file("index.html"),
-			)
-			.service(
-				Files::new("/viewer/{gameid}", path.clone() + "viewer/static/")
-					.index_file("index.html"),
-			)
 			.route("/ws/{viewtype}/{game_id}/{uuid}", web::get().to(handle_ws))
 			.route("/wsprep", web::post().to(handle_prep))
 			.service(get_html)
@@ -69,7 +53,8 @@ async fn main() -> std::io::Result<()> {
 				Files::new("/director_login", path.clone() + "director_login/static/")
 					.index_file("index.html"),
 			)
-			.service(Files::new("/login", path + "login/static/").index_file("index.html"))
+			.service(Files::new("/login", path.clone() + "login/static/").index_file("index.html"))
+			.service(Files::new("/view", path + "viewer_login/static/").index_file("index.html"))
 			.default_service(web::get().to(index_404))
 	})
 	.bind("0.0.0.0:8080")?
