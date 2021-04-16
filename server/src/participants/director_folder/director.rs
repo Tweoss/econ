@@ -1,14 +1,11 @@
 use actix::Running;
-use actix::{Actor, ActorContext, Addr, AsyncContext};
-// use std::time::Duration;
-use std::time::Instant;
-// use std::sync::Mutex;
 use actix::StreamHandler;
+use actix::{Actor, ActorContext, Addr, AsyncContext};
 use actix_web_actors::ws;
+use std::time::Instant;
 
 use actix::prelude::*;
 
-// use crate::application::app::AppState;
 use crate::game_folder::game::Game;
 
 use crate::participants::director_folder::director_structs::{
@@ -24,9 +21,7 @@ use super::director_structs::ParticipantType;
 
 use serde_cbor::{from_slice, to_vec};
 
-use crate::participants::heartbeat::{
-	CLIENT_TERMINATE, CLIENT_TIMEOUT, HEARTBEAT_INTERVAL,
-};
+use crate::participants::heartbeat::{CLIENT_TERMINATE, CLIENT_TIMEOUT, HEARTBEAT_INTERVAL};
 
 pub struct DirectorState {
 	pub is_responsive: bool,
@@ -83,7 +78,6 @@ impl Director {
 		name: String,
 		game_id: String,
 		game_addr: Addr<Game>,
-		// addr: actix_web::web::Data<Addr<AppState>>,
 	) -> Director {
 		Director {
 			name,
@@ -140,52 +134,44 @@ impl Director {
 
 /// Handler for ws::Message message
 impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Director {
-	fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
-		match msg {
-			// Ok(ws::Message::Text) => (),
-			Ok(ws::Message::Text(text)) => {
-				ctx.text(text);
-			}
-			Ok(ws::Message::Binary(bin)) => {
-				if let Ok(message) = from_slice::<DirectorClientMsg>(&bin.to_vec()) {
-					println!("{:?}", message);
-					match message.msg_type {
-						DirectorClientType::EndGame => {
-							self.game_addr.do_send(director_to_game::EndGame {});
-						}
-						DirectorClientType::OpenGame => {
-							self.game_addr.do_send(director_to_game::OpenGame {});
-						}
-						DirectorClientType::CloseGame => {
-							self.game_addr.do_send(director_to_game::CloseGame {});
-						}
-						DirectorClientType::Pong => {
-							// self.hb = Instant::now();
-						}
-						DirectorClientType::Kick(target) => {
-							self.game_addr
-								.do_send(director_to_game::KickParticipant { name: target });
-						}
-						DirectorClientType::NewOffsets(offsets) => {
-							let offsets = offsets;
-							self.game_addr.do_send(director_to_game::SetOffsets {
-								subsidies: offsets.subsidies,
-								supply_shock: offsets.supply_shock,
-								trending: offsets.trending,
-							})
-						}
-						DirectorClientType::NextTurn => {
-							self.game_addr.do_send(director_to_game::ForceTurn {});
-						} // _ => (),
-					}
-				} else {
-					println!("Invalid structure received");
-				}
-				self.reset_hb();
-				// self.hb = Instant::now();
-			}
-			_ => (),
-		}
+	fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, _ctx: &mut Self::Context) {
+		if let Ok(ws::Message::Binary(bin)) = msg {
+  				if let Ok(message) = from_slice::<DirectorClientMsg>(&bin.to_vec()) {
+  					println!("{:?}", message);
+  					match message.msg_type {
+  						DirectorClientType::EndGame => {
+  							self.game_addr.do_send(director_to_game::EndGame {});
+  						}
+  						DirectorClientType::OpenGame => {
+  							self.game_addr.do_send(director_to_game::OpenGame {});
+  						}
+  						DirectorClientType::CloseGame => {
+  							self.game_addr.do_send(director_to_game::CloseGame {});
+  						}
+  						DirectorClientType::Pong => {
+  							// self.hb = Instant::now();
+  						}
+  						DirectorClientType::Kick(target) => {
+  							self.game_addr
+  								.do_send(director_to_game::KickParticipant { name: target });
+  						}
+  						DirectorClientType::NewOffsets(offsets) => {
+  							let offsets = offsets;
+  							self.game_addr.do_send(director_to_game::SetOffsets {
+  								subsidies: offsets.subsidies,
+  								supply_shock: offsets.supply_shock,
+  								trending: offsets.trending,
+  							})
+  						}
+  						DirectorClientType::NextTurn => {
+  							self.game_addr.do_send(director_to_game::ForceTurn {});
+  						} // _ => (),
+  					}
+  				} else {
+  					println!("Invalid structure received");
+  				}
+  				self.reset_hb();
+  			}
 	}
 }
 

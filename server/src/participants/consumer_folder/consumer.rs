@@ -3,7 +3,6 @@ use actix::StreamHandler;
 use actix_web_actors::ws;
 use std::time::Instant;
 
-// use crate::application::app::AppState;
 use crate::game_folder::game::Game;
 use crate::game_folder::game_to_consumer;
 use crate::game_folder::game_to_participant;
@@ -16,9 +15,7 @@ use crate::participants::consumer_folder::consumer_structs::{
 	self, ConsumerClientMsg, ConsumerClientType, ConsumerServerMsg, ConsumerServerType,
 };
 
-use crate::participants::heartbeat::{
-	CLIENT_TERMINATE, CLIENT_TIMEOUT, HEARTBEAT_INTERVAL,
-};
+use crate::participants::heartbeat::{CLIENT_TERMINATE, CLIENT_TIMEOUT, HEARTBEAT_INTERVAL};
 
 const INITIAL_BALANCE: f64 = 4000.;
 
@@ -46,7 +43,6 @@ impl ConsumerState {
 	}
 }
 
-/// Define HTTP actor
 pub struct Consumer {
 	name: String,
 	game_id: String,
@@ -333,9 +329,7 @@ impl Handler<game_to_consumer::Info> for Consumer {
 impl Handler<game_to_consumer::PurchaseResult> for Consumer {
 	type Result = ();
 	fn handle(&mut self, msg: game_to_consumer::PurchaseResult, ctx: &mut Self::Context) {
-		if msg.purchased == 0. {
-			// println!("No purchase");
-		} else {
+		if msg.purchased != 0. {
 			self.balance = msg.balance;
 			let utility = self.get_utility(msg.purchased);
 			self.quantity_purchased += msg.purchased;

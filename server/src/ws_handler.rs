@@ -16,15 +16,8 @@ pub async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpRes
 	let viewtype: String = req.match_info().get("viewtype").unwrap().parse().unwrap();
 	let game_id: String = req.match_info().get("game_id").unwrap().parse().unwrap();
 	let uuid: String = req.match_info().get("uuid").unwrap().parse().unwrap();
-	// if let (Some(viewtype), Some(game_id), Some(uuid)) = (
-	// 	req.cookie("viewtype"),
-	// 	req.cookie("game_id"),
-	// 	req.cookie("uuid"),
-	// ) {
 	let addr = req.app_data::<web::Data<actix::Addr<AppState>>>().unwrap();
-	// addr.send(crate::application::handle_to_app::IsGameOpen{game_id: "HI".to_string()});
 
-	// println!("Had some cookies");
 	match viewtype.as_ref() {
 		"director" => {
 			println!("Asking for Director");
@@ -35,8 +28,6 @@ pub async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpRes
 				})
 				.await
 				.unwrap()
-			// if let Some(director_ws) =
-			// 	Director::new(uuid.to_string(), game_id.to_string(), addr.clone()).await
 			{
 				let director_ws = Director::new(name, game_id.to_string(), game_addr);
 				let resp = ws::start(director_ws, &req, stream);
@@ -96,7 +87,6 @@ pub async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpRes
 			return Ok(HttpResponse::build(http::StatusCode::OK).body("Invalid Viewtype"));
 		}
 	}
-	// }
 	Ok(HttpResponse::build(http::StatusCode::OK)
 		.body("Failed: possible reasons are no cookies set or no corresponding uuid found"))
 }

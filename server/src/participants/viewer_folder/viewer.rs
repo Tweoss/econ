@@ -3,7 +3,6 @@ use actix::StreamHandler;
 use actix_web_actors::ws;
 use std::time::Instant;
 
-// use crate::application::app::AppState;
 use crate::game_folder::game::Game;
 use crate::game_folder::game_to_participant;
 use crate::game_folder::game_to_viewer;
@@ -16,9 +15,7 @@ use crate::participants::viewer_folder::viewer_structs::{
 	self, ViewerClientMsg, ViewerClientType, ViewerServerMsg, ViewerServerType,
 };
 
-use crate::participants::heartbeat::{
-	CLIENT_TERMINATE, CLIENT_TIMEOUT, HEARTBEAT_INTERVAL,
-};
+use crate::participants::heartbeat::{CLIENT_TERMINATE, CLIENT_TIMEOUT, HEARTBEAT_INTERVAL};
 
 pub struct ViewerState {
 	pub is_responsive: bool,
@@ -36,7 +33,6 @@ impl ViewerState {
 	}
 }
 
-/// Define HTTP actor
 pub struct Viewer {
 	name: String,
 	game_addr: Addr<Game>,

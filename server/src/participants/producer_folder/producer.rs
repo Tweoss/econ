@@ -15,9 +15,7 @@ use crate::participants::producer_folder::producer_structs::{
 	self, ProducerClientMsg, ProducerClientType, ProducerServerMsg, ProducerServerType,
 };
 
-use crate::participants::heartbeat::{
-	CLIENT_TERMINATE, CLIENT_TIMEOUT, HEARTBEAT_INTERVAL,
-};
+use crate::participants::heartbeat::{CLIENT_TERMINATE, CLIENT_TIMEOUT, HEARTBEAT_INTERVAL};
 
 const INITIAL_BALANCE: f64 = 4000.;
 const CLIENT_T_CALCULATION_FREEDOM: f64 = 0.0001;
@@ -154,11 +152,8 @@ impl Producer {
 			&& believed_quantity - quantity > -CLIENT_T_CALCULATION_FREEDOM
 		{
 			let p = f64::from(self.supply_shock) - f64::from(self.subsidies);
-			// p_x = [0,10,45,80];
-			// p_y = [80,-10,-10,100];
 			let (a, b, c, d) = (0., 10., 45., 80.);
 			let (e, f, g, h) = (80., -10., -10., 100.);
-			// output = -3*(a - b)*(e + p)*t + (3/2)*(5*a*e - 7*b*e + 2*c*e - 3*a*f + 3*b*f + 2*(a - 2*b + c)*p)*t^2 - (9*c*e - d*e - 6*c*f + 3*c*p - d*p - 3*b*(6*e - 6*f + g + p) + a*(10*e - 12*f + 3*g + p))*t^3 + (3/4)*(3*(5*c*e - d*e - 7*c*f + d*f + 2*c*g) + a*(10*e - 18*f + 9*g - h) + b*(-22*e + 36*f - 15*g + h))*t^4 - (3/5)*(5*a*e - 13*b*e + 11*c*e - 3*d*e - 12*a*f + 30*b*f - 24*c*f + 6*d*f + 9*a*g - 21*b*g + 15*c*g - 3*d*g - 2*(a - 2*b + c)*h)*t^5 + (1/2)*(a - 3*b + 3*c - d)*(e - 3*f + 3*g - h)*t^6;
 
 			let cost =
 				-3. * (a - b) * (e + p) * t

@@ -320,13 +320,6 @@ pub async fn redirect(req: HttpRequest) -> impl Responder {
 	HttpResponse::build(http::StatusCode::FOUND)
 		.header(http::header::LOCATION, "/login")
 		.finish()
-	// if let cookies = req.cookies() {
-	// 	cookies = ();
-	// } else {
-	// 	HttpResponse::build(http::StatusCode::PERMANENT_REDIRECT)
-	// 		.header(http::header::LOCATION, "/viewer/123")
-	// 		.finish()
-	// }
 }
 
 #[get("/{play_view_direct}/{type}/{gameid:\\d*}/assets/{rest_of_path:.*}")]
