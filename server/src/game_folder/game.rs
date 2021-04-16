@@ -1,26 +1,19 @@
 use crate::participants::{
-	consumer_folder::{consumer::ConsumerState, consumer_structs},
-	director_folder::{director::DirectorState, director_structs},
-	producer_folder::{producer::ProducerState, producer_structs},
-	viewer_folder::{viewer::ViewerState, viewer_structs},
+	consumer_folder::{consumer::ConsumerState, consumer_structs, consumer_to_game},
+	director_folder::{director::DirectorState, director_structs, director_to_game},
+	producer_folder::{producer::ProducerState, producer_structs, producer_to_game},
+	viewer_folder::{viewer::ViewerState, viewer_structs, viewer_to_game},
 };
-// use crate::participants::director_folder::director_structs;
 use actix::prelude::*;
 
 use crate::application::app::AppState;
 use crate::application::app_to_game::*;
-use crate::game_folder::game_to_consumer;
-use crate::game_folder::game_to_director;
-use crate::game_folder::game_to_participant;
-use crate::game_folder::game_to_producer;
-use crate::game_folder::game_to_viewer;
-use crate::participants::consumer_folder::consumer_to_game;
-use crate::participants::director_folder::director_to_game;
+use crate::game_folder::{
+	game_to_app, game_to_consumer, game_to_director, game_to_participant, game_to_producer,
+	game_to_viewer,
+};
 use crate::participants::participant_to_game;
-use crate::participants::producer_folder::producer_to_game;
-use crate::participants::viewer_folder::viewer_to_game;
 
-use crate::game_folder::game_to_app;
 use std::collections::HashMap;
 use std::sync::RwLock;
 

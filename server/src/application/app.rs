@@ -4,11 +4,10 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::RwLock;
 
-use crate::game_folder::game::Game;
 use crate::application::app_to_game;
+use crate::game_folder::game::Game;
 use crate::game_folder::game_to_app;
 use crate::handle_to_app::*;
-
 
 // //* App State can receive messages about a new Game, the end of a Game, getting a Game (to operate on)
 
@@ -177,12 +176,7 @@ impl Handler<NewGame> for AppState {
 impl Handler<IsMainDirector> for AppState {
     type Result = ResponseFuture<bool>;
     fn handle(&mut self, msg: IsMainDirector, _context: &mut Context<Self>) -> Self::Result {
-        if let Some(game_addr) = self
-            .game_map
-            .read()
-            .unwrap()
-            .get(&msg.game_id)
-        {
+        if let Some(game_addr) = self.game_map.read().unwrap().get(&msg.game_id) {
             let game_addr_clone = game_addr.clone();
             Box::pin(async move {
                 game_addr_clone
@@ -258,8 +252,7 @@ impl Handler<IsRegisteredViewer> for AppState {
 impl Handler<IsRegisteredPlayer> for AppState {
     type Result = ResponseFuture<Option<(Addr<Game>, String)>>;
     fn handle(&mut self, msg: IsRegisteredPlayer, _context: &mut Context<Self>) -> Self::Result {
-        if let Some(addr) = self.game_map.read().unwrap().get(&msg.game_id)
-        {
+        if let Some(addr) = self.game_map.read().unwrap().get(&msg.game_id) {
             let async_addr = addr.clone();
             Box::pin(async move {
                 if let Some(name) = async_addr
