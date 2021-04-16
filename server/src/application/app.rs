@@ -181,16 +181,12 @@ impl Handler<IsMainDirector> for AppState {
     type Result = ResponseFuture<bool>;
     fn handle(&mut self, msg: IsMainDirector, _context: &mut Context<Self>) -> Self::Result {
         if let Some(game_addr) = self
-            // if let Some(game_id) = self
             .game_map
             .read()
             .unwrap()
             .get(&msg.game_id)
-        // .iter()
-        // .find(|&x| x.0 == msg.game_id)
         {
             let game_addr_clone = game_addr.clone();
-            // let game_addr = game_id.1.clone();
             Box::pin(async move {
                 game_addr_clone
                     .send(app_to_game::IsMainDirector {
@@ -207,7 +203,7 @@ impl Handler<IsMainDirector> for AppState {
 
 /// Handler for IsRegisteredDirector
 impl Handler<IsRegisteredDirector> for AppState {
-    type Result = ResponseFuture<Option<Addr<Game>>>;
+    type Result = ResponseFuture<Option<(Addr<Game>, String)>>;
     fn handle(&mut self, msg: IsRegisteredDirector, _context: &mut Context<Self>) -> Self::Result {
         println!("Msg::IsRegisteredDirector");
         if let Some(addr) = self.game_map.read().unwrap().get(&msg.game_id)
@@ -217,7 +213,7 @@ impl Handler<IsRegisteredDirector> for AppState {
             let async_addr = addr.clone();
             // let async_addr = addr.1.clone();
             Box::pin(async move {
-                if async_addr
+                if let Some(name) = async_addr
                     .clone()
                     .send(app_to_game::IsDirector {
                         user_id: msg.user_id,
@@ -225,7 +221,7 @@ impl Handler<IsRegisteredDirector> for AppState {
                     .await
                     .unwrap()
                 {
-                    Some(async_addr)
+                    Some((async_addr, name))
                 } else {
                     None
                 }
@@ -238,12 +234,12 @@ impl Handler<IsRegisteredDirector> for AppState {
 }
 
 impl Handler<IsRegisteredViewer> for AppState {
-    type Result = ResponseFuture<Option<Addr<Game>>>;
+    type Result = ResponseFuture<Option<(Addr<Game>, String)>>;
     fn handle(&mut self, msg: IsRegisteredViewer, _context: &mut Context<Self>) -> Self::Result {
         if let Some(addr) = self.game_map.read().unwrap().get(&msg.game_id) {
             let async_addr = addr.clone();
             Box::pin(async move {
-                if async_addr
+                if let Some(name) = async_addr
                     .clone()
                     .send(app_to_game::IsViewer {
                         user_id: msg.user_id,
@@ -251,7 +247,7 @@ impl Handler<IsRegisteredViewer> for AppState {
                     .await
                     .unwrap()
                 {
-                    Some(async_addr)
+                    Some((async_addr, name))
                 } else {
                     None
                 }
@@ -263,16 +259,13 @@ impl Handler<IsRegisteredViewer> for AppState {
 }
 
 impl Handler<IsRegisteredPlayer> for AppState {
-    type Result = ResponseFuture<Option<Addr<Game>>>;
+    type Result = ResponseFuture<Option<(Addr<Game>, String)>>;
     fn handle(&mut self, msg: IsRegisteredPlayer, _context: &mut Context<Self>) -> Self::Result {
         if let Some(addr) = self.game_map.read().unwrap().get(&msg.game_id)
-        // .iter()
-        // .find(|&x| x.0 == msg.game_id)
         {
             let async_addr = addr.clone();
-            // let async_addr = addr.1.clone();
             Box::pin(async move {
-                if async_addr
+                if let Some(name) = async_addr
                     .clone()
                     .send(app_to_game::IsPlayer {
                         user_id: msg.user_id,
@@ -280,7 +273,7 @@ impl Handler<IsRegisteredPlayer> for AppState {
                     .await
                     .unwrap()
                 {
-                    Some(async_addr)
+                    Some((async_addr, name))
                 } else {
                     None
                 }

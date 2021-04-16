@@ -10,21 +10,21 @@ pub struct Info {
 #[derive(Message)]
 #[rtype(result = "()")]
 pub struct Unresponsive {
-	pub id: String,
+	pub name: String,
 	pub participant_type: String,
 }
 
 #[derive(Message)]
 #[rtype(result = "()")]
 pub struct Disconnected {
-	pub id: String,
+	pub name: String,
 	pub participant_type: String,
 }
 
 #[derive(Message)]
 #[rtype(result = "()")]
 pub struct Connected {
-	pub id: String,
+	pub name: String,
 	pub participant_type: String,
 }
 
@@ -39,7 +39,7 @@ pub struct NewParticipant {
 #[derive(Message)]
 #[rtype(result = "()")]
 pub struct KickedParticipant {
-	pub id: String,
+	pub name: String,
 }
 
 #[derive(Message)]
@@ -53,6 +53,6 @@ pub struct GameClosed {}
 #[derive(Message)]
 #[rtype(result = "()")]
 pub struct TurnTaken {
-	pub id: String,
+	pub name: String,
 	pub participant_type: String,
 }

@@ -53,22 +53,22 @@ struct Model {
 }
 
 impl Participant {
-    fn new(can_take_turn: bool, name: String) -> Participant {
+    fn new(can_take_turn: bool, id: String) -> Participant {
         if can_take_turn {
             Participant {
                 state: PlayerState::Disconnected,
                 took_turn: Some(false),
-                name,
+                id,
             }
         } else {
             Participant {
                 state: PlayerState::Disconnected,
                 took_turn: None,
-                name,
+                id,
             }
         }
     }
-    fn render(&self, id: String) -> Html {
+    fn render(&self, name: String) -> Html {
         let icon = match self.took_turn {
             Some(true) => html! {<i class="fa fa-check"></i>},
             Some(false) => html! {<i class="fa fa-remove"></i>},
@@ -77,22 +77,22 @@ impl Participant {
         match self.state {
             PlayerState::Unresponsive => {
                 html! {
-                    <p class="kickable unresponsive" id={id.clone()}>{format!("{:?}, {} ",self.name, id.clone())} <i class="fa fa-signal"></i> {icon} </p>
+                    <p class="kickable unresponsive" id={name.clone()}>{format!("{:?}, {} ", name.clone(), self.id)} <i class="fa fa-signal"></i> {icon} </p>
                 }
             }
             PlayerState::Connected => {
                 html! {
-                    <p class="kickable live" id={id.clone()}>{format!("{:?}, {} ",self.name, id.clone())} <i class="fa fa-user"></i> {icon} </p>
+                    <p class="kickable live" id={name.clone()}>{format!("{:?}, {} ", name.clone(), self.id)} <i class="fa fa-user"></i> {icon} </p>
                 }
             }
             PlayerState::Disconnected => {
                 html! {
-                    <p class="kickable" id={id.clone()}>{format!("{:?}, {} ",self.name, id.clone())}<i class="fa fa-o"></i> {icon} </p>
+                    <p class="kickable" id={name.clone()}>{format!("{:?}, {} ", name.clone(), self.id)}<i class="fa fa-o"></i> {icon} </p>
                 }
             }
             PlayerState::Kicked => {
                 html! {
-                    <p class="kicked" id={id.clone()}>{format!("{:?}, {}  ",self.name, id.clone())}</p>
+                    <p class="kicked" id={name.clone()}>{format!("{:?}, {} ", name.clone(), self.id)}</p>
                 }
             }
         }

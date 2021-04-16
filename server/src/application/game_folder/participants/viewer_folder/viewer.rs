@@ -23,22 +23,22 @@ use crate::application::game_folder::participants::heartbeat::{
 pub struct ViewerState {
 	pub is_responsive: bool,
 	pub addr: Option<Addr<Viewer>>,
-	pub name: String,
+	pub id: String,
 }
 
 impl ViewerState {
-	pub fn new(name: String) -> ViewerState {
+	pub fn new(id: String) -> ViewerState {
 		ViewerState {
 			is_responsive: true,
 			addr: None,
-			name,
+			id,
 		}
 	}
 }
 
 /// Define HTTP actor
 pub struct Viewer {
-	uuid: String,
+	name: String,
 	game_addr: Addr<Game>,
 	game_id: String,
 	hb: Instant,
@@ -50,7 +50,7 @@ impl Actor for Viewer {
 	fn started(&mut self, ctx: &mut Self::Context) {
 		self.game_addr
 			.do_send(viewer_to_game::RegisterAddressGetInfo {
-				user_id: self.uuid.clone(),
+				name: self.name.clone(),
 				addr: ctx.address(),
 			});
 		self.hb(ctx);
@@ -58,10 +58,10 @@ impl Actor for Viewer {
 	fn stopping(&mut self, ctx: &mut Self::Context) -> Running {
 		println!(
 			"Stopping a viewer actor: {} and {}",
-			self.game_id, self.uuid
+			self.game_id, self.name
 		);
 		self.game_addr.do_send(participant_to_game::Disconnected {
-			id: self.uuid.clone(),
+			name: self.name.clone(),
 			participant_type: "viewer".to_owned(),
 		});
 		ctx.terminate();
@@ -70,9 +70,9 @@ impl Actor for Viewer {
 }
 
 impl Viewer {
-	pub fn new(uuid: String, game_id: String, game_addr: Addr<Game>) -> Viewer {
+	pub fn new(name: String, game_id: String, game_addr: Addr<Game>) -> Viewer {
 		Viewer {
-			uuid,
+			name,
 			game_addr,
 			game_id,
 			hb: Instant::now(),
@@ -83,7 +83,7 @@ impl Viewer {
 		ctx.run_interval(HEARTBEAT_INTERVAL, |act, ctx| {
 			if Instant::now().duration_since(act.hb) > CLIENT_TIMEOUT {
 				act.game_addr.do_send(participant_to_game::Unresponsive {
-					id: act.uuid.clone(),
+					name: act.name.clone(),
 					participant_type: "viewer".to_owned(),
 				});
 				if Instant::now().duration_since(act.hb) > CLIENT_TERMINATE {
@@ -94,7 +94,7 @@ impl Viewer {
 						.unwrap(),
 					);
 					act.game_addr.do_send(participant_to_game::Disconnected {
-						id: act.uuid.clone(),
+						name: act.name.clone(),
 						participant_type: "viewer".to_owned(),
 					});
 					ctx.stop();
@@ -112,7 +112,7 @@ impl Viewer {
 		self.hb = Instant::now();
 		if self.is_unresponsive {
 			self.game_addr.do_send(participant_to_game::Responsive {
-				id: self.uuid.clone(),
+				name: self.name.clone(),
 				participant_type: "viewer".to_string(),
 			});
 			self.is_unresponsive = false;

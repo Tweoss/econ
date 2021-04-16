@@ -30,11 +30,11 @@ pub struct ProducerState {
 	pub quantity_produced: f64,
 	pub price: f64,
 	pub addr: Option<Addr<Producer>>,
-	pub name: String,
+	pub id: String,
 }
 
 impl ProducerState {
-	pub fn new(name: String) -> ProducerState {
+	pub fn new(id: String) -> ProducerState {
 		ProducerState {
 			is_responsive: true,
 			took_turn: false,
@@ -43,13 +43,13 @@ impl ProducerState {
 			quantity_produced: 0.,
 			price: 0.,
 			addr: None,
-			name,
+			id,
 		}
 	}
 }
 
 pub struct Producer {
-	uuid: String,
+	name: String,
 	game_id: String,
 	game_addr: Addr<Game>,
 	is_producer_turn: bool,
@@ -67,7 +67,7 @@ impl Actor for Producer {
 	fn started(&mut self, ctx: &mut Self::Context) {
 		self.game_addr
 			.do_send(producer_to_game::RegisterAddressGetInfo {
-				user_id: self.uuid.clone(),
+				name: self.name.clone(),
 				addr: ctx.address(),
 			});
 		self.hb(ctx);
@@ -75,10 +75,10 @@ impl Actor for Producer {
 	fn stopping(&mut self, ctx: &mut Self::Context) -> Running {
 		println!(
 			"Stopping a producer actor: {} and {}",
-			self.game_id, self.uuid
+			self.game_id, self.name
 		);
 		self.game_addr.do_send(participant_to_game::Disconnected {
-			id: self.uuid.clone(),
+			name: self.name.clone(),
 			participant_type: "producer".to_owned(),
 		});
 		ctx.terminate();
@@ -87,9 +87,9 @@ impl Actor for Producer {
 }
 
 impl Producer {
-	pub fn new(uuid: String, game_id: String, game_addr: Addr<Game>) -> Producer {
+	pub fn new(name: String, game_id: String, game_addr: Addr<Game>) -> Producer {
 		Producer {
-			uuid,
+			name,
 			game_id,
 			game_addr,
 			subsidies: 0,
@@ -109,7 +109,7 @@ impl Producer {
 				// heartbeat timed out
 				// notify game
 				act.game_addr.do_send(participant_to_game::Unresponsive {
-					id: act.uuid.clone(),
+					name: act.name.clone(),
 					participant_type: "producer".to_owned(),
 				});
 				if Instant::now().duration_since(act.hb) > CLIENT_TERMINATE {
@@ -120,7 +120,7 @@ impl Producer {
 						.unwrap(),
 					);
 					act.game_addr.do_send(participant_to_game::Disconnected {
-						id: act.uuid.clone(),
+						name: act.name.clone(),
 						participant_type: "producer".to_owned(),
 					});
 					ctx.stop();
@@ -138,7 +138,7 @@ impl Producer {
 		self.hb = Instant::now();
 		if self.is_unresponsive {
 			self.game_addr.do_send(participant_to_game::Responsive {
-				id: self.uuid.clone(),
+				name: self.name.clone(),
 				participant_type: "producer".to_string(),
 			});
 			self.is_unresponsive = false;
@@ -193,7 +193,7 @@ impl Producer {
 				self.balance = 0.;
 				self.game_addr.do_send(producer_to_game::NewScoreEndTurn {
 					new_score: self.score,
-					user_id: self.uuid.clone(),
+					name: self.name.clone(),
 					produced: quantity,
 					price,
 				});

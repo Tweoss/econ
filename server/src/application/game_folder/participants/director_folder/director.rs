@@ -31,22 +31,22 @@ use crate::application::game_folder::participants::heartbeat::{
 pub struct DirectorState {
 	pub is_responsive: bool,
 	pub addr: Option<Addr<Director>>,
-	pub name: String,
+	pub id: String,
 }
 
 impl DirectorState {
-	pub fn new(name: String) -> DirectorState {
+	pub fn new(id: String) -> DirectorState {
 		DirectorState {
 			is_responsive: true,
 			addr: None,
-			name,
+			id,
 		}
 	}
 }
 
 /// Define HTTP actor
 pub struct Director {
-	pub uuid: String,
+	pub name: String,
 	pub game_id: String,
 	pub game_addr: Addr<Game>,
 	hb: Instant,
@@ -59,7 +59,7 @@ impl Actor for Director {
 	fn started(&mut self, ctx: &mut Self::Context) {
 		self.game_addr
 			.do_send(director_to_game::RegisterAddressGetInfo {
-				user_id: self.uuid.clone(),
+				name: self.name.clone(),
 				addr: ctx.address(),
 			});
 		self.hb(ctx);
@@ -67,10 +67,10 @@ impl Actor for Director {
 	fn stopping(&mut self, ctx: &mut Self::Context) -> Running {
 		println!(
 			"Stopping a director actor: {} and {}",
-			self.game_id, self.uuid
+			self.game_id, self.name
 		);
 		self.game_addr.do_send(participant_to_game::Disconnected {
-			id: self.uuid.clone(),
+			name: self.name.clone(),
 			participant_type: "director".to_owned(),
 		});
 		ctx.terminate();
@@ -80,13 +80,13 @@ impl Actor for Director {
 
 impl Director {
 	pub fn new(
-		uuid: String,
+		name: String,
 		game_id: String,
 		game_addr: Addr<Game>,
 		// addr: actix_web::web::Data<Addr<AppState>>,
 	) -> Director {
 		Director {
-			uuid,
+			name,
 			game_id,
 			game_addr,
 			// app_addr: addr,
@@ -101,7 +101,7 @@ impl Director {
 				// heartbeat timed out
 				// notify game
 				act.game_addr.do_send(participant_to_game::Unresponsive {
-					id: act.uuid.clone(),
+					name: act.name.clone(),
 					participant_type: "director".to_owned(),
 				});
 				if Instant::now().duration_since(act.hb) > CLIENT_TERMINATE {
@@ -112,7 +112,7 @@ impl Director {
 						.unwrap(),
 					);
 					act.game_addr.do_send(participant_to_game::Disconnected {
-						id: act.uuid.clone(),
+						name: act.name.clone(),
 						participant_type: "director".to_owned(),
 					});
 					ctx.stop();
@@ -130,7 +130,7 @@ impl Director {
 		self.hb = Instant::now();
 		if self.is_unresponsive {
 			self.game_addr.do_send(participant_to_game::Responsive {
-				id: self.uuid.clone(),
+				name: self.name.clone(),
 				participant_type: "director".to_string(),
 			});
 			self.is_unresponsive = false;
@@ -152,14 +152,6 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Director {
 					match message.msg_type {
 						DirectorClientType::EndGame => {
 							self.game_addr.do_send(director_to_game::EndGame {});
-							// self.app_addr.do_send(director_to_app::EndGame {
-							// 	game_id: self.game_id.clone(),
-							// });
-							// ctx.close(Some(actix_web_actors::ws::CloseReason::from(
-							// 	actix_web_actors::ws::CloseCode::Normal,
-							// )));
-							// ctx.close(None);
-							// ctx.stop();
 						}
 						DirectorClientType::OpenGame => {
 							self.game_addr.do_send(director_to_game::OpenGame {});
@@ -172,7 +164,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Director {
 						}
 						DirectorClientType::Kick(target) => {
 							self.game_addr
-								.do_send(director_to_game::KickParticipant { user_id: target });
+								.do_send(director_to_game::KickParticipant { name: target });
 						}
 						DirectorClientType::NewOffsets(offsets) => {
 							let offsets = offsets;
@@ -218,7 +210,7 @@ impl Handler<game_to_director::Unresponsive> for Director {
 	) -> Self::Result {
 		ctx.binary(
 			to_vec(&DirectorServerMsg {
-				msg_type: DirectorServerType::UnresponsivePlayer(msg.id, msg.participant_type),
+				msg_type: DirectorServerType::UnresponsivePlayer(msg.name, msg.participant_type),
 			})
 			.unwrap(),
 		);
@@ -234,7 +226,7 @@ impl Handler<game_to_director::Disconnected> for Director {
 	) -> Self::Result {
 		ctx.binary(
 			to_vec(&DirectorServerMsg {
-				msg_type: DirectorServerType::DisconnectedPlayer(msg.id, msg.participant_type),
+				msg_type: DirectorServerType::DisconnectedPlayer(msg.name, msg.participant_type),
 			})
 			.unwrap(),
 		);
@@ -250,7 +242,7 @@ impl Handler<game_to_director::Connected> for Director {
 	) -> Self::Result {
 		ctx.binary(
 			to_vec(&DirectorServerMsg {
-				msg_type: DirectorServerType::ConnectedPlayer(msg.id, msg.participant_type),
+				msg_type: DirectorServerType::ConnectedPlayer(msg.name, msg.participant_type),
 			})
 			.unwrap(),
 		);
@@ -266,7 +258,7 @@ impl Handler<game_to_director::TurnTaken> for Director {
 	) -> Self::Result {
 		ctx.binary(
 			to_vec(&DirectorServerMsg {
-				msg_type: DirectorServerType::TurnTaken(msg.id, msg.participant_type),
+				msg_type: DirectorServerType::TurnTaken(msg.name, msg.participant_type),
 			})
 			.unwrap(),
 		);
@@ -318,7 +310,7 @@ impl Handler<game_to_director::KickedParticipant> for Director {
 	) -> Self::Result {
 		ctx.binary(
 			to_vec(&DirectorServerMsg {
-				msg_type: DirectorServerType::ParticipantKicked(msg.id),
+				msg_type: DirectorServerType::ParticipantKicked(msg.name),
 			})
 			.unwrap(),
 		);

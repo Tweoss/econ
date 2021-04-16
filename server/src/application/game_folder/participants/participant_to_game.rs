@@ -4,7 +4,7 @@ use actix::prelude::*;
 #[derive(Message)]
 #[rtype(result = "()")]
 pub struct Disconnected {
-	pub id: String,
+	pub name: String,
 	pub participant_type: String,
 }
 
@@ -12,7 +12,7 @@ pub struct Disconnected {
 #[derive(Message)]
 #[rtype(result = "()")]
 pub struct Unresponsive {
-	pub id: String,
+	pub name: String,
 	pub participant_type: String,
 }
 
@@ -20,6 +20,6 @@ pub struct Unresponsive {
 #[derive(Message)]
 #[rtype(result = "()")]
 pub struct Responsive {
-	pub id: String,
+	pub name: String,
 	pub participant_type: String,
 }

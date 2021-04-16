@@ -4,7 +4,7 @@ use actix::prelude::*;
 #[derive(Message)]
 #[rtype(result = "()")]
 pub struct RegisterAddressGetInfo {
-	pub user_id: String,
+	pub name: String,
 	pub addr: Addr<Director>,
 }
 
@@ -39,7 +39,7 @@ pub struct IsViewer {
 #[derive(Message)]
 #[rtype(result = "()")]
 pub struct KickParticipant {
-	pub user_id: String,
+	pub name: String,
 }
 
 /// End Game

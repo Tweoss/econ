@@ -30,19 +30,19 @@ pub struct NewViewer {
 pub struct IsGameOpen {}
 
 #[derive(Message)]
-#[rtype(bool)]
+#[rtype(result = "Option<String>")]
 pub struct IsDirector {
 	pub user_id: String,
 }
 
 #[derive(Message)]
-#[rtype(bool)]
+#[rtype(result = "Option<String>")]
 pub struct IsPlayer {
 	pub user_id: String,
 }
 
 #[derive(Message)]
-#[rtype(bool)]
+#[rtype(result = "Option<String>")]
 pub struct IsViewer {
 	pub user_id: String,
 }

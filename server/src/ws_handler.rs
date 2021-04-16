@@ -28,7 +28,7 @@ pub async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpRes
 	match viewtype.as_ref() {
 		"director" => {
 			println!("Asking for Director");
-			if let Some(game_addr) = addr
+			if let Some((game_addr, name)) = addr
 				.send(handle_to_app::IsRegisteredDirector {
 					user_id: uuid.clone(),
 					game_id: game_id.clone(),
@@ -38,7 +38,7 @@ pub async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpRes
 			// if let Some(director_ws) =
 			// 	Director::new(uuid.to_string(), game_id.to_string(), addr.clone()).await
 			{
-				let director_ws = Director::new(uuid.to_string(), game_id.to_string(), game_addr);
+				let director_ws = Director::new(name, game_id.to_string(), game_addr);
 				let resp = ws::start(director_ws, &req, stream);
 				println!("{:?}", resp);
 				return resp;
@@ -46,7 +46,7 @@ pub async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpRes
 		}
 		"consumer" => {
 			println!("Asking for Consumer");
-			if let Some(game_addr) = addr
+			if let Some((game_addr, name)) = addr
 				.send(handle_to_app::IsRegisteredPlayer {
 					user_id: uuid.clone(),
 					game_id: game_id.clone(),
@@ -54,7 +54,7 @@ pub async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpRes
 				.await
 				.unwrap()
 			{
-				let consumer_ws = Consumer::new(uuid.to_string(), game_id.to_string(), game_addr);
+				let consumer_ws = Consumer::new(name, game_id.to_string(), game_addr);
 				let resp = ws::start(consumer_ws, &req, stream);
 				println!("{:?}", resp);
 				return resp;
@@ -62,7 +62,7 @@ pub async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpRes
 		}
 		"producer" => {
 			println!("Asking for Producer");
-			if let Some(game_addr) = addr
+			if let Some((game_addr, name)) = addr
 				.send(handle_to_app::IsRegisteredPlayer {
 					user_id: uuid.clone(),
 					game_id: game_id.clone(),
@@ -70,7 +70,7 @@ pub async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpRes
 				.await
 				.unwrap()
 			{
-				let producer_ws = Producer::new(uuid.to_string(), game_id.to_string(), game_addr);
+				let producer_ws = Producer::new(name, game_id.to_string(), game_addr);
 				let resp = ws::start(producer_ws, &req, stream);
 				println!("{:?}", resp);
 				return resp;
@@ -81,7 +81,7 @@ pub async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpRes
 		}
 		"viewer" => {
 			println!("Asking for Viewer");
-			if let Some(game_addr) = addr
+			if let Some((game_addr, name)) = addr
 				.send(handle_to_app::IsRegisteredViewer {
 					user_id: uuid.clone(),
 					game_id: game_id.clone(),
@@ -89,7 +89,7 @@ pub async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpRes
 				.await
 				.unwrap()
 			{
-				let viewer_ws = Viewer::new(uuid.to_string(), game_id.to_string(), game_addr);
+				let viewer_ws = Viewer::new(name, game_id.to_string(), game_addr);
 				let resp = ws::start(viewer_ws, &req, stream);
 				println!("{:?}", resp);
 				return resp;

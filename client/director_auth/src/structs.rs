@@ -68,7 +68,7 @@ pub struct Offsets {
 pub struct Participant {
 	pub state: PlayerState,
 	pub took_turn: Option<bool>,
-	pub name: String,
+	pub id: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]

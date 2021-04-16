@@ -118,24 +118,24 @@ pub struct IsMainDirector {
     pub user_id: String,
 }
 
-/// See if a director with this ID was previously authenticated and if so, return the correct game address
+/// See if a director with this ID was previously authenticated and if so, return the correct game address and username
 #[derive(Message)]
-#[rtype(result = "Option<Addr<Game>>")]
+#[rtype(result = "Option<(Addr<Game>, String)>")]
 pub struct IsRegisteredDirector {
     pub user_id: String,
     pub game_id: String,
 }
 
-/// See if producer or consumer with this ID was previously authenticated and if so, return the correct game address
+/// See if producer or consumer with this ID was previously authenticated and if so, return the correct game address and username
 #[derive(Message)]
-#[rtype(result = "Option<Addr<Game>>")]
+#[rtype(result = "Option<(Addr<Game>, String)>")]
 pub struct IsRegisteredPlayer {
     pub user_id: String,
     pub game_id: String,
 }
 
 #[derive(Message)]
-#[rtype(result = "Option<Addr<Game>>")]
+#[rtype(result = "Option<(Addr<Game>, String)>")]
 pub struct IsRegisteredViewer {
     pub user_id: String,
     pub game_id: String,

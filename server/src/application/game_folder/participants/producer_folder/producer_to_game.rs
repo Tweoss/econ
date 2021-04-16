@@ -4,14 +4,14 @@ use crate::application::game_folder::participants::producer_folder::producer::Pr
 #[derive(Message)]
 #[rtype(result="()")]
 pub struct RegisterAddressGetInfo {
-	pub user_id: String,
+	pub name: String,
 	pub addr: Addr<Producer>,
 }
 
 #[derive(Message)]
 #[rtype(result="()")]
 pub struct NewScoreEndTurn {
-	pub user_id: String,
+	pub name: String,
 	pub new_score: f64,
 	pub produced: f64,
 	pub price: f64,

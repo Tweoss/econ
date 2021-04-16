@@ -28,18 +28,18 @@ pub struct ConsumerState {
 	pub score: f64,
 	pub balance: f64,
 	pub addr: Option<Addr<Consumer>>,
-	pub name: String,
+	pub id: String,
 	pub quantity_purchased: f64,
 }
 
 impl ConsumerState {
-	pub fn new(name: String) -> ConsumerState {
+	pub fn new(id: String) -> ConsumerState {
 		ConsumerState {
 			is_responsive: true,
 			took_turn: false,
 			score: 0.,
 			addr: None,
-			name,
+			id,
 			balance: INITIAL_BALANCE,
 			quantity_purchased: 0.,
 		}
@@ -48,7 +48,7 @@ impl ConsumerState {
 
 /// Define HTTP actor
 pub struct Consumer {
-	uuid: String,
+	name: String,
 	game_id: String,
 	game_addr: Addr<Game>,
 	is_producer_turn: bool,
@@ -67,7 +67,7 @@ impl Actor for Consumer {
 	fn started(&mut self, ctx: &mut Self::Context) {
 		self.game_addr
 			.do_send(consumer_to_game::RegisterAddressGetInfo {
-				user_id: self.uuid.clone(),
+				name: self.name.clone(),
 				addr: ctx.address(),
 			});
 		self.hb(ctx);
@@ -75,10 +75,10 @@ impl Actor for Consumer {
 	fn stopping(&mut self, ctx: &mut Self::Context) -> Running {
 		println!(
 			"Stopping a consumer actor: {} and {}",
-			self.game_id, self.uuid
+			self.game_id, self.name
 		);
 		self.game_addr.do_send(participant_to_game::Disconnected {
-			id: self.uuid.clone(),
+			name: self.name.clone(),
 			participant_type: "consumer".to_owned(),
 		});
 		ctx.terminate();
@@ -87,9 +87,9 @@ impl Actor for Consumer {
 }
 
 impl Consumer {
-	pub fn new(uuid: String, game_id: String, game_addr: Addr<Game>) -> Consumer {
+	pub fn new(name: String, game_id: String, game_addr: Addr<Game>) -> Consumer {
 		Consumer {
-			uuid,
+			name,
 			game_id,
 			game_addr,
 			trending: 0,
@@ -107,7 +107,7 @@ impl Consumer {
 		ctx.run_interval(HEARTBEAT_INTERVAL, |act, ctx| {
 			if Instant::now().duration_since(act.hb) > CLIENT_TIMEOUT {
 				act.game_addr.do_send(participant_to_game::Unresponsive {
-					id: act.uuid.clone(),
+					name: act.name.clone(),
 					participant_type: "consumer".to_owned(),
 				});
 				if Instant::now().duration_since(act.hb) > CLIENT_TERMINATE {
@@ -118,7 +118,7 @@ impl Consumer {
 						.unwrap(),
 					);
 					act.game_addr.do_send(participant_to_game::Disconnected {
-						id: act.uuid.clone(),
+						name: act.name.clone(),
 						participant_type: "consumer".to_owned(),
 					});
 					ctx.stop();
@@ -136,7 +136,7 @@ impl Consumer {
 		self.hb = Instant::now();
 		if self.is_unresponsive {
 			self.game_addr.do_send(participant_to_game::Responsive {
-				id: self.uuid.clone(),
+				name: self.name.clone(),
 				participant_type: "consumer".to_string(),
 			});
 			self.is_unresponsive = false;
@@ -205,7 +205,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Consumer {
 						if !self.took_turn && !self.is_producer_turn {
 							// * send the message to game. game calculates purchased quantity and returns the expense, remaining balance, and total purchased quantity
 							self.game_addr.do_send(consumer_to_game::TryChoice {
-								user_id: self.uuid.clone(),
+								name: self.name.clone(),
 								elements,
 							});
 						}
@@ -216,7 +216,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Consumer {
 						self.balance = 0.;
 						self.took_turn = true;
 						self.game_addr.do_send(consumer_to_game::NewScoreEndTurn {
-							user_id: self.uuid.clone(),
+							name: self.name.clone(),
 							new_score: self.score,
 						});
 						ctx.binary(
@@ -347,7 +347,7 @@ impl Handler<game_to_consumer::PurchaseResult> for Consumer {
 			);
 			self.game_addr
 				.do_send(consumer_to_game::NewScoreCalculated {
-					user_id: self.uuid.clone(),
+					name: self.name.clone(),
 					new_score: self.score,
 				});
 			ctx.binary(

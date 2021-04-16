@@ -32,7 +32,7 @@ pub struct Game {
 	directors: RwLock<HashMap<String, DirectorState>>,
 	viewers: RwLock<HashMap<String, ViewerState>>,
 	past_turn: RwLock<HashMap<String, producer_structs::Participant>>,
-	id_main_director: String,
+	name_main_director: String,
 	state_main_director: DirectorState,
 	is_open: bool,
 	turn: u64,
@@ -48,8 +48,8 @@ impl Actor for Game {
 	type Context = Context<Self>;
 	fn stopping(&mut self, _: &mut Self::Context) -> Running {
 		println!(
-			"Stopping a game actor with main director being: {} and id: {}",
-			self.id_main_director, self.game_id
+			"Stopping a game actor with main director being: {} and gameid: {}",
+			self.name_main_director, self.game_id
 		);
 		let date = chrono::Local::now();
 		println!("Date and time: {}", date.format("[%Y-%m-%d][%H:%M:%S]"));
@@ -64,15 +64,18 @@ impl Game {
 		name_main_director: String,
 		game_id: String,
 	) -> Game {
-		println!("Making a new GAME with director id: {}", id_main_director);
+		println!(
+			"Making a new GAME with director name: {}",
+			name_main_director
+		);
 		Game {
 			producers: RwLock::new(HashMap::new()),
 			consumers: RwLock::new(HashMap::new()),
 			directors: RwLock::new(HashMap::new()),
 			viewers: RwLock::new(HashMap::new()),
 			past_turn: RwLock::new(HashMap::new()),
-			id_main_director,
-			state_main_director: DirectorState::new(name_main_director),
+			name_main_director,
+			state_main_director: DirectorState::new(id_main_director),
 			is_open: false,
 			trending: 10,
 			supply_shock: 10,
@@ -105,7 +108,7 @@ impl Game {
 				director_structs::Participant {
 					state,
 					took_turn: Some(consumer.1.took_turn),
-					name: consumer.1.name.clone(),
+					id: consumer.1.id.clone(),
 				},
 			))
 		}
@@ -126,7 +129,7 @@ impl Game {
 				director_structs::Participant {
 					state,
 					took_turn: Some(producer.1.took_turn),
-					name: producer.1.name.clone(),
+					id: producer.1.id.clone(),
 				},
 			))
 		}
@@ -147,7 +150,7 @@ impl Game {
 				director_structs::Participant {
 					state,
 					took_turn: None,
-					name: viewer.1.name.clone(),
+					id: viewer.1.id.clone(),
 				},
 			))
 		}
@@ -168,7 +171,7 @@ impl Game {
 				director_structs::Participant {
 					state,
 					took_turn: None,
-					name: director.1.name.clone(),
+					id: director.1.id.clone(),
 				},
 			))
 		}
@@ -185,10 +188,10 @@ impl Game {
 			game_id: self.game_id.clone(),
 		}
 	}
-	fn get_producer_info(&self, id: String) -> producer_structs::Info {
+	fn get_producer_info(&self, name: String) -> producer_structs::Info {
 		let producers = self.past_turn.read().unwrap().clone().into_iter().collect();
 		let producers_list = self.producers.read().unwrap();
-		let producer = producers_list.get(&id).unwrap();
+		let producer = producers_list.get(&name).unwrap();
 		producer_structs::Info {
 			producers,
 			turn: self.turn,
@@ -200,14 +203,14 @@ impl Game {
 			took_turn: producer.took_turn,
 		}
 	}
-	fn get_consumer_info(&self, id: String) -> consumer_structs::Info {
+	fn get_consumer_info(&self, name: String) -> consumer_structs::Info {
 		let producers = if self.turn % 2 == 0 {
 			self.past_turn.read().unwrap().clone().into_iter().collect()
 		} else {
 			Vec::new()
 		};
 		let consumers_list = self.consumers.read().unwrap();
-		let consumer = consumers_list.get(&id).unwrap();
+		let consumer = consumers_list.get(&name).unwrap();
 		consumer_structs::Info {
 			producers,
 			turn: self.turn,
@@ -322,22 +325,22 @@ impl Handler<NewPlayer> for Game {
 			.consumers
 			.read()
 			.unwrap()
-			.values()
-			.any(|x| x.name == msg.username)
+			.keys()
+			.any(|x| x == &msg.username)
 			|| self
 				.producers
 				.read()
 				.unwrap()
-				.values()
-				.any(|x| x.name == msg.username)
+				.keys()
+				.any(|x| x == &msg.username)
 		{
 			return "Name taken".to_string();
 		}
 		self.producer_next = !self.producer_next;
 		if self.producer_next {
 			self.consumers.write().unwrap().insert(
-				msg.user_id.clone(),
-				ConsumerState::new(msg.username.clone()),
+				msg.username.clone(),
+				ConsumerState::new(msg.user_id.clone()),
 			);
 			for elem in self.directors.read().unwrap().values() {
 				if let Some(addr) = &elem.addr {
@@ -366,8 +369,8 @@ impl Handler<NewPlayer> for Game {
 			"consumer".to_string()
 		} else {
 			self.producers.write().unwrap().insert(
-				msg.user_id.clone(),
-				ProducerState::new(msg.username.clone()),
+				msg.username.clone(),
+				ProducerState::new(msg.user_id.clone()),
 			);
 			for elem in self.directors.read().unwrap().values() {
 				if let Some(addr) = &elem.addr {
@@ -414,14 +417,14 @@ impl Handler<NewDirector> for Game {
 			.directors
 			.read()
 			.unwrap()
-			.values()
-			.any(|x| x.name == msg.username)
+			.keys()
+			.any(|x| x == &msg.username)
 		{
 			return;
 		}
 		self.directors.write().unwrap().insert(
-			msg.user_id.clone(),
-			DirectorState::new(msg.username.clone()),
+			msg.username.clone(),
+			DirectorState::new(msg.user_id.clone()),
 		);
 		for elem in self.directors.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
@@ -450,15 +453,15 @@ impl Handler<NewViewer> for Game {
 			.viewers
 			.read()
 			.unwrap()
-			.values()
-			.any(|x| x.name == msg.username)
+			.keys()
+			.any(|x| x == &msg.username)
 		{
 			false
 		} else {
 			self.viewers
 				.write()
 				.unwrap()
-				.insert(msg.user_id.clone(), ViewerState::new(msg.username.clone()));
+				.insert(msg.username.clone(), ViewerState::new(msg.user_id.clone()));
 			for elem in self.directors.read().unwrap().values() {
 				if let Some(addr) = &elem.addr {
 					addr.do_send(game_to_director::NewParticipant {
@@ -482,34 +485,72 @@ impl Handler<NewViewer> for Game {
 
 /// Check if this director is registered
 impl Handler<IsDirector> for Game {
-	type Result = bool;
+	type Result = Option<String>;
 	fn handle(&mut self, msg: IsDirector, _: &mut Context<Self>) -> Self::Result {
 		println!("Asked if IsDirector for a game.");
-		self.directors.read().unwrap().contains_key(&msg.user_id)
-			|| self.id_main_director == msg.user_id
+		if let Some((name, _)) = self
+			.directors
+			.read()
+			.unwrap()
+			.iter()
+			.find(|(n, s)| s.id == msg.user_id)
+		{
+			Some(name.to_string())
+		} else if self.state_main_director.id == msg.user_id {
+			Some(self.name_main_director.clone())
+		} else {
+			None
+		}
 	}
 }
 
 /// Check if this consumer or producer is registered
 impl Handler<IsPlayer> for Game {
-	type Result = bool;
+	type Result = Option<String>;
 	fn handle(&mut self, msg: IsPlayer, _: &mut Context<Self>) -> Self::Result {
-		self.consumers.read().unwrap().contains_key(&msg.user_id)
-			|| self.producers.read().unwrap().contains_key(&msg.user_id)
+		if let Some((name, _)) = self
+			.consumers
+			.read()
+			.unwrap()
+			.iter()
+			.find(|(n, s)| s.id == msg.user_id)
+		{
+			Some(name.to_string())
+		} else if let Some((name, _)) = self
+			.producers
+			.read()
+			.unwrap()
+			.iter()
+			.find(|(n, s)| s.id == msg.user_id)
+		{
+			Some(name.to_string())
+		} else {
+			None
+		}
 	}
 }
 
 impl Handler<IsViewer> for Game {
-	type Result = bool;
+	type Result = Option<String>;
 	fn handle(&mut self, msg: IsViewer, _: &mut Context<Self>) -> Self::Result {
-		self.viewers.read().unwrap().contains_key(&msg.user_id)
+		if let Some((name, _)) = self
+			.viewers
+			.read()
+			.unwrap()
+			.iter()
+			.find(|(n, s)| s.id == msg.user_id)
+		{
+			Some(name.to_string())
+		} else {
+			None
+		}
 	}
 }
 
 impl Handler<IsMainDirector> for Game {
 	type Result = bool;
 	fn handle(&mut self, msg: IsMainDirector, _: &mut Context<Self>) -> Self::Result {
-		self.id_main_director == msg.user_id
+		self.state_main_director.id == msg.user_id
 	}
 }
 
@@ -556,9 +597,9 @@ impl Handler<director_to_game::RegisterAddressGetInfo> for Game {
 		msg: director_to_game::RegisterAddressGetInfo,
 		_: &mut Context<Self>,
 	) -> Self::Result {
-		if msg.user_id == self.id_main_director {
+		if msg.name == self.name_main_director {
 			self.state_main_director.addr = Some(msg.addr.clone());
-		} else if let Some(mut addr_value) = self.directors.write().unwrap().get_mut(&msg.user_id) {
+		} else if let Some(mut addr_value) = self.directors.write().unwrap().get_mut(&msg.name) {
 			addr_value.addr = Some(msg.addr.clone());
 		}
 		msg.addr.do_send(game_to_director::Info {
@@ -566,14 +607,14 @@ impl Handler<director_to_game::RegisterAddressGetInfo> for Game {
 		});
 		if let Some(addr) = &self.state_main_director.addr {
 			addr.do_send(game_to_director::Connected {
-				id: msg.user_id.clone(),
+				name: msg.name.clone(),
 				participant_type: "director".to_string(),
 			});
 		}
 		for elem in self.directors.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
 				addr.do_send(game_to_director::Connected {
-					id: msg.user_id.clone(),
+					name: msg.name.clone(),
 					participant_type: "director".to_string(),
 				});
 			}
@@ -588,11 +629,10 @@ impl Handler<director_to_game::KickParticipant> for Game {
 		msg: director_to_game::KickParticipant,
 		_: &mut Context<Self>,
 	) -> Self::Result {
-
 		self.consumers
 			.write()
 			.unwrap()
-			.remove_entry(&msg.user_id)
+			.remove_entry(&msg.name)
 			.map(|x| {
 				x.1.addr
 					.map(|addr| addr.do_send(game_to_participant::Kicked {}))
@@ -600,7 +640,7 @@ impl Handler<director_to_game::KickParticipant> for Game {
 		self.producers
 			.write()
 			.unwrap()
-			.remove_entry(&msg.user_id)
+			.remove_entry(&msg.name)
 			.map(|x| {
 				x.1.addr
 					.map(|addr| addr.do_send(game_to_participant::Kicked {}))
@@ -608,22 +648,22 @@ impl Handler<director_to_game::KickParticipant> for Game {
 		self.directors
 			.write()
 			.unwrap()
-			.remove_entry(&msg.user_id)
+			.remove_entry(&msg.name)
 			.map(|x| {
 				x.1.addr
 					.map(|addr| addr.do_send(game_to_participant::Kicked {}))
 			});
 		// self.directors.write().unwrap().remove(&msg.user_id);
-		self.viewers.write().unwrap().remove(&msg.user_id);
+		self.viewers.write().unwrap().remove(&msg.name);
 		for elem in self.directors.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
 				addr.do_send(game_to_director::KickedParticipant {
-					id: msg.user_id.clone(),
+					name: msg.name.clone(),
 				});
 			};
 		}
 		if let Some(addr) = &self.state_main_director.addr {
-			addr.do_send(game_to_director::KickedParticipant { id: msg.user_id });
+			addr.do_send(game_to_director::KickedParticipant { name: msg.name });
 		}
 	}
 }
@@ -735,18 +775,18 @@ impl Handler<director_to_game::ForceTurn> for Game {
 		let mut new_scores: Vec<(String, f64)> = Vec::new();
 		if self.turn % 2 == 0 {
 			let list = self.past_turn.read().unwrap().clone();
-			for producer in self.producers.write().unwrap().values_mut() {
-				if let Some(addr) = &producer.addr {
+			for producer in self.producers.write().unwrap().iter_mut() {
+				if let Some(addr) = &producer.1.addr {
 					addr.do_send(game_to_producer::TurnList {
 						list: list.clone().into_iter().collect(),
 					});
 				}
-				producer.took_turn = false;
-				producer.score += producer.balance;
-				if producer.balance != 0. {
-					new_scores.push((producer.name.clone(), producer.score));
+				producer.1.took_turn = false;
+				producer.1.score += producer.1.balance;
+				if producer.1.balance != 0. {
+					new_scores.push((producer.0.clone(), producer.1.score));
 				}
-				producer.balance = 0.;
+				producer.1.balance = 0.;
 			}
 			for consumer in self.consumers.write().unwrap().values_mut() {
 				consumer.took_turn = false;
@@ -759,12 +799,12 @@ impl Handler<director_to_game::ForceTurn> for Game {
 			}
 		// self.producers.write().unwrap().values_mut().map(|elem| elem.took_turn = false);
 		} else {
-			for consumer in self.consumers.write().unwrap().values_mut() {
-				consumer.score += consumer.balance;
-				if consumer.balance != 0. {
-					new_scores.push((consumer.name.clone(), consumer.score));
+			for consumer in self.consumers.write().unwrap().iter_mut() {
+				consumer.1.score += consumer.1.balance;
+				if consumer.1.balance != 0. {
+					new_scores.push((consumer.0.clone(), consumer.1.score));
 				}
-				consumer.balance = 0.;
+				consumer.1.balance = 0.;
 			}
 			for producer in self.producers.write().unwrap().values_mut() {
 				producer.took_turn = false;
@@ -808,22 +848,22 @@ impl Handler<producer_to_game::RegisterAddressGetInfo> for Game {
 		msg: producer_to_game::RegisterAddressGetInfo,
 		_: &mut Context<Self>,
 	) -> Self::Result {
-		if let Some(mut addr_value) = self.producers.write().unwrap().get_mut(&msg.user_id) {
+		if let Some(mut addr_value) = self.producers.write().unwrap().get_mut(&msg.name) {
 			addr_value.addr = Some(msg.addr.clone());
 		}
 		msg.addr.do_send(game_to_producer::Info {
-			info: self.get_producer_info(msg.user_id.clone()),
+			info: self.get_producer_info(msg.name.clone()),
 		});
 		if let Some(addr) = &self.state_main_director.addr {
 			addr.do_send(game_to_director::Connected {
-				id: msg.user_id.clone(),
+				name: msg.name.clone(),
 				participant_type: "producer".to_string(),
 			});
 		}
 		for elem in self.directors.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
 				addr.do_send(game_to_director::Connected {
-					id: msg.user_id.clone(),
+					name: msg.name.clone(),
 					participant_type: "producer".to_string(),
 				});
 			}
@@ -841,31 +881,31 @@ impl Handler<producer_to_game::NewScoreEndTurn> for Game {
 		self.producers
 			.write()
 			.unwrap()
-			.get_mut(&msg.user_id)
+			.get_mut(&msg.name)
 			.unwrap()
 			.score = msg.new_score;
 		self.producers
 			.write()
 			.unwrap()
-			.get_mut(&msg.user_id)
+			.get_mut(&msg.name)
 			.unwrap()
 			.balance = 0.;
 		self.producers
 			.write()
 			.unwrap()
-			.get_mut(&msg.user_id)
+			.get_mut(&msg.name)
 			.unwrap()
 			.took_turn = true;
 		if let Some(addr) = &self.state_main_director.addr {
 			addr.do_send(game_to_director::TurnTaken {
-				id: msg.user_id.clone(),
+				name: msg.name.clone(),
 				participant_type: "producer".to_string(),
 			});
 		}
 		for elem in self.directors.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
 				addr.do_send(game_to_director::TurnTaken {
-					id: msg.user_id.clone(),
+					name: msg.name.clone(),
 					participant_type: "producer".to_string(),
 				});
 			}
@@ -873,12 +913,12 @@ impl Handler<producer_to_game::NewScoreEndTurn> for Game {
 		for elem in self.viewers.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
 				addr.do_send(game_to_viewer::NewScores {
-					list: vec![(msg.user_id.clone(), msg.new_score)],
+					list: vec![(msg.name.clone(), msg.new_score)],
 				});
 			}
 		}
 		self.past_turn.write().unwrap().insert(
-			msg.user_id,
+			msg.name,
 			producer_structs::Participant {
 				produced: msg.produced,
 				remaining: msg.produced,
@@ -896,22 +936,22 @@ impl Handler<consumer_to_game::RegisterAddressGetInfo> for Game {
 		msg: consumer_to_game::RegisterAddressGetInfo,
 		_: &mut Context<Self>,
 	) -> Self::Result {
-		if let Some(mut addr_value) = self.consumers.write().unwrap().get_mut(&msg.user_id) {
+		if let Some(mut addr_value) = self.consumers.write().unwrap().get_mut(&msg.name) {
 			addr_value.addr = Some(msg.addr.clone());
 		}
 		msg.addr.do_send(game_to_consumer::Info {
-			info: self.get_consumer_info(msg.user_id.clone()),
+			info: self.get_consumer_info(msg.name.clone()),
 		});
 		if let Some(addr) = &self.state_main_director.addr {
 			addr.do_send(game_to_director::Connected {
-				id: msg.user_id.clone(),
+				name: msg.name.clone(),
 				participant_type: "consumer".to_string(),
 			});
 		}
 		for elem in self.directors.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
 				addr.do_send(game_to_director::Connected {
-					id: msg.user_id.clone(),
+					name: msg.name.clone(),
 					participant_type: "consumer".to_string(),
 				});
 			}
@@ -927,19 +967,19 @@ impl Handler<consumer_to_game::NewScoreEndTurn> for Game {
 		_: &mut Context<Self>,
 	) -> Self::Result {
 		let mut consumers = self.consumers.write().unwrap();
-		let consumer = consumers.get_mut(&msg.user_id).unwrap();
+		let consumer = consumers.get_mut(&msg.name).unwrap();
 		consumer.score = msg.new_score;
 		consumer.balance = 0.;
 		if let Some(addr) = &self.state_main_director.addr {
 			addr.do_send(game_to_director::TurnTaken {
-				id: msg.user_id.clone(),
+				name: msg.name.clone(),
 				participant_type: "consumer".to_string(),
 			});
 		}
 		for elem in self.directors.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
 				addr.do_send(game_to_director::TurnTaken {
-					id: msg.user_id.clone(),
+					name: msg.name.clone(),
 					participant_type: "consumer".to_string(),
 				});
 			}
@@ -947,7 +987,7 @@ impl Handler<consumer_to_game::NewScoreEndTurn> for Game {
 		for elem in self.viewers.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
 				addr.do_send(game_to_viewer::NewScores {
-					list: vec![(msg.user_id.clone(), msg.new_score)],
+					list: vec![(msg.name.clone(), msg.new_score)],
 				});
 			}
 		}
@@ -957,11 +997,11 @@ impl Handler<consumer_to_game::NewScoreEndTurn> for Game {
 impl Handler<consumer_to_game::TryChoice> for Game {
 	type Result = ();
 	fn handle(&mut self, msg: consumer_to_game::TryChoice, _: &mut Context<Self>) {
-		let (purchased, expense, balance, targets) = self.purchase(&msg.user_id, msg.elements);
+		let (purchased, expense, balance, targets) = self.purchase(&msg.name, msg.elements);
 		self.consumers
 			.read()
 			.unwrap()
-			.get(&msg.user_id)
+			.get(&msg.name)
 			.unwrap()
 			.addr
 			.as_ref()
@@ -991,13 +1031,13 @@ impl Handler<consumer_to_game::TryChoice> for Game {
 impl Handler<consumer_to_game::NewScoreCalculated> for Game {
 	type Result = ();
 	fn handle(&mut self, msg: consumer_to_game::NewScoreCalculated, _: &mut Context<Self>) {
-		if let Some(consumer) = self.consumers.write().unwrap().get_mut(&msg.user_id) {
+		if let Some(consumer) = self.consumers.write().unwrap().get_mut(&msg.name) {
 			consumer.score = msg.new_score;
 		}
 		for elem in self.viewers.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
 				addr.do_send(game_to_viewer::NewScores {
-					list: vec![(msg.user_id.clone(), msg.new_score)],
+					list: vec![(msg.name.clone(), msg.new_score)],
 				});
 			}
 		}
@@ -1012,18 +1052,10 @@ impl Handler<viewer_to_game::RegisterAddressGetInfo> for Game {
 		msg: viewer_to_game::RegisterAddressGetInfo,
 		_: &mut Context<Self>,
 	) -> Self::Result {
-		self.viewers.write().unwrap().insert(
-			msg.user_id.clone(),
-			ViewerState {
-				is_responsive: true,
-				addr: Some(msg.addr.clone()),
-				name: msg.user_id.clone(),
-			},
-		);
 		for elem in self.directors.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
 				addr.do_send(game_to_director::Connected {
-					id: msg.user_id.clone(),
+					name: msg.name.clone(),
 					participant_type: "viewer".to_string(),
 				});
 			}
@@ -1041,17 +1073,17 @@ impl Handler<participant_to_game::Unresponsive> for Game {
 		msg: participant_to_game::Unresponsive,
 		_: &mut Context<Self>,
 	) -> Self::Result {
-		println!("Unresponsive {}: {}", &msg.participant_type, &msg.id);
+		println!("Unresponsive {}: {}", &msg.participant_type, &msg.name);
 		if let Some(addr) = &self.state_main_director.addr {
 			addr.do_send(game_to_director::Unresponsive {
-				id: msg.id.clone(),
+				name: msg.name.clone(),
 				participant_type: msg.participant_type.clone(),
 			});
 		}
 		for elem in self.directors.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
 				addr.do_send(game_to_director::Unresponsive {
-					id: msg.id.clone(),
+					name: msg.name.clone(),
 					participant_type: msg.participant_type.clone(),
 				});
 			}
@@ -1069,14 +1101,14 @@ impl Handler<participant_to_game::Responsive> for Game {
 		println!("Responsive again");
 		if let Some(addr) = &self.state_main_director.addr {
 			addr.do_send(game_to_director::Connected {
-				id: msg.id.clone(),
+				name: msg.name.clone(),
 				participant_type: msg.participant_type.clone(),
 			});
 		}
 		for elem in self.directors.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
 				addr.do_send(game_to_director::Connected {
-					id: msg.id.clone(),
+					name: msg.name.clone(),
 					participant_type: msg.participant_type.clone(),
 				});
 			}
@@ -1093,13 +1125,13 @@ impl Handler<participant_to_game::Disconnected> for Game {
 	) -> Self::Result {
 		match msg.participant_type.as_str() {
 			"director" => {
-				if msg.id == self.id_main_director {
+				if msg.name == self.name_main_director {
 					self.state_main_director.addr = None;
 				} else {
 					self.directors
 						.write()
 						.unwrap()
-						.get_mut(&msg.id)
+						.get_mut(&msg.name)
 						.unwrap()
 						.addr = None;
 				}
@@ -1108,7 +1140,7 @@ impl Handler<participant_to_game::Disconnected> for Game {
 				self.consumers
 					.write()
 					.unwrap()
-					.get_mut(&msg.id)
+					.get_mut(&msg.name)
 					.unwrap()
 					.addr = None;
 			}
@@ -1116,55 +1148,33 @@ impl Handler<participant_to_game::Disconnected> for Game {
 				self.producers
 					.write()
 					.unwrap()
-					.get_mut(&msg.id)
+					.get_mut(&msg.name)
 					.unwrap()
 					.addr = None;
 			}
 			"viewer" => {
-				self.viewers.write().unwrap().get_mut(&msg.id).unwrap().addr = None;
+				self.viewers
+					.write()
+					.unwrap()
+					.get_mut(&msg.name)
+					.unwrap()
+					.addr = None;
 			}
 			_ => (),
 		}
 		if let Some(addr) = &self.state_main_director.addr {
 			addr.do_send(game_to_director::Disconnected {
-				id: msg.id.clone(),
+				name: msg.name.clone(),
 				participant_type: msg.participant_type.clone(),
 			});
 		}
 		for elem in self.directors.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
 				addr.do_send(game_to_director::Disconnected {
-					id: msg.id.clone(),
+					name: msg.name.clone(),
 					participant_type: msg.participant_type.clone(),
 				});
 			}
 		}
 	}
 }
-
-// /// Check if this consumer is registered
-// impl Handler<IsConsumer> for Game {
-// 	type Result = bool;
-// 	fn handle(&mut self, msg: IsPlayer, _: &mut Context<Self>) -> Self::Result {
-// 		self.consumers.lock().unwrap().contains_key(&msg.user_id)
-// 			|| self.producers.lock().unwrap().contains_key(&msg.user_id)
-// 	}
-// }
-
-// /// Check if this consumer is registered
-// impl Handler<IsProducerr> for Game {
-// 	type Result = bool;
-// 	fn handle(&mut self, msg: IsPlayer, _: &mut Context<Self>) -> Self::Result {
-// 		self.consumers.lock().unwrap().contains_key(&msg.user_id)
-// 			|| self.producers.lock().unwrap().contains_key(&msg.user_id)
-// 	}
-// }
-
-// /// Check if this consumer is registered
-// impl Handler<IsViewer> for Game {
-// 	type Result = bool;
-// 	fn handle(&mut self, msg: IsPlayer, _: &mut Context<Self>) -> Self::Result {
-// 		self.consumers.lock().unwrap().contains_key(&msg.user_id)
-// 			|| self.producers.lock().unwrap().contains_key(&msg.user_id)
-// 	}
-// }
