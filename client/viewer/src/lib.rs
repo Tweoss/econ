@@ -50,7 +50,7 @@ impl Participant {
         };
         html! {
             <tr style={&format!("transform: translateY({}px);", offset)}>
-                <td>{self.next_index}</td>
+                <td>{self.next_index + 1}</td>
                 <td>{&self.name}</td>
                 <td>{format!("{:.2}", self.score)}</td>
                 <td>{string}</td>
@@ -89,7 +89,7 @@ impl ParticipantCollection for Vec<Participant> {
             .enumerate()
             .map(|(index, participant)| (participant.score, index))
             .collect();
-        temp_vec.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        temp_vec.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
         for (new_index,elem) in temp_vec.iter().enumerate() {
             self[elem.1].next_index = new_index;
         }
