@@ -4,7 +4,7 @@ use actix::prelude::*;
 #[rtype(result = "()")]
 pub struct Info {
 	pub info:
-		crate::application::game_folder::participants::consumer_folder::consumer_structs::Info,
+		crate::participants::consumer_folder::consumer_structs::Info,
 }
 
 #[derive(Message)]
@@ -18,5 +18,5 @@ pub struct PurchaseResult {
 #[derive(Message)]
 #[rtype(result = "()")]
 pub struct TurnList {
-	pub list: Vec<(String, crate::application::game_folder::participants::producer_folder::producer_structs::Participant)>,
+	pub list: Vec<(String, crate::participants::producer_folder::producer_structs::Participant)>,
 }

@@ -1,5 +1,5 @@
 use actix::prelude::*;
-use crate::application::game_folder::participants::producer_folder::producer::Producer;
+use crate::participants::producer_folder::producer::Producer;
 
 #[derive(Message)]
 #[rtype(result="()")]

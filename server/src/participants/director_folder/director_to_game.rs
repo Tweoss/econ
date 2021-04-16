@@ -1,4 +1,4 @@
-use crate::application::game_folder::participants::director_folder::director::Director;
+use crate::participants::director_folder::director::Director;
 use actix::prelude::*;
 
 #[derive(Message)]

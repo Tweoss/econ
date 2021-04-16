@@ -4,7 +4,7 @@ use actix::prelude::*;
 #[rtype(result = "()")]
 pub struct Info {
 	pub info:
-		crate::application::game_folder::participants::director_folder::director_structs::Info,
+		crate::participants::director_folder::director_structs::Info,
 }
 
 #[derive(Message)]
@@ -33,7 +33,7 @@ pub struct Connected {
 pub struct NewParticipant {
 	pub id: String,
 	pub name: String,
-	pub participant_type: super::participants::director_folder::director_structs::ParticipantType,
+	pub participant_type: crate::participants::director_folder::director_structs::ParticipantType,
 }
 
 #[derive(Message)]

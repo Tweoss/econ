@@ -9,22 +9,22 @@ use actix_web_actors::ws;
 use actix::prelude::*;
 
 // use crate::application::app::AppState;
-use crate::application::game_folder::game::Game;
+use crate::game_folder::game::Game;
 
-use crate::application::game_folder::participants::director_folder::director_structs::{
+use crate::participants::director_folder::director_structs::{
 	self, DirectorClientMsg, DirectorClientType, DirectorServerMsg, DirectorServerType,
 };
-use crate::application::game_folder::participants::director_folder::director_to_game;
-use crate::application::game_folder::participants::participant_to_game;
+use crate::participants::director_folder::director_to_game;
+use crate::participants::participant_to_game;
 
-use crate::application::game_folder::game_to_director;
-use crate::application::game_folder::game_to_participant;
+use crate::game_folder::game_to_director;
+use crate::game_folder::game_to_participant;
 
 use super::director_structs::ParticipantType;
 
 use serde_cbor::{from_slice, to_vec};
 
-use crate::application::game_folder::participants::heartbeat::{
+use crate::participants::heartbeat::{
 	CLIENT_TERMINATE, CLIENT_TIMEOUT, HEARTBEAT_INTERVAL,
 };
 

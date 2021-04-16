@@ -54,4 +54,4 @@ pub struct Offsets {
 }
 
 // for compatibility with the past_turn game vector
-pub use crate::application::game_folder::participants::producer_folder::producer_structs::Participant;
+pub use crate::participants::producer_folder::producer_structs::Participant;

@@ -1,4 +1,4 @@
-use crate::application::game_folder::participants::consumer_folder::consumer::Consumer;
+use crate::participants::consumer_folder::consumer::Consumer;
 use actix::prelude::*;
 
 #[derive(Message)]

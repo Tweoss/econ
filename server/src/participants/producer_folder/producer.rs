@@ -3,19 +3,19 @@ use actix::StreamHandler;
 use actix_web_actors::ws;
 use std::time::Instant;
 
-use crate::application::game_folder::game::Game;
-use crate::application::game_folder::game_to_participant;
-use crate::application::game_folder::game_to_producer;
+use crate::game_folder::game::Game;
+use crate::game_folder::game_to_participant;
+use crate::game_folder::game_to_producer;
 
-use crate::application::game_folder::participants::participant_to_game;
-use crate::application::game_folder::participants::producer_folder::producer_to_game;
+use crate::participants::participant_to_game;
+use crate::participants::producer_folder::producer_to_game;
 use serde_cbor::{from_slice, to_vec};
 
-use crate::application::game_folder::participants::producer_folder::producer_structs::{
+use crate::participants::producer_folder::producer_structs::{
 	self, ProducerClientMsg, ProducerClientType, ProducerServerMsg, ProducerServerType,
 };
 
-use crate::application::game_folder::participants::heartbeat::{
+use crate::participants::heartbeat::{
 	CLIENT_TERMINATE, CLIENT_TIMEOUT, HEARTBEAT_INTERVAL,
 };
 

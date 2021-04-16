@@ -1,4 +1,4 @@
-use crate::application::game_folder::participants::viewer_folder::viewer::Viewer;
+use crate::participants::viewer_folder::viewer::Viewer;
 use actix::prelude::*;
 
 #[derive(Message)]

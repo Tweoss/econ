@@ -4,19 +4,19 @@ use actix_web_actors::ws;
 use std::time::Instant;
 
 // use crate::application::app::AppState;
-use crate::application::game_folder::game::Game;
-use crate::application::game_folder::game_to_participant;
-use crate::application::game_folder::game_to_viewer;
+use crate::game_folder::game::Game;
+use crate::game_folder::game_to_participant;
+use crate::game_folder::game_to_viewer;
 
-use crate::application::game_folder::participants::participant_to_game;
-use crate::application::game_folder::participants::viewer_folder::viewer_to_game;
+use crate::participants::participant_to_game;
+use crate::participants::viewer_folder::viewer_to_game;
 use serde_cbor::{from_slice, to_vec};
 
-use crate::application::game_folder::participants::viewer_folder::viewer_structs::{
+use crate::participants::viewer_folder::viewer_structs::{
 	self, ViewerClientMsg, ViewerClientType, ViewerServerMsg, ViewerServerType,
 };
 
-use crate::application::game_folder::participants::heartbeat::{
+use crate::participants::heartbeat::{
 	CLIENT_TERMINATE, CLIENT_TIMEOUT, HEARTBEAT_INTERVAL,
 };
 

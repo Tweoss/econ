@@ -5,8 +5,6 @@ use actix_files::Files;
 use actix_files::NamedFile;
 use actix_web::{middleware, web, App, HttpRequest, HttpServer};
 
-// use uuid::Uuid;
-
 mod application;
 use crate::application::app::AppState;
 
@@ -17,6 +15,8 @@ mod ws_handler;
 use ws_handler::{handle_prep, handle_ws};
 
 mod handle_to_app;
+mod game_folder;
+mod participants;
 
 async fn index_404(_req: HttpRequest) -> actix_web::Result<NamedFile> {
 	Ok(NamedFile::open("../client/404/static/index.html")?)

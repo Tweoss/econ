@@ -4,14 +4,11 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::RwLock;
 
-use crate::application::game_folder::game::Game;
-// use super::super::handle_to_app;
-// use super::super::ws_handler;
+use crate::game_folder::game::Game;
 use crate::application::app_to_game;
-use crate::application::game_folder::game_to_app;
+use crate::game_folder::game_to_app;
 use crate::handle_to_app::*;
 
-// use crate::application::player::Player;
 
 // //* App State can receive messages about a new Game, the end of a Game, getting a Game (to operate on)
 

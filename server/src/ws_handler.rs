@@ -4,10 +4,10 @@ use actix_web::{http, web, Error, HttpRequest, HttpResponse};
 use actix_web_actors::ws;
 
 use crate::application::app::AppState;
-use crate::application::game_folder::participants::consumer_folder::consumer::Consumer;
-use crate::application::game_folder::participants::director_folder::director::Director;
-use crate::application::game_folder::participants::producer_folder::producer::Producer;
-use crate::application::game_folder::participants::viewer_folder::viewer::Viewer;
+use crate::participants::consumer_folder::consumer::Consumer;
+use crate::participants::director_folder::director::Director;
+use crate::participants::producer_folder::producer::Producer;
+use crate::participants::viewer_folder::viewer::Viewer;
 
 use crate::handle_to_app;
 
@@ -75,9 +75,6 @@ pub async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpRes
 				println!("{:?}", resp);
 				return resp;
 			}
-			// let resp = ws::start(Director::new(uuid.to_string(), game_id.to_string(), addr), &req, stream);
-			// println!("{:?}", resp);
-			// resp;
 		}
 		"viewer" => {
 			println!("Asking for Viewer");
