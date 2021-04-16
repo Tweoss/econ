@@ -12,7 +12,6 @@ use crate::participants::viewer_folder::viewer::Viewer;
 use crate::handle_to_app;
 
 pub async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, Error> {
-	println!("called handle_ws");
 	let viewtype: String = req.match_info().get("viewtype").unwrap().parse().unwrap();
 	let game_id: String = req.match_info().get("game_id").unwrap().parse().unwrap();
 	let uuid: String = req.match_info().get("uuid").unwrap().parse().unwrap();
@@ -20,7 +19,6 @@ pub async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpRes
 
 	match viewtype.as_ref() {
 		"director" => {
-			println!("Asking for Director");
 			if let Some((game_addr, name)) = addr
 				.send(handle_to_app::IsRegisteredDirector {
 					user_id: uuid.clone(),
@@ -36,7 +34,6 @@ pub async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpRes
 			}
 		}
 		"consumer" => {
-			println!("Asking for Consumer");
 			if let Some((game_addr, name)) = addr
 				.send(handle_to_app::IsRegisteredPlayer {
 					user_id: uuid.clone(),
@@ -52,7 +49,6 @@ pub async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpRes
 			}
 		}
 		"producer" => {
-			println!("Asking for Producer");
 			if let Some((game_addr, name)) = addr
 				.send(handle_to_app::IsRegisteredPlayer {
 					user_id: uuid.clone(),
@@ -68,7 +64,6 @@ pub async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpRes
 			}
 		}
 		"viewer" => {
-			println!("Asking for Viewer");
 			if let Some((game_addr, name)) = addr
 				.send(handle_to_app::IsRegisteredViewer {
 					user_id: uuid.clone(),
@@ -92,12 +87,6 @@ pub async fn handle_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpRes
 }
 
 pub async fn handle_prep(req: HttpRequest) -> impl Responder {
-	println!(
-		"{}\n{}\n{}",
-		req.cookie("viewtype").unwrap().value(),
-		req.cookie("game_id").unwrap().value(),
-		req.cookie("uuid").unwrap().value()
-	);
 	return format!(
 		"{}\n{}\n{}",
 		req.cookie("viewtype").unwrap().value(),

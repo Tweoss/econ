@@ -121,7 +121,6 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Viewer {
 	fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, _ctx: &mut Self::Context) {
 		if let Ok(ws::Message::Binary(bin)) = msg {
 			if let Ok(message) = from_slice::<ViewerClientMsg>(&bin.to_vec()) {
-				println!("{:?}", message);
 				match message.msg_type {
 					ViewerClientType::Pong => (),
 				}

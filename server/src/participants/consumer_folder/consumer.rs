@@ -195,7 +195,6 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Consumer {
 	fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
 		if let Ok(ws::Message::Binary(bin)) = msg {
 			if let Ok(message) = from_slice::<ConsumerClientMsg>(&bin.to_vec()) {
-				println!("{:?}", message);
 				match message.msg_type {
 					ConsumerClientType::Choice(elements) => {
 						if !self.took_turn && !self.is_producer_turn {
@@ -335,10 +334,6 @@ impl Handler<game_to_consumer::PurchaseResult> for Consumer {
 			self.quantity_purchased += msg.purchased;
 			self.score += utility;
 			self.total_utility += utility;
-			println!(
-				"Consumer says utility: {}, total_utility: {}, score: {}",
-				utility, self.total_utility, self.score
-			);
 			self.game_addr
 				.do_send(consumer_to_game::NewScoreCalculated {
 					name: self.name.clone(),

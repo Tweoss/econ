@@ -21,14 +21,14 @@ pub struct CookieInfo {
 }
 
 pub async fn set_cookies(cookie_info: web::Json<CookieInfo>, req: HttpRequest) -> HttpResponse {
-	println!("Called set_cookies with args: ");
 	let (game_id, username, viewtype) = (
 		cookie_info.game_id.clone(),
 		cookie_info.username.clone(),
 		cookie_info.viewtype.clone(),
 	);
 	println!(
-		"Username: {:?}, Viewtype: {:?}, GameID: {:?}",
+		"Called set_cookies with args: \n
+		Username: {:?}, Viewtype: {:?}, GameID: {:?}",
 		username, viewtype, game_id
 	);
 	if !game_id.chars().any(|c| c.is_ascii_digit()) {
@@ -58,13 +58,6 @@ pub async fn set_cookies(cookie_info: web::Json<CookieInfo>, req: HttpRequest) -
   					.body(format!("Cannot join a game while being a main director. Go to /direct/director/{}/index.html", game_id.value()));
 		}
 	}
-	println!("\nThese are the cookies sent from client.");
-	if let Ok(cookies) = req.cookies() {
-		for cookie in cookies.to_owned() {
-			print!("{}, ", cookie.to_string());
-		}
-	}
-	println!();
 	// ! SWITCH THIS REPL
 	let mut id_cookie = cookie::Cookie::build("uuid", "")
 		.same_site(cookie::SameSite::Strict)

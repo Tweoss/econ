@@ -178,7 +178,6 @@ impl Producer {
 					* (e - 3. * f + 3. * g - h)
 					* f64::powi(t, 6);
 			if cost > self.balance {
-				println!("Cost = {}, balance = {}", cost, self.balance);
 				Err("Insufficient Funds".to_string())
 			} else {
 				//* no immediate gain for producers
@@ -204,7 +203,6 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Producer {
 	fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
 		if let Ok(ws::Message::Binary(bin)) = msg {
 			if let Ok(message) = from_slice::<ProducerClientMsg>(&bin.to_vec()) {
-				println!("{:?}", message);
 				match message.msg_type {
 					ProducerClientType::Choice(choice) => {
 						if !self.took_turn && self.is_producer_turn {
@@ -233,7 +231,6 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Producer {
 						}
 					}
 					ProducerClientType::Pong => (),
-					// _ => (),
 				}
 			} else {
 				println!("Invalid structure received");

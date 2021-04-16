@@ -74,11 +74,7 @@ impl Actor for Director {
 }
 
 impl Director {
-	pub fn new(
-		name: String,
-		game_id: String,
-		game_addr: Addr<Game>,
-	) -> Director {
+	pub fn new(name: String, game_id: String, game_addr: Addr<Game>) -> Director {
 		Director {
 			name,
 			game_id,
@@ -136,42 +132,39 @@ impl Director {
 impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Director {
 	fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, _ctx: &mut Self::Context) {
 		if let Ok(ws::Message::Binary(bin)) = msg {
-  				if let Ok(message) = from_slice::<DirectorClientMsg>(&bin.to_vec()) {
-  					println!("{:?}", message);
-  					match message.msg_type {
-  						DirectorClientType::EndGame => {
-  							self.game_addr.do_send(director_to_game::EndGame {});
-  						}
-  						DirectorClientType::OpenGame => {
-  							self.game_addr.do_send(director_to_game::OpenGame {});
-  						}
-  						DirectorClientType::CloseGame => {
-  							self.game_addr.do_send(director_to_game::CloseGame {});
-  						}
-  						DirectorClientType::Pong => {
-  							// self.hb = Instant::now();
-  						}
-  						DirectorClientType::Kick(target) => {
-  							self.game_addr
-  								.do_send(director_to_game::KickParticipant { name: target });
-  						}
-  						DirectorClientType::NewOffsets(offsets) => {
-  							let offsets = offsets;
-  							self.game_addr.do_send(director_to_game::SetOffsets {
-  								subsidies: offsets.subsidies,
-  								supply_shock: offsets.supply_shock,
-  								trending: offsets.trending,
-  							})
-  						}
-  						DirectorClientType::NextTurn => {
-  							self.game_addr.do_send(director_to_game::ForceTurn {});
-  						} // _ => (),
-  					}
-  				} else {
-  					println!("Invalid structure received");
-  				}
-  				self.reset_hb();
-  			}
+			if let Ok(message) = from_slice::<DirectorClientMsg>(&bin.to_vec()) {
+				match message.msg_type {
+					DirectorClientType::EndGame => {
+						self.game_addr.do_send(director_to_game::EndGame {});
+					}
+					DirectorClientType::OpenGame => {
+						self.game_addr.do_send(director_to_game::OpenGame {});
+					}
+					DirectorClientType::CloseGame => {
+						self.game_addr.do_send(director_to_game::CloseGame {});
+					}
+					DirectorClientType::Pong => {}
+					DirectorClientType::Kick(target) => {
+						self.game_addr
+							.do_send(director_to_game::KickParticipant { name: target });
+					}
+					DirectorClientType::NewOffsets(offsets) => {
+						let offsets = offsets;
+						self.game_addr.do_send(director_to_game::SetOffsets {
+							subsidies: offsets.subsidies,
+							supply_shock: offsets.supply_shock,
+							trending: offsets.trending,
+						})
+					}
+					DirectorClientType::NextTurn => {
+						self.game_addr.do_send(director_to_game::ForceTurn {});
+					}
+				}
+			} else {
+				println!("Invalid structure received");
+			}
+			self.reset_hb();
+		}
 	}
 }
 
