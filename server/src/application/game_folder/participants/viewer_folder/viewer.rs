@@ -265,17 +265,35 @@ impl Handler<game_to_viewer::NewScores> for Viewer {
 
 impl Handler<game_to_viewer::NewParticipant> for Viewer {
 	type Result = ();
-	fn handle(&mut self, msg: game_to_viewer::NewParticipant, ctx: &mut Self::Context) -> Self::Result {
+	fn handle(
+		&mut self,
+		msg: game_to_viewer::NewParticipant,
+		ctx: &mut Self::Context,
+	) -> Self::Result {
 		ctx.binary(
 			to_vec(&ViewerServerMsg {
-				msg_type: ViewerServerType::NewParticipant(
-					viewer_structs::Participant {
-						name: msg.name,
-						is_consumer: msg.is_consumer,
-						score: 0.,
-						next_index: 0,
-					}
-				),
+				msg_type: ViewerServerType::NewParticipant(viewer_structs::Participant {
+					name: msg.name,
+					is_consumer: msg.is_consumer,
+					score: 0.,
+					next_index: 0,
+				}),
+			})
+			.unwrap(),
+		);
+	}
+}
+
+impl Handler<game_to_viewer::KickedParticipant> for Viewer {
+	type Result = ();
+	fn handle(
+		&mut self,
+		msg: game_to_viewer::KickedParticipant,
+		ctx: &mut Self::Context,
+	) -> Self::Result {
+		ctx.binary(
+			to_vec(&ViewerServerMsg {
+				msg_type: ViewerServerType::KickedParticipant(msg.name),
 			})
 			.unwrap(),
 		);

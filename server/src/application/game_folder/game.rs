@@ -656,11 +656,24 @@ impl Handler<director_to_game::KickParticipant> for Game {
 				x.1.addr
 					.map(|addr| addr.do_send(game_to_participant::Kicked {}))
 			});
-		// self.directors.write().unwrap().remove(&msg.user_id);
-		self.viewers.write().unwrap().remove(&msg.name);
+		self.viewers
+			.write()
+			.unwrap()
+			.remove_entry(&msg.name)
+			.map(|x| {
+				x.1.addr
+					.map(|addr| addr.do_send(game_to_participant::Kicked {}))
+			});
 		for elem in self.directors.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
 				addr.do_send(game_to_director::KickedParticipant {
+					name: msg.name.clone(),
+				});
+			};
+		}
+		for elem in self.viewers.read().unwrap().values() {
+			if let Some(addr) = &elem.addr {
+				addr.do_send(game_to_viewer::KickedParticipant {
 					name: msg.name.clone(),
 				});
 			};

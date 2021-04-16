@@ -26,3 +26,9 @@ pub struct NewParticipant {
 	pub name: String,
 	pub is_consumer: bool,
 }
+
+#[derive(Message)]
+#[rtype(result = "()")]
+pub struct KickedParticipant {
+	pub name: String,
+}

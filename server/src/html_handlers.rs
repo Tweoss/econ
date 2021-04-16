@@ -38,7 +38,7 @@ pub async fn set_cookies(cookie_info: web::Json<CookieInfo>, req: HttpRequest) -
 	}
 	let addr = req.app_data::<web::Data<actix::Addr<AppState>>>().unwrap();
 
-	//* make sure isnt main director
+	//* make sure isn't main director
 	if let (Some(uuid), Some(viewtype), Some(game_id)) = (
 		req.cookie("uuid"),
 		req.cookie("viewtype"),
@@ -140,7 +140,6 @@ pub async fn set_cookies(cookie_info: web::Json<CookieInfo>, req: HttpRequest) -
 					.await
 					.unwrap()
 				{
-					// if is_open {
 					addr.do_send(handle_to_app::NewDirector {
 						user_id: temp_uuid,
 						game_id,

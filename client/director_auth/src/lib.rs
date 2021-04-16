@@ -845,9 +845,6 @@ impl Component for Model {
                                     <h2>{"Events"}</h2>
                                     <div class="btn-group-vertical btn-group-lg" role="group">
                                         {self.render_buttons()}
-                                        // <button onclick={self.link.callback(|_| Msg::AdjustOffset(1))} class="btn btn-primary border rounded" type="button">{format!("Supply Shock: {}", self.graph_data.supply_shock)}</button>
-                                        // <button onclick={self.link.callback(|_| Msg::AdjustOffset(2))} class="btn btn-primary border rounded" type="button">{format!("Subsidies: {}", self.graph_data.subsidies)}</button>
-                                        // <button onclick={self.link.callback(|_| Msg::AdjustOffset(3))} class="btn btn-primary border rounded" type="button">{format!("Trending: {}", self.graph_data.trending)}</button>
                                     </div>
                                 </div>
                             </div>

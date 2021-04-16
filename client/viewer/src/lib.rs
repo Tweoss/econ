@@ -238,6 +238,10 @@ impl Component for Model {
                         self.participants.push(participant);
                         self.is_unsorted = true;
                     }
+                    ViewerServerType::KickedParticipant(participant) => {
+                        self.participants.retain(|x| x.name != participant);
+                        self.is_unsorted = true;
+                    }
                 }
                 true
             }
@@ -330,6 +334,19 @@ impl Component for Model {
                     <footer>
                         <p>{"Built by Francis Chua"}</p>
                     </footer>
+                    <button class="btn btn-danger border rounded" id="kick-modal" type="button" data-toggle="modal" data-target="#kicked-modal" hidden=true></button>
+                    <div class="modal fade" role="dialog" tabindex="-1" id="kicked-modal">
+                        <div class="modal-dialog" role="document">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h4 class="modal-title">{"Kicked by Server"}</h4><button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">{"×"}</span></button>
+                                </div>
+                                <div class="modal-footer">
+                                    <a class="btn btn-info active" role="button" href="/director_login/index.html" id="test">{"Continue"}</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </>
         }

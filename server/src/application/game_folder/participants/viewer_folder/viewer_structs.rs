@@ -15,6 +15,7 @@ pub enum ViewerServerType {
 	NewOffsets(Offsets),
 	NewScores(Vec<(String, f64)>),
 	NewParticipant(Participant),
+	KickedParticipant(String),
 	Ping,
 	ServerKicked,
 }
