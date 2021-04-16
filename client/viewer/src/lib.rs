@@ -301,9 +301,9 @@ impl Component for Model {
                     <div class="row">
                         <div class="col-md-2">
                             <h2>{"Info"}</h2>
-                            <p>{"Game ID:&nbsp;"}<strong>{&self.game_id}</strong></p>
-                            <p>{"Game is&nbsp;"}<strong>{open}</strong></p>
-                            <p>{"Turn:&nbsp;"}<strong>{&format!("{}", self.turn)}</strong></p>
+                            <p>{"Game ID: "}<strong>{&self.game_id}</strong></p>
+                            <p>{"Game is "}<strong>{open}</strong></p>
+                            <p>{"Turn: "}<strong>{&format!("{}", self.turn)}</strong></p>
                         </div>
                         <div class="col-md-8 d-flex flex-column">
                             <h2>{"Scoreboard"}</h2>
@@ -327,9 +327,9 @@ impl Component for Model {
                         </div>
                         <div class="col-md-2">
                             <h2>{"Offset"}</h2>
-                            <p>{"Trending:&nbsp;"}<strong>{&format!("{}", self.trending)}</strong></p>
-                            <p>{"Subsidies:&nbsp;"}<strong>{&format!("{}", self.subsidies)}</strong></p>
-                            <p>{"Supply Shock:&nbsp;"}<strong>{&format!("{}", self.supply_shock)}</strong></p>
+                            <p>{"Trending: "}<strong>{&format!("{}", self.trending)}</strong></p>
+                            <p>{"Subsidies: "}<strong>{&format!("{}", self.subsidies)}</strong></p>
+                            <p>{"Supply Shock: "}<strong>{&format!("{}", self.supply_shock)}</strong></p>
                         </div>
                     </div>
                     <footer>

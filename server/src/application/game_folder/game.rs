@@ -254,7 +254,7 @@ impl Game {
 			supply_shock: self.supply_shock,
 		}
 	}
-	// * returns purchased, expense, balance
+	// * returns purchased, expense, balance, how much was purchased
 	// ! balance may be unnecessary for consumer actor to know
 	fn purchase(
 		&self,
@@ -275,31 +275,34 @@ impl Game {
 			if let Some(producer) = producers.get_mut(&target.0) {
 				// * if the consumer has enough money and there is enough quantity
 				if consumer.balance >= target.1 * producer.price && producer.remaining >= target.1 {
-					purchased += target.1;
-					producer.remaining -= target.1;
-					expense += target.1 * producer.price;
+					let single_quantity = target.1;
+					purchased += single_quantity;
+					producer.remaining -= single_quantity;
+					expense += single_quantity * producer.price;
 					consumer.balance -= expense;
-					return_targets.push((target.0, target.1));
+					return_targets.push((target.0, single_quantity));
 				}
 				// * if quantity requested > remaning and there is enough money, purchase all of it
 				else if target.1 > producer.remaining
 					&& consumer.balance >= producer.remaining * producer.price
 				{
-					purchased += producer.remaining;
+					let single_quantity = producer.remaining;
+					purchased += single_quantity;
 					producer.remaining = 0.;
-					expense += producer.remaining * producer.price;
+					expense += single_quantity * producer.price;
 					consumer.balance -= expense;
-					return_targets.push((target.0, producer.remaining));
+					return_targets.push((target.0, single_quantity));
 				}
 				// * if there is not enough money but enough quantity, purchase as much as possible given balance
 				else if consumer.balance < target.1 * producer.price
 					&& target.1 < producer.remaining
 				{
-					purchased += consumer.balance / producer.price;
-					producer.remaining -= purchased;
+					let single_quantity = consumer.balance / producer.price;
+					purchased += single_quantity;
+					producer.remaining -= single_quantity;
 					expense += consumer.balance;
 					consumer.balance = 0.;
-					return_targets.push((target.0, producer.remaining));
+					return_targets.push((target.0, single_quantity));
 					break;
 				}
 				// * if there is not enough money AND not enough quantity, probably trying to exploit. don't do anything
@@ -493,7 +496,7 @@ impl Handler<IsDirector> for Game {
 			.read()
 			.unwrap()
 			.iter()
-			.find(|(n, s)| s.id == msg.user_id)
+			.find(|(_, s)| s.id == msg.user_id)
 		{
 			Some(name.to_string())
 		} else if self.state_main_director.id == msg.user_id {
@@ -513,7 +516,7 @@ impl Handler<IsPlayer> for Game {
 			.read()
 			.unwrap()
 			.iter()
-			.find(|(n, s)| s.id == msg.user_id)
+			.find(|(_, s)| s.id == msg.user_id)
 		{
 			Some(name.to_string())
 		} else if let Some((name, _)) = self
@@ -521,7 +524,7 @@ impl Handler<IsPlayer> for Game {
 			.read()
 			.unwrap()
 			.iter()
-			.find(|(n, s)| s.id == msg.user_id)
+			.find(|(_, s)| s.id == msg.user_id)
 		{
 			Some(name.to_string())
 		} else {
@@ -538,7 +541,7 @@ impl Handler<IsViewer> for Game {
 			.read()
 			.unwrap()
 			.iter()
-			.find(|(n, s)| s.id == msg.user_id)
+			.find(|(_, s)| s.id == msg.user_id)
 		{
 			Some(name.to_string())
 		} else {
@@ -1045,13 +1048,21 @@ impl Handler<consumer_to_game::NewScoreCalculated> for Game {
 }
 
 impl Handler<viewer_to_game::RegisterAddressGetInfo> for Game {
-	// type Result = MessageResult<director_structs::Info>;
 	type Result = ();
 	fn handle(
 		&mut self,
 		msg: viewer_to_game::RegisterAddressGetInfo,
 		_: &mut Context<Self>,
 	) -> Self::Result {
+		if let Some(mut addr_value) = self.viewers.write().unwrap().get_mut(&msg.name) {
+			addr_value.addr = Some(msg.addr.clone());
+		}
+		if let Some(addr) = &self.state_main_director.addr {
+			addr.do_send(game_to_director::Connected {
+				name: msg.name.clone(),
+				participant_type: "viewer".to_string(),
+			});
+		}
 		for elem in self.directors.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
 				addr.do_send(game_to_director::Connected {

@@ -87,7 +87,7 @@ impl Participant {
             }
             PlayerState::Disconnected => {
                 html! {
-                    <p class="kickable" id={name.clone()}>{format!("{:?}, {} ", name.clone(), self.id)}<i class="fa fa-o"></i> {icon} </p>
+                    <p class="kickable" id={name.clone()}>{format!("{:?}, {} ", name.clone(), self.id)}<i class="fa fa-user-o"></i> {icon} </p>
                 }
             }
             PlayerState::Kicked => {
@@ -101,8 +101,8 @@ impl Participant {
 
 trait ParticipantCollection {
     fn render(&self) -> Html;
-    fn update_status(&mut self, id: &str, status: PlayerState);
-    fn took_turn(&mut self, id: &str);
+    fn update_status(&mut self, name: &str, status: PlayerState);
+    fn took_turn(&mut self, name: &str);
 }
 
 impl ParticipantCollection for HashMap<String, Participant> {
@@ -114,13 +114,13 @@ impl ParticipantCollection for HashMap<String, Participant> {
             </>
         }
     }
-    fn update_status(&mut self, id: &str, status: PlayerState) {
-        if let Some(participant) = self.get_mut(id) {
+    fn update_status(&mut self, name: &str, status: PlayerState) {
+        if let Some(participant) = self.get_mut(name) {
             participant.state = status;
         }
     }
-    fn took_turn(&mut self, id: &str) {
-        if let Some(participant) = self.get_mut(id) {
+    fn took_turn(&mut self, name: &str) {
+        if let Some(participant) = self.get_mut(name) {
             participant.took_turn = Some(true);
         }
     }
@@ -442,26 +442,26 @@ impl Component for Model {
                     }
                     DirectorServerType::NewConsumer(id, name) => {
                         self.consumers.insert(
-                            id,
-                            Participant::new(true, name),
+                            name,
+                            Participant::new(true, id),
                         );
                     }
                     DirectorServerType::NewProducer(id, name) => {
                         self.producers.insert(
-                            id,
-                            Participant::new(true, name),
+                            name,
+                            Participant::new(true, id),
                         );
                     }
                     DirectorServerType::NewDirector(id, name) => {
                         self.directors.insert(
-                            id,
-                            Participant::new(false, name),
+                            name,
+                            Participant::new(false, id),
                         );
                     }
                     DirectorServerType::NewViewer(id, name) => {
                         self.viewers.insert(
-                            id,
-                            Participant::new(false, name),
+                            name,
+                            Participant::new(false, id),
                         );
                     }
                     DirectorServerType::ParticipantKicked(target) => {
@@ -562,7 +562,6 @@ impl Component for Model {
                             document.getElementById("end-modal").click();
                         }
                     }
-                    _ => {}
                 }
                 true
             }

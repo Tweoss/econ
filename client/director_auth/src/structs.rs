@@ -24,7 +24,6 @@ pub enum DirectorServerType {
 	NewProducer(String, String),
 	NewViewer(String, String),
 	NewOffsets(Offsets),
-	Ignore,
 }
 
 #[derive(Debug, Serialize)]

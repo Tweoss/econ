@@ -340,11 +340,11 @@ async function init(input) {
         var ret = false;
         return ret;
     };
-    imports.wbg.__wbg_cargowebsnippete246c7c3a320ec351337378aff599a545c88f89d_de157338e875739b = function(arg0) {
-        __cargo_web_snippet_e246c7c3a320ec351337378aff599a545c88f89d(takeObject(arg0));
-    };
     imports.wbg.__wbg_cargowebsnippet584d971e339d304ad4f34678df47567c864e5b18_0bebca389ec2a0e9 = function(arg0) {
         __cargo_web_snippet_584d971e339d304ad4f34678df47567c864e5b18(takeObject(arg0));
+    };
+    imports.wbg.__wbg_cargowebsnippete246c7c3a320ec351337378aff599a545c88f89d_de157338e875739b = function(arg0) {
+        __cargo_web_snippet_e246c7c3a320ec351337378aff599a545c88f89d(takeObject(arg0));
     };
     imports.wbg.__wbindgen_object_clone_ref = function(arg0) {
         var ret = getObject(arg0);
