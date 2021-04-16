@@ -41,11 +41,11 @@ struct Model {
 
 impl Participant {
     fn render(&self, index: usize, height: i32) -> Html {
-        let offset = (i32::try_from(self.next_index).unwrap() - i32::try_from(index).unwrap()) * height;
+        let offset =
+            (i32::try_from(self.next_index).unwrap() - i32::try_from(index).unwrap()) * height;
         let string = if self.is_consumer {
             "Consumer"
-        }
-        else {
+        } else {
             "Producer"
         };
         html! {
@@ -72,11 +72,9 @@ impl ParticipantCollection for Vec<Participant> {
             html! {
                 <>
                     {for self.iter().enumerate().map(|(i, p)| p.render(i, height))}
-                    
                 </>
             }
-        }
-        else {
+        } else {
             html! {
                 <>
                 </>
@@ -90,7 +88,7 @@ impl ParticipantCollection for Vec<Participant> {
             .map(|(index, participant)| (participant.score, index))
             .collect();
         temp_vec.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
-        for (new_index,elem) in temp_vec.iter().enumerate() {
+        for (new_index, elem) in temp_vec.iter().enumerate() {
             self[elem.1].next_index = new_index;
         }
     }
@@ -176,13 +174,15 @@ impl Component for Model {
                     ViewerServerType::Info(mut info) => {
                         ConsoleService::log(&format!("{:?}", info));
                         self.participants.append(&mut info.participants);
+                        self.participants.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+                        self.participants.sort(); // * sets all the indices to the correct value
                         self.turn = info.turn;
                         self.game_id = info.game_id;
                         self.is_open = info.is_open;
                         self.trending = info.trending;
                         self.subsidies = info.subsidies;
                         self.supply_shock = info.supply_shock;
-                        self.is_unsorted = true;
+                        // self.is_unsorted = true;
                         self.interval_task = Some(IntervalService::spawn(
                             std::time::Duration::from_secs(1),
                             self.link.callback(|_| Msg::IntervalNotif),
@@ -288,12 +288,7 @@ impl Component for Model {
     }
 
     fn view(&self) -> Html {
-        let open = if self.is_open {
-            "OPEN"
-        }
-        else {
-            "CLOSED"
-        };
+        let open = if self.is_open { "OPEN" } else { "CLOSED" };
         html! {
             <>
                 <div class="container text-center flex-column" style="min-height: 100vh;width: 100vw;">
