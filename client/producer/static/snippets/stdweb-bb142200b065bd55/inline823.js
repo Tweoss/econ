@@ -1,1 +1,1 @@
-export function __cargo_web_snippet_23da030d23aaf3529f62ea9094e98473d3665f3a(Module, $0) { var o = Module.STDWEB_PRIVATE.acquire_js_reference( $0 );return (o instanceof TextMetrics); }
+export function __cargo_web_snippet_62af03801674a6b9c0af728bea4b490fde356f5d(Module, $0, $1) { $0 = Module.STDWEB_PRIVATE.to_js($0);$1 = Module.STDWEB_PRIVATE.to_js($1);($0).lineJoin=($1); }

@@ -1,1 +1,1 @@
-export function __cargo_web_snippet_550049fd354fc2e2d13b8dacf6ebece3de7d60a0(Module, $0) { var o = Module.STDWEB_PRIVATE.acquire_js_reference( $0 );return (o instanceof CanvasRenderingContext2D); }
+export function __cargo_web_snippet_fd40b6c83a03d090c647e47a13c60a8fd7d4034f(Module, $0, $1) { $0 = Module.STDWEB_PRIVATE.to_js($0);$1 = Module.STDWEB_PRIVATE.to_js($1);($0).lineCap=($1); }

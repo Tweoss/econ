@@ -1,1 +1,1 @@
-export function __cargo_web_snippet_4ed3aa3d51caac2f11ccf4536fd2f1be6d73ef0c(Module, $0) { var o = Module.STDWEB_PRIVATE.acquire_js_reference( $0 );return (o instanceof KeyboardEvent); }
+export function __cargo_web_snippet_79730035b58ca57b5bb7d9c08037312b2c56fbcf(Module, $0) { var o = Module.STDWEB_PRIVATE.acquire_js_reference( $0 );return (o instanceof GamepadEvent); }

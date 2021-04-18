@@ -1,1 +1,1 @@
-export function __cargo_web_snippet_51acf4a008d6da1f9dff02d1f05f24fbaea75368(Module, $0, $1, $2, $3, $4) { $0 = Module.STDWEB_PRIVATE.to_js($0);$1 = Module.STDWEB_PRIVATE.to_js($1);$2 = Module.STDWEB_PRIVATE.to_js($2);$3 = Module.STDWEB_PRIVATE.to_js($3);$4 = Module.STDWEB_PRIVATE.to_js($4);($0).rect(($1),($2),($3),($4)); }
+export function __cargo_web_snippet_8cc4ebcc88e356befbf243de5b81d363b83aeb9f(Module, $0) { var o = Module.STDWEB_PRIVATE.acquire_js_reference( $0 );return (o instanceof DragEvent && o.type === "dragend"); }
