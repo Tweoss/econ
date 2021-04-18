@@ -1,1 +1,1 @@
-export function __cargo_web_snippet_d6eeef100246c3aafefbc72f92b5d6a0abc0cbcf(Module, $0, $1) { $1 = Module.STDWEB_PRIVATE.to_js($1);Module.STDWEB_PRIVATE.from_js($0, (function(){return($1).attributeNamespace;})()); }
+export function __cargo_web_snippet_80d6d56760c65e49b7be8b6b01c1ea861b046bf0(Module, $0) { Module.STDWEB_PRIVATE.decrement_refcount( $0 ); }

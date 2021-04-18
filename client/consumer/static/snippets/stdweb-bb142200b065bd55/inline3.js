@@ -1,1 +1,1 @@
-export function __cargo_web_snippet_c392f20048127cbc3ace5ab07fe26112b98c6ea8(Module, $0) { var o = Module.STDWEB_PRIVATE.acquire_js_reference( $0 );return (o instanceof ProgressEvent && o.type === "loadstart"); }
+export function __cargo_web_snippet_cd2330f84a5af09dc25bd3029ba7fcb17d1cdb4c(Module, $0, $1, $2) { $1 = Module.STDWEB_PRIVATE.to_js($1);$2 = Module.STDWEB_PRIVATE.to_js($2);Module.STDWEB_PRIVATE.from_js($0, (function(){try{return{value:function(){return($1).querySelectorAll(($2));}(),success:true};}catch(error){return{error:error,success:false};}})()); }

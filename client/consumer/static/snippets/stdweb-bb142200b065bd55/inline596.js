@@ -1,1 +1,1 @@
-export function __cargo_web_snippet_285aac3fba72d67cb459d37d4d21aa4fb62598ba(Module, $0) { Module.STDWEB_PRIVATE.arena = $0; }
+export function __cargo_web_snippet_fe24cc84f79623778f86b353f8f4f88d4bbc1f2a(Module, $0, $1) { $1 = Module.STDWEB_PRIVATE.to_js($1);Module.STDWEB_PRIVATE.from_js($0, (function(){return($1).fullscreenElement;})()); }
