@@ -1,4 +1,4 @@
-#![recursion_limit = "2048"]
+#![recursion_limit = "4096"]
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -25,8 +25,7 @@ use stdweb::js;
 
 mod structs;
 use structs::{
-    DirectorClientMsg, DirectorClientType, DirectorServerMsg,
-    DirectorServerType, Offsets,
+    DirectorClientMsg, DirectorClientType, DirectorServerMsg, DirectorServerType, Offsets,
 };
 
 use structs::{Participant, PlayerState};
@@ -50,6 +49,7 @@ struct Model {
     turn: u64,
     game_id: String,
     personal_id: String,
+    winners: Option<[Option<Vec<(String, String)>>; 3]>,
 }
 
 impl Participant {
@@ -122,6 +122,48 @@ impl ParticipantCollection for HashMap<String, Participant> {
     fn took_turn(&mut self, name: &str) {
         if let Some(participant) = self.get_mut(name) {
             participant.took_turn = Some(true);
+        }
+    }
+}
+
+trait ReturnsHtml {
+    fn render(&self) -> Html;
+}
+
+impl ReturnsHtml for Option<[Option<Vec<(String, String)>>; 3]> {
+    fn render(&self) -> Html {
+        if let Some(inner) = self {
+            html! {
+                <>
+                    {
+                        inner.iter().enumerate().map(|(i, x)| if let Some(vec) = x {
+                            html! {
+                                <tr>
+                                    <th> {&format!("Rank {}", i)} </th>
+                                    {vec.iter().map(|(n, h)| html! {
+                                        <>
+                                            <td>{&n} </td>
+                                            <td>{&h} </td>
+                                        </>
+                                    }).collect::<Html>()}
+                                </tr>
+                            }
+                        }
+                        else {
+                            html! {
+                                <>
+                                </>
+                            }
+                        }
+                    ).collect::<Html>()
+                }
+                </>
+            }
+        } else {
+            html! {
+                <>
+                </>
+            }
         }
     }
 }
@@ -361,6 +403,7 @@ impl Component for Model {
             game_id: "".to_string(),
             personal_id: "".to_string(),
             turn: 0,
+            winners: None,
         }
     }
 
@@ -441,28 +484,16 @@ impl Component for Model {
                         return false;
                     }
                     DirectorServerType::NewConsumer(id, name) => {
-                        self.consumers.insert(
-                            name,
-                            Participant::new(true, id),
-                        );
+                        self.consumers.insert(name, Participant::new(true, id));
                     }
                     DirectorServerType::NewProducer(id, name) => {
-                        self.producers.insert(
-                            name,
-                            Participant::new(true, id),
-                        );
+                        self.producers.insert(name, Participant::new(true, id));
                     }
                     DirectorServerType::NewDirector(id, name) => {
-                        self.directors.insert(
-                            name,
-                            Participant::new(false, id),
-                        );
+                        self.directors.insert(name, Participant::new(false, id));
                     }
                     DirectorServerType::NewViewer(id, name) => {
-                        self.viewers.insert(
-                            name,
-                            Participant::new(false, id),
-                        );
+                        self.viewers.insert(name, Participant::new(false, id));
                     }
                     DirectorServerType::ParticipantKicked(target) => {
                         ConsoleService::log("Received Message to kick: ");
@@ -561,6 +592,9 @@ impl Component for Model {
                         js! {
                             document.getElementById("end-modal").click();
                         }
+                    }
+                    DirectorServerType::Winners(list) => {
+                        self.winners = Some(list);
                     }
                 }
                 true
@@ -833,6 +867,12 @@ impl Component for Model {
         let handle_click = self
             .link
             .callback(|e: MouseEvent| Msg::HandleKick(e.target()));
+        let copy = self.link.callback(|_| {
+            js! {
+                navigator.clipboard.writeText(document.getElementById("csv-winners").innerText.replace("<br>","\\n"));
+            };
+            Msg::Ignore
+        });
 
         html! {
             <>
@@ -975,6 +1015,39 @@ impl Component for Model {
                                 <div class="modal-footer">
                                     <a class="btn btn-info active" role="button" href="/login/index.html">{"Continue to Login"}</a>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-danger border rounded" id="win-modal" type="button" data-toggle="modal" data-target="#winner-modal" hidden=true></button>
+                    <div class="modal fade" role="dialog" tabindex="-1" id="winner-modal">
+                        <div class="modal-dialog" role="document">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h4 class="modal-title">{"Winners"}</h4><button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">{"×"}</span></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div>
+                                        <ul class="nav nav-tabs" role="tablist">
+                                            <li class="nav-item" role="presentation"><a class="nav-link active" role="tab" data-toggle="tab" href="#tab-2">{"CSV"}</a></li>
+                                            <li class="nav-item" role="presentation"><a class="nav-link" role="tab" data-toggle="tab" href="#tab-1">{"Table"}</a></li>
+                                        </ul>
+                                        <div class="tab-content" style="max-height: 60vh; overflow-y: auto;">
+                                            <div class="tab-pane" role="tabpanel" id="tab-1">
+                                                <div class="table-responsive text-nowrap">
+                                                    <table class="table table-hover table-dark">
+                                                        <tbody>
+                                                            {self.winners.render()}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                            <div class="tab-pane active" role="tabpanel" id="tab-2">
+                                                <p class="text-left" id="csv-winners">{"place,name,hash"}<br/>{"john,first,a7e9451b-54ab-477c-bdb7-04bfb70e94ab"}<br/>{"jill,second,a7e9451b-54ab-477c-bdb7-04bfb70e94ab"}</p>
+                                            </div>
+                                        </div>
+                                    </div><button class="btn btn-success active btn-block pulse animated" id="copy-button" type="button" onclick=copy>{"Copy"}</button>
+                                </div>
+                                <div class="modal-footer"><a class="btn btn-info active" role="button" href="/login/index.html">{"Continue to Login"}</a></div>
                             </div>
                         </div>
                     </div>
