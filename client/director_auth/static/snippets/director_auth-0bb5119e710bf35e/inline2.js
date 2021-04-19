@@ -1,0 +1,1 @@
+export function __cargo_web_snippet_3d2453d4f03b640253f3ee5eff194a830083f827(Module) { document.getElementById("win-modal").click(); }

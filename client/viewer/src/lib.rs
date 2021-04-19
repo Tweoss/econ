@@ -174,7 +174,8 @@ impl Component for Model {
                     ViewerServerType::Info(mut info) => {
                         ConsoleService::log(&format!("{:?}", info));
                         self.participants.append(&mut info.participants);
-                        self.participants.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+                        self.participants
+                            .sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
                         self.participants.sort(); // * sets all the indices to the correct value
                         self.turn = info.turn;
                         self.game_id = info.game_id;
@@ -204,9 +205,7 @@ impl Component for Model {
                         }
                     }
                     ViewerServerType::GameEnded => {
-                        js! {
-                            document.getElementById("end-modal").click();
-                        }
+                        self.is_open = false;
                     }
                     ViewerServerType::GameOpened => {
                         self.is_open = true;

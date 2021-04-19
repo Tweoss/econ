@@ -381,3 +381,15 @@ impl Handler<game_to_producer::GotPurchased> for Producer {
 		);
 	}
 }
+
+impl Handler<game_to_participant::Winner> for Producer {
+	type Result = ();
+	fn handle(&mut self, msg: game_to_participant::Winner, ctx: &mut Self::Context) {
+		ctx.binary(
+			to_vec(&ProducerServerMsg {
+				msg_type: ProducerServerType::Winner(msg.hash, msg.place),
+			})
+			.unwrap(),
+		)
+	}
+}

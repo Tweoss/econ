@@ -1,1 +1,1 @@
-export function __cargo_web_snippet_d8cce1f4fc22b355d8c1f2030cf17f91b842171d(Module, $0, $1) { $1 = Module.STDWEB_PRIVATE.to_js($1);Module.STDWEB_PRIVATE.from_js($0, (function(){return($1).oldValue;})()); }
+export function __cargo_web_snippet_3f65121d75f9e7466cf2838a32c69a37e1a71096(Module, $0) { var o = Module.STDWEB_PRIVATE.acquire_js_reference( $0 );return (o instanceof HTMLSelectElement); }

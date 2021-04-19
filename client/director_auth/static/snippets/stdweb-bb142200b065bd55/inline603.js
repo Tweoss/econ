@@ -1,1 +1,1 @@
-export function __cargo_web_snippet_a70998b566cc938714a1a4667aa1547b75303618(Module, $0) { var o = Module.STDWEB_PRIVATE.acquire_js_reference( $0 );return (o instanceof UIEvent && o.type === "abort"); }
+export function __cargo_web_snippet_07317b06c5d7ee7f5476aa89d349313d9b950d90(Module, $0, $1) { $1 = Module.STDWEB_PRIVATE.to_js($1);Module.STDWEB_PRIVATE.from_js($0, (function(){return($1).pointerLockElement;})()); }
