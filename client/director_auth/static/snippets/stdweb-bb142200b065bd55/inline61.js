@@ -1,1 +1,1 @@
-export function __cargo_web_snippet_eda4a97f2e820b25d1671682ead326114db8524a(Module, $0) { var o = Module.STDWEB_PRIVATE.acquire_js_reference( $0 );return (o instanceof MouseEvent && o.type === "contextmenu"); }
+export function __cargo_web_snippet_b22f5ede33facf9aa5f4d327c7ea6738def771e7(Module, $0, $1, $2, $3) { $1 = Module.STDWEB_PRIVATE.to_js($1);$2 = Module.STDWEB_PRIVATE.to_js($2);$3 = Module.STDWEB_PRIVATE.to_js($3);Module.STDWEB_PRIVATE.from_js($0, (function(){try{($1).close(($2),($3));return{success:true};}catch(error){return{error:error,success:false};}})()); }

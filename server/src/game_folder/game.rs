@@ -73,8 +73,8 @@ impl Game {
 			name_main_director,
 			state_main_director: DirectorState::new(id_main_director),
 			is_open: false,
-			trending: 10,
-			supply_shock: 10,
+			trending: 0,
+			supply_shock: 0,
 			subsidies: 0,
 			turn: 1,
 			app_addr,
@@ -322,9 +322,12 @@ impl Game {
 		for p in reading.1.iter() {
 			name_score_consumer.push((p.0.clone(), p.1.score, false));
 		}
+		if name_score_consumer.is_empty() {
+			return [None, None, None];
+		}
 		name_score_consumer.sort_by(|(_, a, _), (_, b, _)| b.partial_cmp(a).unwrap());
 		let mut output: [Option<Vec<(String, f64, bool)>>; 3] = [None, None, None];
-		let current_index = 0;
+		let mut current_index = 0;
 		let current_max = name_score_consumer[0].1;
 		for p in name_score_consumer {
 			if (p.1 - current_max).abs() < f32::EPSILON.into() {
@@ -335,6 +338,7 @@ impl Game {
 				}
 			} else if p.1 - current_max < 0. {
 				if current_index < 2 {
+					current_index += 1;
 					output[current_index] = Some(vec![(p.0, p.1, p.2)]);
 				} else {
 					break;
@@ -345,29 +349,40 @@ impl Game {
 	}
 	fn generate_and_send_win(&self) {
 		let list = self.get_top_scores();
+		println!("{:?}", list);
 		let mut hash_list: [Option<Vec<(String, String)>>; 3] = Default::default();
 		for (index, array_element) in list.iter().enumerate() {
 			if let Some(vec) = &array_element {
 				for p in vec {
+					let hash = digest(format!("{} {} {} {}", random::<u8>(), p.0, p.1, p.2))
+						.split_at(10)
+						.0
+						.to_string();
+					if let Some(hash_vec) = &mut hash_list[index] {
+						hash_vec.push((p.0.clone(), hash.clone()));
+					} else {
+						hash_list[index] = Some(vec![(p.0.clone(), hash.clone())])
+					}
 					if p.2 {
 						if let Some(addr) = &self.consumers.read().unwrap().get(&p.0).unwrap().addr
 						{
-							let hash =
-								digest(format!("{} {} {} {}", random::<u8>(), p.0, p.1, p.2));
-							if let Some(hash_vec) = &mut hash_list[index] {
-								hash_vec.push((p.0.clone(), hash.clone()));
-							} else {
-								hash_list[index] = Some(vec![(p.0.clone(), hash.clone())])
-							}
 							addr.do_send(game_to_participant::Winner {
 								hash,
 								place: (index + 1).try_into().unwrap(),
 							});
 						}
+					} else if let Some(addr) =
+						&self.producers.read().unwrap().get(&p.0).unwrap().addr
+					{
+						addr.do_send(game_to_participant::Winner {
+							hash,
+							place: (index + 1).try_into().unwrap(),
+						});
 					}
 				}
 			}
 		}
+		println!("{:?}", hash_list);
 		let view_list = hash_list.iter().map(|el| {
 			if let Some(vec) = el {
 				Some(
@@ -648,6 +663,7 @@ impl Handler<IsMainDirector> for Game {
 impl Handler<director_to_game::EndGame> for Game {
 	type Result = ();
 	fn handle(&mut self, _msg: director_to_game::EndGame, ctx: &mut Context<Self>) -> Self::Result {
+		self.generate_and_send_win();
 		if let Some(addr) = &self.state_main_director.addr {
 			addr.do_send(game_to_participant::EndedGame {});
 		}
@@ -1118,7 +1134,12 @@ impl Handler<consumer_to_game::TryChoice> for Game {
 			if let Some(producer) = self.producers.write().unwrap().get_mut(&target.0) {
 				let addition =
 					target.1 * self.past_turn.read().unwrap().get(&target.0).unwrap().price;
-					println!("Target.1 = {}, price = {}, addition = {}", target.1, self.past_turn.read().unwrap().get(&target.0).unwrap().price, addition);
+				println!(
+					"Target.1 = {}, price = {}, addition = {}",
+					target.1,
+					self.past_turn.read().unwrap().get(&target.0).unwrap().price,
+					addition
+				);
 				producer.score += addition;
 				if let Some(addr) = &producer.addr {
 					addr.do_send(game_to_producer::GotPurchased {

@@ -1,0 +1,1 @@
+export function __cargo_web_snippet_69366714ebe03a501c72d3699f67f6fe0f2dda60(Module) { navigator.clipboard.writeText(document.getElementById("csv-winners").innerText.replace("<br>","\\n")); }

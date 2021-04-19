@@ -126,37 +126,54 @@ impl ParticipantCollection for HashMap<String, Participant> {
     }
 }
 
-trait ReturnsHtml {
-    fn render(&self) -> Html;
+trait WinningRenders {
+    fn render_table(&self) -> Html;
+    fn render_csv(&self) -> Html;
 }
 
-impl ReturnsHtml for Option<[Option<Vec<(String, String)>>; 3]> {
-    fn render(&self) -> Html {
-        if let Some(inner) = self {
+fn render_single(place: u8, name: &str, hash: &str) -> Html {
+    let string = match place {
+        0 => "first",
+        1 => "second",
+        2 => "third",
+        _ => ""
+    };
+    html! {
+        <>
+            <br/>
+            {format!("{},{},{}", name, string, hash)}
+        </>
+    }
+}
+
+impl WinningRenders for Option<[Option<Vec<(String, String)>>; 3]> {
+    fn render_table(&self) -> Html {
+        if let Some(array) = self {
             html! {
                 <>
                     {
-                        inner.iter().enumerate().map(|(i, x)| if let Some(vec) = x {
-                            html! {
-                                <tr>
-                                    <th> {&format!("Rank {}", i)} </th>
-                                    {vec.iter().map(|(n, h)| html! {
-                                        <>
-                                            <td>{&n} </td>
-                                            <td>{&h} </td>
-                                        </>
-                                    }).collect::<Html>()}
-                                </tr>
+                        array.iter().enumerate().map(|(i, x)| 
+                            if let Some(vec) = x {
+                                html! {
+                                    <tr>
+                                        <th> {&format!("Rank {}", i)} </th>
+                                        {vec.iter().map(|(n, h)| html! {
+                                            <>
+                                                <td>{&n} </td>
+                                                <td>{&h} </td>
+                                            </>
+                                        }).collect::<Html>()}
+                                    </tr>
+                                }
                             }
-                        }
-                        else {
-                            html! {
-                                <>
-                                </>
+                            else {
+                                html! {
+                                    <>
+                                    </>
+                                }
                             }
-                        }
-                    ).collect::<Html>()
-                }
+                        ).collect::<Html>()
+                    }
                 </>
             }
         } else {
@@ -166,7 +183,45 @@ impl ReturnsHtml for Option<[Option<Vec<(String, String)>>; 3]> {
             }
         }
     }
+    fn render_csv(&self) -> Html {
+        html! {
+            <p class="text-left" id="csv-winners">
+                {"place,name,hash"}
+                {
+                    if let Some(array) = self {
+                        html! {
+                            <>
+                                {if let Some(vec) = &array[0] {
+                                    vec.iter().map(|p| render_single(0, &p.0, &p.1)).collect::<Html>()
+                                }
+                                else {
+                                    html! {<></>}
+                                }}
+                                {if let Some(vec) = &array[1] {
+                                    vec.iter().map(|p| render_single(1, &p.0, &p.1)).collect::<Html>()
+                                }
+                                else {
+                                    html! {<></>}
+                                }}
+                                {if let Some(vec) = &array[2] {
+                                    vec.iter().map(|p| render_single(2, &p.0, &p.1)).collect::<Html>()
+                                }
+                                else {
+                                    html! {<></>}
+                                }}
+                            </>
+                        }
+                        
+                    }
+                    else {
+                        html! {<></>}
+                    }
+                }
+            </p>
+        }
+    }
 }
+
 
 // ! Make sure allowed graph values never goes below 0.
 struct Graphs {
@@ -595,6 +650,9 @@ impl Component for Model {
                     }
                     DirectorServerType::Winners(list) => {
                         self.winners = Some(list);
+                        js! {
+                            document.getElementById("win-modal").click();
+                        }
                     }
                 }
                 true
@@ -1036,16 +1094,17 @@ impl Component for Model {
                                                 <div class="table-responsive text-nowrap">
                                                     <table class="table table-hover table-dark">
                                                         <tbody>
-                                                            {self.winners.render()}
+                                                            {self.winners.render_table()}
                                                         </tbody>
                                                     </table>
                                                 </div>
                                             </div>
                                             <div class="tab-pane active" role="tabpanel" id="tab-2">
-                                                <p class="text-left" id="csv-winners">{"place,name,hash"}<br/>{"john,first,a7e9451b-54ab-477c-bdb7-04bfb70e94ab"}<br/>{"jill,second,a7e9451b-54ab-477c-bdb7-04bfb70e94ab"}</p>
+                                                {self.winners.render_csv()}
+                                                <button class="btn btn-success active btn-block pulse animated" id="copy-button" type="button" onclick=copy>{"Copy"}</button>
                                             </div>
                                         </div>
-                                    </div><button class="btn btn-success active btn-block pulse animated" id="copy-button" type="button" onclick=copy>{"Copy"}</button>
+                                    </div>
                                 </div>
                                 <div class="modal-footer"><a class="btn btn-info active" role="button" href="/login/index.html">{"Continue to Login"}</a></div>
                             </div>
