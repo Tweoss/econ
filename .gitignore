@@ -1,3 +1,4 @@
 **/target/**
 server/pswd.txt
 **/Cargo.lock
+.vscode/launch.json

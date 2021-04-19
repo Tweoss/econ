@@ -33,6 +33,7 @@ use structs::{Participant, PlayerState};
 // use serde_json::json;
 // use stdweb::js;
 
+#[allow(clippy::type_complexity)]
 struct Model {
     link: ComponentLink<Self>,
     ws: Option<WebSocketTask>,
