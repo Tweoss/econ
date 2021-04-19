@@ -1,7 +1,7 @@
 use actix::prelude::*;
-use std::collections::hash_map::DefaultHasher;
+// use std::collections::hash_map::DefaultHasher;
+use sha256::digest;
 use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
 use std::sync::RwLock;
 
 use crate::application::app_to_game;
@@ -22,16 +22,14 @@ use crate::handle_to_app::*;
 pub struct AppState {
     game_map: RwLock<HashMap<String, Addr<Game>>>,
     // game_ids: Mutex<Vec<String>>,
-    password_hash: u64,
+    password_hash: String,
 }
 
 impl AppState {
     pub fn new() -> AppState {
         AppState {
             game_map: RwLock::new(HashMap::new()),
-            // game_ids: Mutex::new(Vec::new()),
-            password_hash: 16528679900032520146,
-            // password_hash: 9612577385432581406,
+            password_hash: "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824".to_string(),
         }
     }
 }
@@ -59,10 +57,7 @@ impl Handler<DoesGameExist> for AppState {
 impl Handler<IsRightPswd> for AppState {
     type Result = bool;
     fn handle(&mut self, msg: IsRightPswd, _: &mut Context<Self>) -> Self::Result {
-        println!("msg: IsRightPswd");
-        let mut hasher = DefaultHasher::new();
-        msg.pswd.hash(&mut hasher);
-        hasher.finish() == self.password_hash
+        digest(msg.pswd) == self.password_hash
     }
 }
 

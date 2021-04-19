@@ -32,3 +32,9 @@ pub struct NewParticipant {
 pub struct KickedParticipant {
 	pub name: String,
 }
+
+#[derive(Message)]
+#[rtype(result = "()")]
+pub struct Winners {
+	array: [Option<Vec<String>>; 3],
+}

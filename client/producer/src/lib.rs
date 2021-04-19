@@ -398,8 +398,10 @@ impl Component for Model {
                         js! {
                             document.getElementById("end-modal").click();
                         }
+                    }  
+                    ProducerServerType::GotPurchased(additional_score) => {
+                        self.score += additional_score;
                     }
-                    _ => {}
                 }
                 true
             }

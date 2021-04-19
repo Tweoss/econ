@@ -14,7 +14,10 @@ use crate::game_folder::{
 };
 use crate::participants::participant_to_game;
 
+use rand::random;
+use sha256::digest;
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::sync::RwLock;
 
 const INITIAL_BALANCE: f64 = 4000.;
@@ -306,6 +309,96 @@ impl Game {
 			purchased, expense, consumer.balance
 		);
 		(purchased, expense, consumer.balance, return_targets)
+	}
+	fn get_top_scores(&self) -> [Option<Vec<(String, f64, bool)>>; 3] {
+		let reading = (
+			self.consumers.read().unwrap(),
+			self.producers.read().unwrap(),
+		);
+		let mut name_score_consumer: Vec<(String, f64, bool)> = Vec::new();
+		for p in reading.0.iter() {
+			name_score_consumer.push((p.0.clone(), p.1.score, true));
+		}
+		for p in reading.1.iter() {
+			name_score_consumer.push((p.0.clone(), p.1.score, false));
+		}
+		name_score_consumer.sort_by(|(_, a, _), (_, b, _)| b.partial_cmp(a).unwrap());
+		let mut output: [Option<Vec<(String, f64, bool)>>; 3] = [None, None, None];
+		let current_index = 0;
+		let current_max = name_score_consumer[0].1;
+		for p in name_score_consumer {
+			if (p.1 - current_max).abs() < f32::EPSILON.into() {
+				if let Some(vec) = &mut output[current_index] {
+					vec.push((p.0, p.1, p.2));
+				} else {
+					output[current_index] = Some(vec![(p.0, p.1, p.2)]);
+				}
+			} else if p.1 - current_max < 0. {
+				if current_index < 2 {
+					output[current_index] = Some(vec![(p.0, p.1, p.2)]);
+				} else {
+					break;
+				}
+			}
+		}
+		output
+	}
+	fn generate_and_send_win(&self) {
+		let list = self.get_top_scores();
+		let mut hash_list: [Option<Vec<(String, String)>>; 3] = Default::default();
+		for (index, array_element) in list.iter().enumerate() {
+			if let Some(vec) = &array_element {
+				for p in vec {
+					if p.2 {
+						if let Some(addr) = &self.consumers.read().unwrap().get(&p.0).unwrap().addr
+						{
+							let hash =
+								digest(format!("{} {} {} {}", random::<u8>(), p.0, p.1, p.2));
+							if let Some(hash_vec) = &mut hash_list[index] {
+								hash_vec.push((p.0.clone(), hash.clone()));
+							} else {
+								hash_list[index] = Some(vec![(p.0.clone(), hash.clone())])
+							}
+							addr.do_send(game_to_participant::Winner {
+								hash,
+								place: (index + 1).try_into().unwrap(),
+							});
+						}
+					}
+				}
+			}
+		}
+		let view_list = hash_list.iter().map(|el| {
+			if let Some(vec) = el {
+				Some(
+					vec.iter()
+						.map(|(name, _)| name.clone())
+						.collect::<Vec<String>>(),
+				)
+			} else {
+				None
+			}
+		});
+		if let Some(addr) = &self.state_main_director.addr {
+			addr.do_send(game_to_director::Winners {
+				array: hash_list.clone(),
+			})
+		}
+		for elem in self.directors.read().unwrap().values() {
+			if let Some(addr) = &elem.addr {
+				addr.do_send(game_to_director::Winners {
+					array: hash_list.clone(),
+				})
+			}
+		}
+		// for elem in self.viewers.read().unwrap().values() {
+		// 	if let Some(addr) = &elem.addr {
+		// 		addr.do_send(game_to_viewer::NewParticipant {
+		// 			name: msg.username.clone(),
+		// 			is_consumer: true,
+		// 		});
+		// 	}
+		// }
 	}
 }
 
@@ -1020,6 +1113,25 @@ impl Handler<consumer_to_game::TryChoice> for Game {
 				balance,
 				purchased,
 			});
+		for target in targets.iter() {
+			if let Some(producer) = self.producers.write().unwrap().get_mut(&target.0) {
+				let addition = target.1 * self.past_turn.read().unwrap().get(&target.0).unwrap().price;
+				producer.score += addition;
+				if let Some(addr) = &producer.addr {
+					addr.do_send(game_to_producer::GotPurchased {
+						additional_score: target.1 * addition,
+					});
+					println!("SENDING A GOTPURCHASED TO PRODUCER: {}", addition);
+				}
+				for elem in self.viewers.read().unwrap().values() {
+					if let Some(addr) = &elem.addr {
+						addr.do_send(game_to_viewer::NewScores {
+							list: vec![(target.0.clone(), producer.score)],
+						});
+					}
+				}
+			}
+		}
 		for elem in self.producers.read().unwrap().values() {
 			if let Some(addr) = &elem.addr {
 				addr.do_send(game_to_participant::StockReduced {

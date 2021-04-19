@@ -32,6 +32,7 @@ pub enum DirectorServerType {
 	NewProducer(String, String),
 	NewViewer(String, String),
 	NewOffsets(Offsets),
+	Winners([Option<Vec<(String, String)>>; 3]),
 }
 
 #[derive(Debug, Deserialize)]

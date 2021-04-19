@@ -25,7 +25,7 @@ pub enum ProducerServerType {
 	Ping,
 	ServerKicked,
 	StockReduced(Vec<(String, f64)>),
-	Ignore,
+	GotPurchased(f64),
 }
 
 #[derive(Debug, Serialize, PartialEq)]

@@ -17,6 +17,7 @@ pub enum ConsumerServerType {
 	Ping,
 	ServerKicked,
 	StockReduced(Vec<(String, f64)>),
+	Winner(String, u8),
 }
 
 #[derive(Debug, Deserialize)]

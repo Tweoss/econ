@@ -390,3 +390,15 @@ impl Handler<game_to_participant::Kicked> for Consumer {
 		);
 	}
 }
+
+impl Handler<game_to_participant::Winner> for Consumer {
+	type Result = ();
+	fn handle(&mut self, msg: game_to_participant::Winner, ctx: &mut Self::Context) {
+		ctx.binary(
+			to_vec(&ConsumerServerMsg {
+				msg_type: ConsumerServerType::Winner(msg.hash, msg.place),
+			})
+			.unwrap(),
+		)
+	}
+}

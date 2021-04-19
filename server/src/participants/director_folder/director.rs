@@ -328,6 +328,18 @@ impl Handler<game_to_director::GameClosed> for Director {
 	}
 }
 
+impl Handler<game_to_director::Winners> for Director {
+	type Result = ();
+	fn handle(&mut self, msg: game_to_director::Winners, ctx: &mut Self::Context) -> Self::Result {
+		ctx.binary(
+			to_vec(&DirectorServerMsg {
+				msg_type: DirectorServerType::Winners(msg.array),
+			})
+			.unwrap(),
+		);
+	}
+}
+
 impl Handler<game_to_participant::EndedGame> for Director {
 	type Result = ();
 	fn handle(

@@ -12,3 +12,9 @@ pub struct Info {
 pub struct TurnList {
 	pub list: Vec<(String, crate::participants::producer_folder::producer_structs::Participant)>,
 }
+
+#[derive(Message)]
+#[rtype(result = "()")]
+pub struct GotPurchased {
+	pub additional_score: f64,
+}

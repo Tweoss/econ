@@ -26,7 +26,6 @@ pub struct ProducerState {
 	pub score: f64,
 	pub balance: f64,
 	pub quantity_produced: f64,
-	pub price: f64,
 	pub addr: Option<Addr<Producer>>,
 	pub id: String,
 }
@@ -39,7 +38,6 @@ impl ProducerState {
 			score: 0.,
 			balance: INITIAL_BALANCE,
 			quantity_produced: 0.,
-			price: 0.,
 			addr: None,
 			id,
 		}
@@ -332,6 +330,10 @@ impl Handler<game_to_participant::StockReduced> for Producer {
 	}
 }
 
+// impl Handler<game_to_participant::Winner> for Producer {
+
+// }
+
 impl Handler<game_to_producer::Info> for Producer {
 	type Result = ();
 	fn handle(&mut self, msg: game_to_producer::Info, ctx: &mut Self::Context) -> Self::Result {
@@ -358,6 +360,22 @@ impl Handler<game_to_producer::TurnList> for Producer {
 				msg_type: ProducerServerType::TurnInfo(producer_structs::TurnInfo {
 					producers: msg.list,
 				}),
+			})
+			.unwrap(),
+		);
+	}
+}
+
+impl Handler<game_to_producer::GotPurchased> for Producer {
+	type Result = ();
+	fn handle(
+		&mut self,
+		msg: game_to_producer::GotPurchased,
+		ctx: &mut Self::Context,
+	) -> Self::Result {
+		ctx.binary(
+			to_vec(&ProducerServerMsg {
+				msg_type: ProducerServerType::GotPurchased(msg.additional_score),
 			})
 			.unwrap(),
 		);

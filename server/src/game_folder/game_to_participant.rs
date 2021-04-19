@@ -25,3 +25,9 @@ pub struct NewOffsets {
 pub struct StockReduced {
 	pub targets: Vec<(String, f64)>,
 }
+#[derive(Message)]
+#[rtype(result = "()")]
+pub struct Winner {
+	pub hash: String,
+	pub place: u8,
+}
