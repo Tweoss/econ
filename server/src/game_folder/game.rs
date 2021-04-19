@@ -901,6 +901,7 @@ impl Handler<director_to_game::ForceTurn> for Game {
 			}
 		// self.producers.write().unwrap().values_mut().map(|elem| elem.took_turn = false);
 		} else {
+			self.past_turn.write().unwrap().clear();
 			for consumer in self.consumers.write().unwrap().iter_mut() {
 				consumer.1.score += consumer.1.balance;
 				if consumer.1.balance != 0. {
@@ -939,7 +940,6 @@ impl Handler<director_to_game::ForceTurn> for Game {
 				});
 			}
 		}
-		self.past_turn.write().unwrap().clear();
 	}
 }
 
@@ -1116,13 +1116,14 @@ impl Handler<consumer_to_game::TryChoice> for Game {
 			});
 		for target in targets.iter() {
 			if let Some(producer) = self.producers.write().unwrap().get_mut(&target.0) {
-				let addition = target.1 * self.past_turn.read().unwrap().get(&target.0).unwrap().price;
+				let addition =
+					target.1 * self.past_turn.read().unwrap().get(&target.0).unwrap().price;
+					println!("Target.1 = {}, price = {}, addition = {}", target.1, self.past_turn.read().unwrap().get(&target.0).unwrap().price, addition);
 				producer.score += addition;
 				if let Some(addr) = &producer.addr {
 					addr.do_send(game_to_producer::GotPurchased {
 						additional_score: target.1 * addition,
 					});
-					println!("SENDING A GOTPURCHASED TO PRODUCER: {}", addition);
 				}
 				for elem in self.viewers.read().unwrap().values() {
 					if let Some(addr) = &elem.addr {
