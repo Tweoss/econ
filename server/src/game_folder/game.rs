@@ -939,6 +939,7 @@ impl Handler<director_to_game::ForceTurn> for Game {
 				});
 			}
 		}
+		self.past_turn.write().unwrap().clear();
 	}
 }
 
