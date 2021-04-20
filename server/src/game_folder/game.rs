@@ -915,7 +915,6 @@ impl Handler<director_to_game::ForceTurn> for Game {
 					});
 				}
 			}
-		// self.producers.write().unwrap().values_mut().map(|elem| elem.took_turn = false);
 		} else {
 			self.past_turn.write().unwrap().clear();
 			for consumer in self.consumers.write().unwrap().iter_mut() {
