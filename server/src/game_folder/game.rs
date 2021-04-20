@@ -695,7 +695,6 @@ impl Handler<director_to_game::EndGame> for Game {
 }
 
 impl Handler<director_to_game::RegisterAddressGetInfo> for Game {
-	// type Result = MessageResult<director_structs::Info>;
 	type Result = ();
 	fn handle(
 		&mut self,
