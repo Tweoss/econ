@@ -157,7 +157,7 @@ impl WinningRenders for Option<[Option<Vec<(String, String)>>; 3]> {
                             if let Some(vec) = x {
                                 html! {
                                     <tr>
-                                        <th> {&format!("Rank {}", i)} </th>
+                                        <th> {&format!("Rank {}", i + 1)} </th>
                                         {vec.iter().map(|(n, h)| html! {
                                             <>
                                                 <td>{&n} </td>

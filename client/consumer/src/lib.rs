@@ -15,6 +15,8 @@ use yew::services::fetch;
 use yew::services::websocket::{WebSocketService, WebSocketStatus, WebSocketTask};
 use yew::services::ConsoleService;
 
+use ordinal::Ordinal;
+
 use serde_cbor::{from_slice, to_vec};
 
 use stdweb::js;
@@ -37,7 +39,7 @@ struct Model {
     score: f64,
     balance: f64,
     took_turn: bool,
-    // personal_id: String,
+    winner: Option<(String, u8)>,
 }
 
 impl Participant {
@@ -260,6 +262,7 @@ impl Component for Model {
             score: 0.,
             quantity_purchased: 0.,
             took_turn: false,
+            winner: None,
         }
     }
 
@@ -375,11 +378,18 @@ impl Component for Model {
                         }
                     }
                     ConsumerServerType::GameEnded => {
-                        js! {
-                            document.getElementById("end-modal").click();
+                        if self.winner.is_none() {
+                            js! {
+                                document.getElementById("end-modal").click();
+                            }
                         }
                     }
-                    _ => {}
+                    ConsumerServerType::Winner(hash, place) => {
+                        self.winner = Some((hash, place));
+                        js! {
+                            document.getElementById("win-modal").click();
+                        }
+                    }
                 }
                 true
             }
@@ -647,6 +657,20 @@ impl Component for Model {
                                 <div class="modal-footer">
                                     <a class="btn btn-info active" role="button" href="/login/index.html">{"Continue to Login"}</a>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-danger border rounded" id="win-modal" type="button" data-toggle="modal" data-target="#winner-modal" hidden=true></button>
+                    <div role="dialog" tabindex="-1" class="modal fade" id="winner-modal">
+                        <div class="modal-dialog" role="document">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h4 class="modal-title">{"You Won!"}</h4><button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">{"×"}</span></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p data-bss-hover-animate="swing">{&format!("You were in {} place. Your verification hash is: {}.", Ordinal(self.winner.as_ref().unwrap_or(&("".to_string(), 0)).1).to_string(), self.winner.as_ref().unwrap_or(&("".to_string(), 0)).0)}</p>
+                                </div>
+                                <div class="modal-footer"><a class="btn btn-info active" role="button" data-dismiss="modal" href="/login/index.html">{"Continue to Login"}</a></div>
                             </div>
                         </div>
                     </div>
