@@ -328,7 +328,7 @@ impl Game {
 		name_score_consumer.sort_by(|(_, a, _), (_, b, _)| b.partial_cmp(a).unwrap());
 		let mut output: [Option<Vec<(String, f64, bool)>>; 3] = [None, None, None];
 		let mut current_index = 0;
-		let current_max = name_score_consumer[0].1;
+		let mut current_max = name_score_consumer[0].1;
 		for p in name_score_consumer {
 			if (p.1 - current_max).abs() < f32::EPSILON.into() {
 				if let Some(vec) = &mut output[current_index] {
@@ -338,6 +338,7 @@ impl Game {
 				}
 			} else if p.1 - current_max < 0. {
 				if current_index < 2 {
+					current_max = p.1;
 					current_index += 1;
 					output[current_index] = Some(vec![(p.0, p.1, p.2)]);
 				} else {
