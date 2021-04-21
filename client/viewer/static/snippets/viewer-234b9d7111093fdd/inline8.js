@@ -1,0 +1,1 @@
+export function __cargo_web_snippet_8ef224d66b698230edc4b36484cd9bcb2241e6e1(Module) { console.log(document.graph_config);var myChart=new Chart(document.getElementById("win-graph"),document.graph_config); }

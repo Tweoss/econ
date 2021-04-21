@@ -36,5 +36,5 @@ pub struct KickedParticipant {
 #[derive(Message)]
 #[rtype(result = "()")]
 pub struct Winners {
-	array: [Option<Vec<String>>; 3],
+	pub vector: Vec<Option<(Vec<String>, f64)>>,
 }

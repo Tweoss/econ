@@ -18,6 +18,7 @@ pub enum ViewerServerType {
 	KickedParticipant(String),
 	Ping,
 	ServerKicked,
+	Winners(Vec<Option<(Vec<String>, f64)>>)
 }
 
 #[derive(Debug, Deserialize)]

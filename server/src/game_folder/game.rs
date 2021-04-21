@@ -383,18 +383,19 @@ impl Game {
 				}
 			}
 		}
-		println!("{:?}", hash_list);
-		let view_list = hash_list.iter().map(|el| {
-			if let Some(vec) = el {
-				Some(
+		let view_list = list.iter().map(|each| {
+			if let Some(vec) = each {
+				let score = vec[0].1;
+				Some((
 					vec.iter()
-						.map(|(name, _)| name.clone())
+						.map(|(name, _, _)| (name.clone()))
 						.collect::<Vec<String>>(),
-				)
+						score
+				))
 			} else {
 				None
 			}
-		});
+		}).collect::<Vec<Option<(Vec<String>, f64)>>>();
 		if let Some(addr) = &self.state_main_director.addr {
 			addr.do_send(game_to_director::Winners {
 				array: hash_list.clone(),
@@ -404,6 +405,13 @@ impl Game {
 			if let Some(addr) = &elem.addr {
 				addr.do_send(game_to_director::Winners {
 					array: hash_list.clone(),
+				})
+			}
+		}
+		for elem in self.viewers.read().unwrap().values() {
+			if let Some(addr) = &elem.addr {
+				addr.do_send(game_to_viewer::Winners {
+					vector: view_list.clone(),
 				})
 			}
 		}

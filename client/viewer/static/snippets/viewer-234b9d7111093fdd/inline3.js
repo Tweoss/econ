@@ -1,0 +1,1 @@
+export function start_graph() { var myChart = new Chart(document.getElementById("win-graph"), document.graph_config); }

@@ -1,0 +1,1 @@
+export function push_config(names, data) {document.graph_config.data.labels.push(names); document.graph_config.data.datasets[0].data.push(data);}

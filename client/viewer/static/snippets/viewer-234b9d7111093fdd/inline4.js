@@ -1,0 +1,1 @@
+export function __cargo_web_snippet_758a2ab26e06c2b0e73d52fa64fa1492a960a49c(Module) { console.log("Test2"); }

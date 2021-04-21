@@ -294,3 +294,15 @@ impl Handler<game_to_viewer::KickedParticipant> for Viewer {
 		);
 	}
 }
+
+impl Handler<game_to_viewer::Winners> for Viewer {
+	type Result = ();
+	fn handle(&mut self, msg: game_to_viewer::Winners, ctx: &mut Self::Context) -> Self::Result {
+		ctx.binary(
+			to_vec(&ViewerServerMsg {
+				msg_type: ViewerServerType::Winners(msg.vector),
+			})
+			.unwrap(),
+		);
+	}
+}

@@ -37,6 +37,7 @@ struct Model {
     subsidies: u8,
     supply_shock: u8,
     interval_task: Option<IntervalTask>,
+    got_winners: bool,
 }
 
 impl Participant {
@@ -120,6 +121,7 @@ impl Component for Model {
             subsidies: 0,
             supply_shock: 0,
             interval_task: None,
+            got_winners: false,
         }
     }
 
@@ -241,6 +243,37 @@ impl Component for Model {
                         self.participants.retain(|x| x.name != participant);
                         self.is_unsorted = true;
                     }
+                    ViewerServerType::Winners(array) => {
+                        #[wasm_bindgen(inline_js = "export function init_config() { document.graph_config = {\"type\":\"bar\",\"data\":{\"labels\":[],\"datasets\":[{\"label\":\"Score\",\"backgroundColor\":\"#4e73df\",\"borderColor\":\"#4e70df\",\"borderWidth\":\"90\",\"data\":[]}]},\"options\":{\"maintainAspectRatio\":true,\"legend\":{\"display\":false},\"title\":{\"display\":true,\"text\":\"Winners\",\"fontColor\":\"#dadada\",\"fontSize\":\"24\",\"fontFamily\":\"Lato, sans-serif\"},\"scales\":{\"xAxes\":[{\"gridLines\":{\"color\":\"rgba(176,176,176,0.24)\",\"zeroLineColor\":\"rgba(176,176,176,0.24)\",\"drawBorder\":true,\"drawTicks\":true,\"drawOnChartArea\":true},\"ticks\":{\"fontColor\":\"rgba(218,218,218,0.43)\",\"beginAtZero\":true}}],\"yAxes\":[{\"gridLines\":{\"color\":\"rgba(176,176,176,0.24)\",\"zeroLineColor\":\"rgba(176,176,176,0.24)\",\"drawBorder\":true,\"drawTicks\":true,\"drawOnChartArea\":true},\"ticks\":{\"fontColor\":\"rgba(218,218,218,0.43)\",\"beginAtZero\":true}}]}}};
+                        console.log(document.graph_config); }")]
+                        extern "C" {
+                            fn init_config();
+                        }
+                        #[wasm_bindgen(inline_js = "export function push_config(names, data) {document.graph_config.data.labels.push(names); document.graph_config.data.datasets[0].data.push(data);}")]
+                        extern "C" {
+                            fn push_config(names: String, data: f64);
+                        }
+                        #[wasm_bindgen(inline_js = "export function start_graph() { var myChart = new Chart(document.getElementById(\"win-graph\"), document.graph_config); }")]
+                        extern "C" {
+                            fn start_graph();
+                        }
+                        // * using 2nd, 1st, then 3rd place ordering
+                        init_config();
+                        if let Some((vec, score)) = &array[1] {
+                            let players = &format!("{} place: {}", "Second", vec.join(","));
+                            push_config(players.to_string(), *score);
+                        }
+                        if let Some((vec, score)) = &array[0] {
+                            let players = &format!("{} place: {}", "First", vec.join(","));
+                            push_config(players.to_string(), *score);
+                        }
+                        if let Some((vec, score)) = &array[2] {
+                            let players = &format!("{} place: {}", "Third", vec.join(","));
+                            push_config(players.to_string(), *score);
+                        }
+                        self.got_winners = true;
+                        start_graph();
+                    }
                 }
                 true
             }
@@ -296,7 +329,7 @@ impl Component for Model {
             <>
                 <div class="container text-center flex-column" style="min-height: 100vh;width: 100vw;">
                     <h1>{"Viewer"}</h1>
-                    <div class="row">
+                    <div class="row" hidden=self.got_winners>
                         <div class="col-md-2">
                             <h2>{"Info"}</h2>
                             <p>{"Game ID: "}<strong>{&self.game_id}</strong></p>
@@ -328,6 +361,11 @@ impl Component for Model {
                             <p>{"Trending: "}<strong>{&format!("{}", self.trending)}</strong></p>
                             <p>{"Subsidies: "}<strong>{&format!("{}", self.subsidies)}</strong></p>
                             <p>{"Supply Shock: "}<strong>{&format!("{}", self.supply_shock)}</strong></p>
+                        </div>
+                    </div>
+                    <div class="container" hidden=!self.got_winners>
+                        <div>
+                            <canvas id="win-graph"></canvas>
                         </div>
                     </div>
                     <footer>
