@@ -330,10 +330,6 @@ impl Handler<game_to_participant::StockReduced> for Producer {
 	}
 }
 
-// impl Handler<game_to_participant::Winner> for Producer {
-
-// }
-
 impl Handler<game_to_producer::Info> for Producer {
 	type Result = ();
 	fn handle(&mut self, msg: game_to_producer::Info, ctx: &mut Self::Context) -> Self::Result {
