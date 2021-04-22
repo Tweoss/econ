@@ -24,3 +24,5 @@ format_expr.sh formats a math expression contained in regex.txt so it can be eva
 ## Server Logic
 
 The **server** takes post requests (check the [lib.rs](./**client**/login/src/lib.rs) files under the **client** directory) and returns cookies in valid cases. When a **client** attempts to connect to the **server**, these cookies will be checked, allowing players to refresh or navigate away without losing progress. If the cookies are valid, a *WebSocket* connection is established, starting an *Actix* Actor on the server side. This Participant Actor communicates player actions to the Game Actor, which in turn performs calculations and sends messages to Participant Actors. 
+
+If you find any typos or logical errors or if you would like to contribute, please create an issue or a pull request on GitHub. 
