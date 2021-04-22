@@ -1,1 +1,1 @@
-export function __cargo_web_snippet_ea1008eea53bd6559ffe33b41bbbc917d0c31151(Module, $0, $1) { $1 = Module.STDWEB_PRIVATE.to_js($1);Module.STDWEB_PRIVATE.from_js($0, (function(){return($1).devicePixelRatio;})()); }
+export function __cargo_web_snippet_7acc5a611b1dfdb40f09c005d173515f6f286581(Module, $0) { var r = Module.STDWEB_PRIVATE.acquire_js_reference( $0 );return (r instanceof DOMException) && (r.name === "NotSupportedError"); }

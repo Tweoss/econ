@@ -1,0 +1,2 @@
+[workspace]
+members = ["consumer", "producer", "director_auth", "director_login", "login", "viewer", "viewer_login"]

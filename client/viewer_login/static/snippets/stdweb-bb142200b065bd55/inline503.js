@@ -1,1 +1,1 @@
-export function __cargo_web_snippet_0ccca4bbb82101e0bf528c1c6ae321016692d573(Module, $0) { var o = Module.STDWEB_PRIVATE.acquire_js_reference( $0 );return (o instanceof ShadowRoot); }
+export function __cargo_web_snippet_270dfc3598e424396da1dab31faa8c811a7a83fd(Module, $0) { var o = Module.STDWEB_PRIVATE.acquire_js_reference( $0 );return (o instanceof TouchEvent); }
