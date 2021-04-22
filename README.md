@@ -25,4 +25,8 @@ format_expr.sh formats a math expression contained in regex.txt so it can be eva
 
 The **server** takes post requests (check the [lib.rs](./**client**/login/src/lib.rs) files under the **client** directory) and returns cookies in valid cases. When a **client** attempts to connect to the **server**, these cookies will be checked, allowing players to refresh or navigate away without losing progress. If the cookies are valid, a *WebSocket* connection is established, starting an *Actix* Actor on the server side. This Participant Actor communicates player actions to the Game Actor, which in turn performs calculations and sends messages to Participant Actors. 
 
+## Building after modification
+
+To run or build the server files, run `cargo run` or `cargo build`, respectively. To build the client files, make sure that you are in the corresponding directory and run `cargo install wasm-pack` and then `wasm-pack build --target web --out-name wasm --out-dir ./static` as suggested by [Yew](https://yew.rs/docs/en/getting-started/build-a-sample-app). 
+
 If you find any typos or logical errors or if you would like to contribute, please create an issue or a pull request on GitHub. 
