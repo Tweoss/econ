@@ -27,7 +27,7 @@ impl AppState {
     pub fn new() -> AppState {
         AppState {
             game_map: RwLock::new(HashMap::new()),
-            password_hash: "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824".to_string(),
+            password_hash: "758f2150b576d05450a0517d125e3d487886b95a60603c7aebee81991d22db5b".to_string(),
         }
     }
 }
@@ -54,7 +54,8 @@ impl Handler<DoesGameExist> for AppState {
 impl Handler<IsRightPswd> for AppState {
     type Result = bool;
     fn handle(&mut self, msg: IsRightPswd, _: &mut Context<Self>) -> Self::Result {
-        digest(msg.pswd) == self.password_hash
+        let smth = digest(msg.pswd);
+        smth == self.password_hash
     }
 }
 

@@ -116,7 +116,9 @@ impl Component for Model {
 				<br/>
 				<input id="name" oninput=input_name placeholder="Username" class="input" maxlength="20" autocomplete="off"/>
 				<br/>
-				<input id="password" oninput=input_password placeholder="Password" class="input" maxlength="12" autocomplete="off"/>
+				<form>
+				<input id="password" oninput=input_password placeholder="Password" class="input" type="password" maxlength="12" autocomplete="off"/>
+				</form>
 				<br/>
 				<button id="enter" class="enter" onclick=sendreq>{"Enter"}</button>
 				<p class="message">{self.server_data.clone()}</p>
