@@ -1,4 +1,4 @@
-import { __cargo_web_snippet_c5070fcfbec7abedced111cd68abb2390f2f5b19 } from './snippets/main_login-e78d88dbba54e38c/inline0.js';
+import { __cargo_web_snippet_3655e248d09b61ffdb7123133716b409f91338ef } from './snippets/main_login-e78d88dbba54e38c/inline0.js';
 import { __cargo_web_snippet_b00e5ac1d386ce49a5a15c1cd5bc22793eef2c8a } from './snippets/main_login-e78d88dbba54e38c/inline1.js';
 import { __cargo_web_snippet_80d6d56760c65e49b7be8b6b01c1ea861b046bf0 } from './snippets/stdweb-bb142200b065bd55/inline101.js';
 import { wasm_bindgen_initialize } from './snippets/stdweb-bb142200b065bd55/inline104.js';
@@ -329,8 +329,8 @@ async function init(input) {
     imports.wbg.__wbg_cargowebsnippetb00e5ac1d386ce49a5a15c1cd5bc22793eef2c8a_d655ce14cbb04141 = function(arg0) {
         __cargo_web_snippet_b00e5ac1d386ce49a5a15c1cd5bc22793eef2c8a(takeObject(arg0));
     };
-    imports.wbg.__wbg_cargowebsnippetc5070fcfbec7abedced111cd68abb2390f2f5b19_bdb150cfd7f3a3f3 = function(arg0) {
-        __cargo_web_snippet_c5070fcfbec7abedced111cd68abb2390f2f5b19(takeObject(arg0));
+    imports.wbg.__wbg_cargowebsnippet3655e248d09b61ffdb7123133716b409f91338ef_78c5c3121dd8a43c = function(arg0) {
+        __cargo_web_snippet_3655e248d09b61ffdb7123133716b409f91338ef(takeObject(arg0));
     };
     imports.wbg.__wbindgen_object_clone_ref = function(arg0) {
         var ret = getObject(arg0);

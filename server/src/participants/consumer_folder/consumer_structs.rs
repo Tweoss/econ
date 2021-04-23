@@ -54,5 +54,5 @@ pub struct Offsets {
 	pub trending: u8,
 }
 
-// for compatibility with the past_turn game vector
+// * for compatibility with the past_turn game vector
 pub use crate::participants::producer_folder::producer_structs::Participant;

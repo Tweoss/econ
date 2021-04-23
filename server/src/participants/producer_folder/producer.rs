@@ -100,10 +100,10 @@ impl Producer {
 	}
 	fn hb(&self, ctx: &mut ws::WebsocketContext<Self>) {
 		ctx.run_interval(HEARTBEAT_INTERVAL, |act, ctx| {
-			// check client heartbeats
+			// * check client heartbeats
 			if Instant::now().duration_since(act.hb) > CLIENT_TIMEOUT {
-				// heartbeat timed out
-				// notify game
+				// * heartbeat timed out
+				// * notify game
 				act.game_addr.do_send(participant_to_game::Unresponsive {
 					name: act.name.clone(),
 					participant_type: "producer".to_owned(),

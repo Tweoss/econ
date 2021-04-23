@@ -1,13 +1,9 @@
 #![recursion_limit = "1024"]
 use wasm_bindgen::prelude::*;
 
-// #[macro_use]
-
-// #[macro_use]
 extern crate failure;
 extern crate yew;
 
-// use failure::Error;
 use anyhow::Error;
 extern crate console_error_panic_hook;
 use std::panic;
@@ -23,8 +19,6 @@ use yew::services::ConsoleService;
 use serde_json::json;
 
 struct Model {
-	// console: ConsoleService,
-	// ws: Option<WebSocketTask>,
 	link: ComponentLink<Model>,
 	game_id: String, // text in our input box
 	name: String,
@@ -73,7 +67,6 @@ impl Component for Model {
 					.link
 					.callback(|response: Response<Result<String, Error>>| {
 						if response.status().is_success() {
-							// response.
 							ConsoleService::log("Sent Request and Received Response with code: ");
 							ConsoleService::log(response.status().as_str());
 							if response.body().as_ref().unwrap() == "Success" {
@@ -89,7 +82,6 @@ impl Component for Model {
 					});
 				let task = fetch::FetchService::fetch(
 					post_request,
-					// options,
 					callback,
 				)
 				.unwrap();

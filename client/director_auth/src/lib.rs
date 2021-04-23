@@ -4,17 +4,14 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::EventTarget;
 use web_sys::{HtmlParagraphElement, SvggElement};
-// use wasm_bindgen::{JsCast};
 use yew::prelude::*;
 
-// use failure::Error;
 use anyhow::Error;
 extern crate console_error_panic_hook;
 use std::panic;
 
 use http::{Request, Response};
 use yew::html::ComponentLink;
-// use yew::prelude::*;
 use yew::services::fetch;
 use yew::services::websocket::{WebSocketService, WebSocketStatus, WebSocketTask};
 use yew::services::ConsoleService;
@@ -30,17 +27,12 @@ use structs::{
 
 use structs::{Participant, PlayerState};
 
-// use serde_json::json;
-// use stdweb::js;
 
 #[allow(clippy::type_complexity)]
 struct Model {
     link: ComponentLink<Self>,
     ws: Option<WebSocketTask>,
-    // server_data: String, // data received from the server
-    text: String, // text in our input box
     task: Option<fetch::FetchTask>,
-    // client_data: DirectorClientMsg,
     consumers: HashMap<String, Participant>,
     producers: HashMap<String, Participant>,
     directors: HashMap<String, Participant>,
@@ -265,7 +257,6 @@ impl Graphs {
     }
     fn consumer_move(&mut self, mouse_x: f64, mouse_y: f64) {
         let extra_y = self.trending;
-        // ConsoleService::log(&format!("Mouse_x: {}, mouse_y: {}", mouse_x, mouse_y));
         let t = Graphs::get_closest_point_to_cubic_bezier(
             10,
             mouse_x,
@@ -294,8 +285,6 @@ impl Graphs {
     fn producer_move(&mut self, mouse_x: f64, mouse_y: f64) {
         // * extra cost
         let extra_y: i16 = i16::from(self.supply_shock) - i16::from(self.subsidies);
-        // let extra_y: i16 = -(i16::from(self.supply_shock) - i16::from(self.subsidies));
-        // ConsoleService::log(&format!("Mouse_x: {}, mouse_y: {}", mouse_x, mouse_y));
         let t = Graphs::get_closest_point_to_cubic_bezier(
             10,
             mouse_x,
@@ -320,10 +309,6 @@ impl Graphs {
             + 3. * (1. - t) * f64::powi(t, 2) * -10.
             + f64::powi(t, 3) * 100.
             + f64::from(extra_y)
-        // self.producer_y = f64::powi(1. - t, 3) * f64::from(extra_y + 80)
-        //     + 3. * f64::powi(1. - t, 2) * t * f64::from(extra_y - 10)
-        //     + 3. * (1. - t) * f64::powi(t, 2) * f64::from(extra_y - 10)
-        //     + f64::powi(t, 3) * f64::from(extra_y + 100);
     }
     // * Takes in number of iterations, the point to be projected, the start and end bounds on the guess, the resolution (slices), and the control points
     // * Returns the t value of the minimum
@@ -348,7 +333,6 @@ impl Graphs {
             return (start + end) / 2.;
         };
         let tick: f64 = (end - start) / f64::from(slices);
-        // let (mut x, mut y);
         let (mut x, mut y);
         let (mut dx, mut dy);
         let mut best: f64 = 0.;
@@ -376,10 +360,6 @@ impl Graphs {
             }
             t += tick;
         }
-        // ConsoleService::log(&format!(
-        //     "Best t: {}, best distance: {}, x: {}, y: {}",
-        //     best, best_distance, x, y
-        // ));
         Graphs::get_closest_point_to_cubic_bezier(
             iterations - 1,
             fx,
@@ -405,7 +385,6 @@ enum Msg {
     Ignore,                                     // ignore this message
     Received(Result<DirectorServerMsg, Error>), // data received from server
     PrepWsConnect,
-    FailedToConnect,
     EndGame,
     HandleKick(Option<EventTarget>),
     StartClick(yew::MouseEvent, bool),
@@ -448,7 +427,6 @@ impl Component for Model {
         Self {
             link,
             ws: None,
-            text: String::new(),
             task: None,
             consumers: HashMap::new(),
             producers: HashMap::new(),
@@ -483,7 +461,6 @@ impl Component for Model {
                     let window = web_sys::window;
                     let host: String = window().unwrap().location().host().unwrap();
                     let protocol: String = window().unwrap().location().protocol().unwrap();
-                    // let url = format!("ws://{}/ws/{}/{}/{}", host, v[0], v[1], v[2]);
                     let url = match protocol.as_str() {
                         "http:" => {
                             format!("ws://{}/ws/{}/{}/{}", host, v[0], v[1], v[2])
@@ -493,7 +470,6 @@ impl Component for Model {
                         }
                         &_ => return false,
                     };
-                    // let url = format!("wss://{}/ws/{}/{}/{}", host, v[0], v[1], v[2]);
                     self.personal_id = v[2].to_owned();
                     let task = match WebSocketService::connect_binary(&url, cbout, cbnot) {
                         Err(e) => {
@@ -677,16 +653,12 @@ impl Component for Model {
                             Msg::Connect(cookie_values)
                         } else {
                             ConsoleService::log("Failed to Send Request");
-                            Msg::FailedToConnect
+                            Msg::Ignore
                         }
                     });
                 let task = fetch::FetchService::fetch(post_request, callback).unwrap();
                 self.task = Some(task);
                 false
-            }
-            Msg::FailedToConnect => {
-                self.text.push_str("Failed to reach /wsprep");
-                true
             }
             Msg::EndGame => {
                 if let Some(ref mut task) = self.ws {

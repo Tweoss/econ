@@ -120,7 +120,6 @@ impl Graphs {
         self.consumer_y = f64::powi(1. - t, 3) * 80.
             + 3. * f64::powi(1. - t, 2) * t * 80.
             + 3. * (1. - t) * f64::powi(t, 2) * 70.
-            // + f64::powi(t, 3) * 100.
             + f64::from(extra_y);
     }
     // * Takes in number of iterations, the point to be projected, the start and end bounds on the guess, the resolution (slices), and the control points
@@ -173,10 +172,6 @@ impl Graphs {
             }
             t += tick;
         }
-        // ConsoleService::log(&format!(
-        //     "Best t: {}, best distance: {}, x: {}, y: {}",
-        //     best, best_distance, x, y
-        // ));
         Graphs::get_closest_point_to_cubic_bezier(
             iterations - 1,
             fx,
@@ -202,7 +197,6 @@ enum Msg {
     Ignore,                                     // ignore this message
     Received(Result<ConsumerServerMsg, Error>), // data received from server
     PrepWsConnect,
-    // EndGame,
     StartClick(yew::MouseEvent),
     MouseMove(yew::MouseEvent),
     StartTouch(yew::TouchEvent),
@@ -315,7 +309,6 @@ impl Component for Model {
             Msg::Received(Ok(s)) => {
                 match s.msg_type {
                     ConsumerServerType::Info(info) => {
-                        // let info = s.extra_fields.unwrap().info.unwrap();
                         ConsoleService::log(&format!("{:?}", info));
                         self.producers.extend(
                             info.producers
@@ -369,7 +362,6 @@ impl Component for Model {
                         }
                     }
                     ConsumerServerType::StockReduced(targets) => {
-                        // let targets = s.extra_fields.unwrap().stock_targets.unwrap();
                         for target in targets {
                             if let Some(producer) = self.producers.get_mut(&target.0) {
                                 producer.0.remaining -= &target.1;

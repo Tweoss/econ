@@ -1,13 +1,9 @@
 #![recursion_limit = "1024"]
 use wasm_bindgen::prelude::*;
 
-// #[macro_use]
-
-// #[macro_use]
 extern crate failure;
 extern crate yew;
 
-// use failure::Error;
 use anyhow::Error;
 extern crate console_error_panic_hook;
 use std::panic;
@@ -23,8 +19,6 @@ use yew::services::ConsoleService;
 use serde_json::json;
 
 struct Model {
-	// console: ConsoleService,
-	// ws: Option<WebSocketTask>,
 	link: ComponentLink<Model>,
 	game_id: String, // text in our input box
 	name: String,
@@ -33,7 +27,7 @@ struct Model {
 }
 
 enum Msg {
-	GameIDInput(String), // text was input in the input box
+	GameIdInput(String), // text was input in the input box
 	NameInput(String),   // text was input in the input box
 	SendReq,
 	Receieved(String),
@@ -45,8 +39,6 @@ impl Component for Model {
 
 	fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
 		Model {
-			// console: ConsoleService {},
-			// ws: None,
 			link,
 			game_id: String::new(),
 			name: String::new(),
@@ -57,7 +49,7 @@ impl Component for Model {
 
 	fn update(&mut self, msg: Self::Message) -> ShouldRender {
 		match msg {
-			Msg::GameIDInput(e) => {
+			Msg::GameIdInput(e) => {
 				self.game_id = e; // note input box value
 				true
 			}
@@ -68,26 +60,17 @@ impl Component for Model {
 			Msg::SendReq => {
 				let json = json!({"username": self.name, "viewtype": "player", "game_id": self.game_id, "password": ""});
 				let post_request = Request::post("/cookies")
-					// let post_request = Request::post("https://a.valour.vision/cookies")
-					// .header("Content-Type", "text/plain")
 					.header("Content-Type", "application/json")
 					.body(Json(&json))
 					.unwrap();
-				// .expect("Could not build that request.");
-				// let options = FetchOptions {
-				// 	credentials: Some(web_sys::RequestCredentials::SameOrigin),
-				// 	..FetchOptions::default()
-				// };
 				let callback = self
 					.link
 					.callback(|response: Response<Result<String, Error>>| {
 						if response.status().is_success() {
-							// response.
 							ConsoleService::log("Sent Request and Received Response with code: ");
 							ConsoleService::log(response.status().as_str());
 							if response.body().as_ref().unwrap() == "Success" {
 								js! {
-									console.log("HI");
 									document.getElementById("link").click();
 								}
 							}
@@ -99,7 +82,6 @@ impl Component for Model {
 					});
 				let task = fetch::FetchService::fetch(
 					post_request,
-					// options,
 					callback,
 				)
 				.unwrap();
@@ -113,7 +95,7 @@ impl Component for Model {
 		}
 	}
 	fn view(&self) -> Html {
-		let input_gameid = self.link.callback(|e: InputData| Msg::GameIDInput(e.value));
+		let input_gameid = self.link.callback(|e: InputData| Msg::GameIdInput(e.value));
 		let input_name = self.link.callback(|e: InputData| Msg::NameInput(e.value));
 		let sendreq = self.link.callback(|_| Msg::SendReq);
 		html! {

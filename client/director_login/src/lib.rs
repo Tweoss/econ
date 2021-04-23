@@ -1,13 +1,9 @@
 #![recursion_limit = "1024"]
 use wasm_bindgen::prelude::*;
 
-// #[macro_use]
-
-// #[macro_use]
 extern crate failure;
 extern crate yew;
 
-// use failure::Error;
 use anyhow::Error;
 extern crate console_error_panic_hook;
 use std::panic;
@@ -23,8 +19,6 @@ use yew::services::ConsoleService;
 use serde_json::json;
 
 struct Model {
-	// console: ConsoleService,
-	// ws: Option<WebSocketTask>,
 	link: ComponentLink<Model>,
 	game_id: String, // text in our input box
 	name: String,
@@ -34,8 +28,7 @@ struct Model {
 }
 
 enum Msg {
-	Ignore,              // ignore this message
-	GameIDInput(String), // text was input in the input box
+	GameIdInput(String), // text was input in the input box
 	NameInput(String),   // text was input in the input box
 	SendReq,
 	Received(String),
@@ -48,8 +41,6 @@ impl Component for Model {
 
 	fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
 		Model {
-			// console: ConsoleService {},
-			// ws: None,
 			link,
 			game_id: String::new(),
 			name: String::new(),
@@ -61,8 +52,7 @@ impl Component for Model {
 
 	fn update(&mut self, msg: Self::Message) -> ShouldRender {
 		match msg {
-			Msg::Ignore => false,
-			Msg::GameIDInput(e) => {
+			Msg::GameIdInput(e) => {
 				self.game_id = e; // note input box value
 				false
 			}
@@ -74,21 +64,13 @@ impl Component for Model {
 				ConsoleService::log(&self.password);
 				let json = json!({"username": self.name, "viewtype": "director", "game_id": self.game_id, "password": &self.password});
 				let post_request = Request::post("/cookies")
-					// let post_request = Request::post("https://a.valour.vision/cookies")
-					// .header("Content-Type", "text/plain")
 					.header("Content-Type", "application/json")
 					.body(Json(&json))
 					.unwrap();
-				// .expect("Could not build that request.");
-				// let options = FetchOptions {
-				// 	credentials: Some(web_sys::RequestCredentials::SameOrigin),
-				// 	..FetchOptions::default()
-				// };
 				let callback = self
 					.link
 					.callback(|response: Response<Result<String, Error>>| {
 						if response.status().is_success() {
-							// response.
 							ConsoleService::log("Sent Request and Received Response with code: ");
 							ConsoleService::log(response.status().as_str());
 							if response.body().as_ref().unwrap() == "Success" {
@@ -104,7 +86,6 @@ impl Component for Model {
 					});
 				let task = fetch::FetchService::fetch(
 					post_request,
-					// options,
 					callback,
 				)
 				.unwrap();
@@ -122,7 +103,7 @@ impl Component for Model {
 		}
 	}
 	fn view(&self) -> Html {
-		let input_gameid = self.link.callback(|e: InputData| Msg::GameIDInput(e.value));
+		let input_gameid = self.link.callback(|e: InputData| Msg::GameIdInput(e.value));
 		let input_name = self.link.callback(|e: InputData| Msg::NameInput(e.value));
 		let input_password = self
 			.link
@@ -141,18 +122,6 @@ impl Component for Model {
 				<p class="message">{self.server_data.clone()}</p>
 			</div>
 			<a id="link" class="link" href="/redirect"></a>
-			// // connect button
-			// <p><button onclick=onbuttonconnect,>{ "Connect" }</button></p><br/>
-			// // text showing whether we're connected or not
-			// <p>{ "Connected: " } { !self.ws.is_none() } </p><br/>
-			// // input box for sending text
-			// <p><input type="text", value=&self.text, oninput=inputtext,/></p><br/>
-			// // button for sending text
-			// <p><button onclick=onbuttonsend,>{ "Send" }</button></p><br/>
-			// // text area for showing data from the server
-			// <p><textarea value=&self.server_data,></textarea></p><br/>
-			// // button to send request
-			// <p><button onclick=sendreq,>{ "Send Req" }</button></p><br/>
 			</>
 		}
 	}
@@ -176,11 +145,6 @@ impl Component for Model {
 	}
 }
 
-// fn main() {
-// 	yew::initialize();
-// 	App::<Model>::new().mount_to_body();
-// 	yew::run_loop();
-// }
 #[wasm_bindgen(start)]
 pub fn run_app() {
 	panic::set_hook(Box::new(console_error_panic_hook::hook));

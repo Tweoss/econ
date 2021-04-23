@@ -1,13 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-// #[derive(Debug)]
-// pub enum ParticipantType {
-// 	Director,
-// 	Producer,
-// 	Consumer,
-// 	Viewer,
-// }
-
 #[derive(Debug, Deserialize)]
 pub struct ProducerServerMsg {
 	pub msg_type: ProducerServerType,

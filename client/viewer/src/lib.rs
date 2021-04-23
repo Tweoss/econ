@@ -185,7 +185,6 @@ impl Component for Model {
                         self.trending = info.trending;
                         self.subsidies = info.subsidies;
                         self.supply_shock = info.supply_shock;
-                        // self.is_unsorted = true;
                         self.interval_task = Some(IntervalService::spawn(
                             std::time::Duration::from_secs(1),
                             self.link.callback(|_| Msg::IntervalNotif),

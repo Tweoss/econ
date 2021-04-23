@@ -1,5 +1,4 @@
 use actix::prelude::*;
-// use std::collections::hash_map::DefaultHasher;
 use sha256::digest;
 use std::collections::HashMap;
 use std::sync::RwLock;
@@ -21,7 +20,6 @@ use crate::handle_to_app::*;
 /// ```
 pub struct AppState {
     game_map: RwLock<HashMap<String, Addr<Game>>>,
-    // game_ids: Mutex<Vec<String>>,
     password_hash: String,
 }
 
@@ -46,7 +44,6 @@ impl Handler<DoesGameExist> for AppState {
     fn handle(&mut self, msg: DoesGameExist, _: &mut Context<Self>) -> Self::Result {
         println!("msg: DoesGameExist");
         let string = msg.game_id;
-        // self.game_map.read().unwrap().iter().any(|x| x.0 == string);
         self.game_map.read().unwrap().contains_key(&string)
     }
 }
@@ -67,7 +64,6 @@ impl Handler<IsRightPswd> for AppState {
 impl Handler<NewPlayer> for AppState {
     type Result = ResponseFuture<String>;
     fn handle(&mut self, msg: NewPlayer, _: &mut Context<Self>) -> Self::Result {
-        // let game_addr = self.game_map.read().unwrap().iter().find(|&x| x.0 == msg.game_id).unwrap().1.clone();
         let game_addr = self
             .game_map
             .read()
@@ -90,7 +86,6 @@ impl Handler<NewPlayer> for AppState {
 impl Handler<NewViewer> for AppState {
     type Result = ResponseFuture<bool>;
     fn handle(&mut self, msg: NewViewer, _: &mut Context<Self>) -> Self::Result {
-        // let game_addr = self.game_map.read().unwrap().iter().find(|&x| x.0 == msg.game_id).unwrap().1.clone();
         let game_addr = self
             .game_map
             .read()
@@ -113,7 +108,6 @@ impl Handler<NewViewer> for AppState {
 impl Handler<IsGameOpen> for AppState {
     type Result = ResponseFuture<bool>;
     fn handle(&mut self, msg: IsGameOpen, _: &mut Context<Self>) -> Self::Result {
-        // let game_addr = self.game_map.read().unwrap().iter().find(|&x| x.0 == msg.game_id).unwrap().1.clone();
         let game_addr = self
             .game_map
             .read()
@@ -136,10 +130,6 @@ impl Handler<NewDirector> for AppState {
             .unwrap()
             .get(&msg.game_id)
             .unwrap()
-            // .iter()
-            // .find(|&x| x.0 == msg.game_id)
-            // .unwrap()
-            // .1
             .do_send(app_to_game::NewDirector {
                 user_id: msg.user_id,
                 username: msg.username,
@@ -163,7 +153,6 @@ impl Handler<NewGame> for AppState {
             .write()
             .unwrap()
             .insert(msg.game_id.clone(), game.start());
-        // .insert(0, (msg.game_id.clone(), game.start()));
         println!("Inserted a new game id {}", msg.game_id);
     }
 }
@@ -193,11 +182,8 @@ impl Handler<IsRegisteredDirector> for AppState {
     fn handle(&mut self, msg: IsRegisteredDirector, _context: &mut Context<Self>) -> Self::Result {
         println!("Msg::IsRegisteredDirector");
         if let Some(addr) = self.game_map.read().unwrap().get(&msg.game_id)
-        // .iter()
-        // .find(|&x| x.0 == msg.game_id)
         {
             let async_addr = addr.clone();
-            // let async_addr = addr.1.clone();
             Box::pin(async move {
                 if let Some(name) = async_addr
                     .clone()
@@ -273,9 +259,6 @@ impl Handler<IsRegisteredPlayer> for AppState {
 impl Handler<game_to_app::EndGame> for AppState {
     type Result = ();
     fn handle(&mut self, msg: game_to_app::EndGame, _: &mut Context<Self>) -> Self::Result {
-        // let mut vec = self.game_map.write().unwrap();
-        // let index = vec.iter().position(|elem| elem.0 == msg.game_id).unwrap();
-        // vec.remove(index);
         self.game_map.write().unwrap().remove(&msg.game_id);
         println!("Removed a game from app");
     }

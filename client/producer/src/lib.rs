@@ -32,9 +32,7 @@ use structs::Participant;
 struct Model {
     link: ComponentLink<Self>,
     ws: Option<WebSocketTask>,
-    // server_data: String, // data received from the server
     fetch_task: Option<fetch::FetchTask>,
-    // client_data: DirectorClientMsg,
     producers: HashMap<String, Participant>,
     graph_data: Graphs,
     turn: u64,
@@ -106,8 +104,6 @@ impl Graphs {
     fn producer_move(&mut self, mouse_x: f64, mouse_y: f64) {
         // * extra cost
         let extra_y: i16 = i16::from(self.supply_shock) - i16::from(self.subsidies);
-        // let extra_y: i16 = -(i16::from(self.supply_shock) - i16::from(self.subsidies));
-        // ConsoleService::log(&format!("Mouse_x: {}, mouse_y: {}", mouse_x, mouse_y));
         let t = Graphs::get_closest_point_to_cubic_bezier(
             10,
             mouse_x,
@@ -132,10 +128,6 @@ impl Graphs {
             + 3. * (1. - t) * f64::powi(t, 2) * -10.
             + f64::powi(t, 3) * 100.
             + f64::from(extra_y);
-        // self.producer_y = f64::powi(1. - t, 3) * f64::from(extra_y + 80)
-        //     + 3. * f64::powi(1. - t, 2) * t * f64::from(extra_y - 10)
-        //     + 3. * (1. - t) * f64::powi(t, 2) * f64::from(extra_y - 10)
-        //     + f64::powi(t, 3) * f64::from(extra_y + 100);
     }
     // * Takes in number of iterations, the point to be projected, the start and end bounds on the guess, the resolution (slices), and the control points
     // * Returns the t value of the minimum
@@ -187,10 +179,6 @@ impl Graphs {
             }
             t += tick;
         }
-        // ConsoleService::log(&format!(
-        //     "Best t: {}, best distance: {}, x: {}, y: {}",
-        //     best, best_distance, x, y
-        // ));
         Graphs::get_closest_point_to_cubic_bezier(
             iterations - 1,
             fx,
@@ -234,8 +222,6 @@ enum Msg {
     Ignore,                                     // ignore this message
     Received(Result<ProducerServerMsg, Error>), // data received from server
     PrepWsConnect,
-    // EndGame,
-    // HandleKick(Option<EventTarget>),
     StartClick(yew::MouseEvent),
     MouseMove(yew::MouseEvent),
     StartTouch(yew::TouchEvent),
@@ -244,9 +230,6 @@ enum Msg {
     Quantity(yew::InputData),
     Price(yew::html::InputData),
     Submit,
-    // ToggleOpen,
-    // AdjustOffset(u8),
-    // NextTurn,
 }
 
 impl Model {

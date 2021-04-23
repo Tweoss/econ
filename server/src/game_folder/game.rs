@@ -415,14 +415,6 @@ impl Game {
 				})
 			}
 		}
-		// for elem in self.viewers.read().unwrap().values() {
-		// 	if let Some(addr) = &elem.addr {
-		// 		addr.do_send(game_to_viewer::NewParticipant {
-		// 			name: msg.username.clone(),
-		// 			is_consumer: true,
-		// 		});
-		// 	}
-		// }
 	}
 }
 
@@ -967,7 +959,6 @@ impl Handler<director_to_game::ForceTurn> for Game {
 }
 
 impl Handler<producer_to_game::RegisterAddressGetInfo> for Game {
-	// type Result = MessageResult<director_structs::Info>;
 	type Result = ();
 	fn handle(
 		&mut self,
@@ -1055,7 +1046,6 @@ impl Handler<producer_to_game::NewScoreEndTurn> for Game {
 }
 
 impl Handler<consumer_to_game::RegisterAddressGetInfo> for Game {
-	// type Result = MessageResult<director_structs::Info>;
 	type Result = ();
 	fn handle(
 		&mut self,
