@@ -27,7 +27,8 @@ impl AppState {
     pub fn new() -> AppState {
         AppState {
             game_map: RwLock::new(HashMap::new()),
-            password_hash: "758f2150b576d05450a0517d125e3d487886b95a60603c7aebee81991d22db5b".to_string(),
+            password_hash: "758f2150b576d05450a0517d125e3d487886b95a60603c7aebee81991d22db5b"
+                .to_string(),
         }
     }
 }
@@ -182,8 +183,7 @@ impl Handler<IsRegisteredDirector> for AppState {
     type Result = ResponseFuture<Option<(Addr<Game>, String)>>;
     fn handle(&mut self, msg: IsRegisteredDirector, _context: &mut Context<Self>) -> Self::Result {
         println!("Msg::IsRegisteredDirector");
-        if let Some(addr) = self.game_map.read().unwrap().get(&msg.game_id)
-        {
+        if let Some(addr) = self.game_map.read().unwrap().get(&msg.game_id) {
             let async_addr = addr.clone();
             Box::pin(async move {
                 if let Some(name) = async_addr
