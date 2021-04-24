@@ -1,4 +1,5 @@
 use actix::prelude::*;
+
 /// Register a new player \
 /// Forwarded from App
 #[derive(Message)]
