@@ -27,7 +27,7 @@ struct Model {
 }
 
 enum Msg {
-	GameIDInput(String), // text was input in the input box
+	GameIdInput(String), // text was input in the input box
 	NameInput(String),   // text was input in the input box
 	SendReq,
 	Receieved(String),
@@ -49,7 +49,7 @@ impl Component for Model {
 
 	fn update(&mut self, msg: Self::Message) -> ShouldRender {
 		match msg {
-			Msg::GameIDInput(e) => {
+			Msg::GameIdInput(e) => {
 				self.game_id = e; // note input box value
 				true
 			}
@@ -95,7 +95,7 @@ impl Component for Model {
 		}
 	}
 	fn view(&self) -> Html {
-		let input_gameid = self.link.callback(|e: InputData| Msg::GameIDInput(e.value));
+		let input_gameid = self.link.callback(|e: InputData| Msg::GameIdInput(e.value));
 		let input_name = self.link.callback(|e: InputData| Msg::NameInput(e.value));
 		let sendreq = self.link.callback(|_| Msg::SendReq);
 		html! {
