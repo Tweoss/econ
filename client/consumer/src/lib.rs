@@ -382,6 +382,9 @@ impl Component for Model {
                             document.getElementById("win-modal").click();
                         }
                     }
+                    ConsumerServerType::TurnEnded => {
+                        self.took_turn = true;
+                    }
                 }
                 true
             }

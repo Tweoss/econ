@@ -339,14 +339,14 @@ async function init(input) {
         var ret = false;
         return ret;
     };
-    imports.wbg.__wbg_cargowebsnippet3d2453d4f03b640253f3ee5eff194a830083f827_ffdeca9637f6c808 = function(arg0) {
-        __cargo_web_snippet_3d2453d4f03b640253f3ee5eff194a830083f827(takeObject(arg0));
-    };
     imports.wbg.__wbg_cargowebsnippete246c7c3a320ec351337378aff599a545c88f89d_904eb6d7bc6093dc = function(arg0) {
         __cargo_web_snippet_e246c7c3a320ec351337378aff599a545c88f89d(takeObject(arg0));
     };
     imports.wbg.__wbg_cargowebsnippet584d971e339d304ad4f34678df47567c864e5b18_b1b7769e314beb06 = function(arg0) {
         __cargo_web_snippet_584d971e339d304ad4f34678df47567c864e5b18(takeObject(arg0));
+    };
+    imports.wbg.__wbg_cargowebsnippet3d2453d4f03b640253f3ee5eff194a830083f827_ffdeca9637f6c808 = function(arg0) {
+        __cargo_web_snippet_3d2453d4f03b640253f3ee5eff194a830083f827(takeObject(arg0));
     };
     imports.wbg.__wbindgen_object_clone_ref = function(arg0) {
         var ret = getObject(arg0);

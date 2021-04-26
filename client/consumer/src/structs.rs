@@ -11,6 +11,7 @@ pub enum ConsumerServerType {
 	GameEnded,
 	TurnAdvanced(f64, f64),
 	TurnInfo(TurnInfo),
+	TurnEnded,
 	ChoiceSubmitted(f64, f64, f64),
 	NewOffsets(Offsets),
 	Ping,

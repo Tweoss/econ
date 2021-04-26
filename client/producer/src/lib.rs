@@ -616,8 +616,8 @@ impl Component for Model {
                                 </div>
                             </div>
                             <form>
-                                <div class="form-group" style="width: 45%;"><label for="Quantity" style="width: 40%;">{"Quantity"}</label><input oninput=change_quantity class="form-control" type="number" style="width: 60%;background: var(--secondary);color: var(--white);text-align: center;" placeholder="0" min="0" max="80"/></div>
-                                <div class="form-group" style="width: 45%;"><label for="Price"    style="width: 40%;">{"Price"}   </label><input oninput=change_price class="form-control" type="number" style="width: 60%;color: var(--white);background: var(--secondary);text-align: center;" placeholder="0" min="0" max="100"/></div>
+                                <div class="form-group"><label for="Quantity" style="width: 40%;">{"Quantity"}</label><input oninput=change_quantity class="form-control" type="number" placeholder="0" min="0" max="80"/></div>
+                                <div class="form-group"><label for="Price"    style="width: 40%;">{"Price"}   </label><input oninput=change_price class="form-control" type="number" placeholder="0" min="0" max="100"/></div>
                             </form>
                             <div class="d-flex">
                                 <p class="text-center text-danger mb-auto text-info" style="width: 100%;">{&self.error_msg}</p>
