@@ -665,7 +665,7 @@ impl Component for Model {
                                 <div class="modal-body">
                                     <p data-bss-hover-animate="swing">{&format!("You were in {} place. Your verification hash is: {}.", Ordinal(self.winner.as_ref().unwrap_or(&("".to_string(), 0)).1).to_string(), self.winner.as_ref().unwrap_or(&("".to_string(), 0)).0)}</p>
                                 </div>
-                                <div class="modal-footer"><a class="btn btn-info active" role="button" data-dismiss="modal" href="/login/index.html">{"Continue to Login"}</a></div>
+                                <div class="modal-footer"><a class="btn btn-info active" role="button" href="/login/index.html">{"Continue to Login"}</a></div>
                             </div>
                         </div>
                     </div>
